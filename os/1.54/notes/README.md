@@ -37,6 +37,11 @@ The same features as the OS 1.52A build, carried over to this image by the metho
 Where each feature's code sits in this image: [function_ledger.md](function_ledger.md) and
 [docs/patch_listing.md](../docs/patch_listing.md).
 
+✅ Read in the code by emulation: the seven pad harnesses in
+[scripts/emu/README.md](../scripts/emu/README.md) pass on the reference build. They step the pad code
+of pool cursors, the MIDI Loopback private lane and display pads, the SLICE latch, the three POLY
+track aliases and the machine-list edit in Ghidra's p-code emulator, with stubbed callees.
+
 ## Addresses
 
 - **MAIN OS (section 3)** addresses are load addresses. Section 3 loads at `0x40000400` in DDR, so
