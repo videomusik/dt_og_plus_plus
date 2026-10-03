@@ -69,7 +69,7 @@ How it is made, and its reference numbers: [analysis_reference.md](analysis_refe
 
 **Before writing a patch** (the update path first): [update_moat.md](update_moat.md),
 [landing_pads.md](landing_pads.md), [memory_map.md](memory_map.md),
-[compatibility.md](compatibility.md).
+[startup_hooks.md](startup_hooks.md), [compatibility.md](compatibility.md).
 
 ## Index
 
@@ -81,6 +81,7 @@ How it is made, and its reference numbers: [analysis_reference.md](analysis_refe
 - [landing_pads.md](landing_pads.md): the pads that hold the new code, why each is dead here, and the
   `.rodata` space.
 - [memory_map.md](memory_map.md): DDR, the RAM this build uses, and the SRAM.
+- [startup_hooks.md](startup_hooks.md): the build's code that runs at startup, and what checked it.
 - [stock_image.md](stock_image.md): every measured figure of the stock image, section 2's run base
   and section 8.
 - [update_moat.md](update_moat.md): the protected set, how it was fixed, and the routes it does not
