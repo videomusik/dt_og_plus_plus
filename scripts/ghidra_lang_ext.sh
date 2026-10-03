@@ -33,12 +33,12 @@ build="work/ghidra_ext/build"
 ver="$(sed -n 's/^application\.version=//p' "$GHIDRA_INSTALL_DIR/Ghidra/application.properties")"
 [ -n "$ver" ] || { echo "error: could not read application.version from the Ghidra install" >&2; exit 1; }
 
-# Ghidra's user settings root is platform-specific; the Extensions folder lives inside it.
-# ⚠️ The non-Darwin path is not tested: Ghidra 11.1 and later probably use
-# ${XDG_CONFIG_HOME:-$HOME/.config}/ghidra/ghidra_<ver>_PUBLIC on Linux instead.
+# Ghidra's user settings folder is platform-specific; the Extensions folder lives inside it. The rules
+# are in support/launch.properties of the Ghidra install. Not followed here: an application.settingsdir
+# override there, and XDG_CONFIG_HOME on macOS.
 case "$(uname -s)" in
     Darwin) user_root="$HOME/Library/ghidra/ghidra_${ver}_PUBLIC" ;;
-    *)      user_root="$HOME/.ghidra/.ghidra_${ver}_PUBLIC" ;;
+    *)      user_root="${XDG_CONFIG_HOME:-$HOME/.config}/ghidra/ghidra_${ver}_PUBLIC" ;;
 esac
 ext_dir="$user_root/Extensions/$EXT_NAME"
 

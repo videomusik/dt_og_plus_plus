@@ -97,7 +97,7 @@ while section 2 runs):
 
 | Range | Occupant |
 |---|---|
-| `0x80000000..0x80003xxx` | MAIN OS's voice-parameter arrays: the u16 mirror at `0x80001502` (stride `0x6a`) and its 16.16 expansion at `0x80002B50` (stride `0xd4`), for eight tracks plus master ([render_path.md](render_path.md)). Section 2's code (`0x80000ec0..0x800076d6`, [section2_map.md](section2_map.md)) also loads across this range, so the two are not resident together. ⚠️ How and when section 2 is copied into bank 1 is open |
+| `0x80000000..0x80003xxx` | MAIN OS's voice-parameter arrays: the u16 mirror at `0x80001502` (stride `0x6a`) and its 16.16 expansion at `0x80002B50` (stride `0xd4`), for eight tracks plus master ([render_path.md](render_path.md)). Section 2 (`0x80000ec0..0x800076d6`, code and data, [section2_map.md](section2_map.md)) also loads across this range, so the two are not resident together. ⚠️ How and when section 2 is copied into bank 1 is open |
 | up to `0x80007644`, downward | Section 2's stack (`move.l #0x80007644,sp` at `0x800065d2`) |
 | `0x80008000..0x80008300` | Section 2's scalar variables (about 25, up to `0x800082f6`) |
 | `0x80008000..0x8000bf80` | MAIN OS's USB/DMA descriptor rings and buffers (below) |
