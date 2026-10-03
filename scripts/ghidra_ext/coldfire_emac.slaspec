@@ -1,0 +1,9 @@
+# ColdFire with the EMAC gaps patched — see coldfire_emac.patch and this folder's README.
+# Identical to Ghidra's stock coldfire.slaspec (Apache-2.0; see NOTICE.md) apart from these comments;
+# it picks up the PATCHED copy of 68000.sinc that scripts/ghidra_lang_ext.sh places next to it in the
+# build directory.
+
+@define COLDFIRE ""
+@define MC68040 ""
+
+@include "68000.sinc"

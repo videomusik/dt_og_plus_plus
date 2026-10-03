@@ -1,0 +1,82 @@
+--- a/68000.sinc
++++ b/68000.sinc
+@@ -3029,7 +3029,20 @@
+   macrw = m_eal;
+ }
+ 
+-:mac.l macregy_e, reg12x^scalefactor, m_eal, macrw, accreg	is ((op=10 & macrw & op6=0 & op8=0 ; reg12x & fbit=0 & wl=1 & scalefactor & macregy_e) ... & accreg ...) ... & m_eal
++# op6=0 (data-reg Rw): EXCLUDE mode=5 so the dedicated (d16,An) word-3-d16 constructor below outranks it
++# (m_eal reads d16 from the extension word, mis-sizing the 6-byte insn to 4).
++:mac.l macregy_e, reg12x^scalefactor, m_eal, macrw, accreg	is ((op=10 & macrw & op6=0 & op8=0 & (mode=2 | mode=3 | mode=4) ; reg12x & fbit=0 & wl=1 & scalefactor & macregy_e) ... & accreg ...) ... & m_eal
++{
++  local tmp = macregy_e * reg12x;
++  tmp = tmp << (scalefactor == 1);
++  tmp = tmp >> (scalefactor == 2);
++  accreg = accreg + tmp;
++  macrw = m_eal;
++}
++
++# mac.l-with-load, Rw an ADDRESS register (op6=1); the stock op6=0 pin could never match op6=1.
++# Modes 2/3/4 only; mode=5 ((d16,An)) is the dedicated word-3-d16 constructor below.
++:mac.l macregy_e, reg12x^scalefactor, m_eal, macrw, accreg	is ((op=10 & macrw & op6=1 & op8=0 & (mode=2 | mode=3 | mode=4) ; reg12x & fbit=0 & wl=1 & scalefactor & macregy_e) ... & accreg ...) ... & m_eal
+ {
+   local tmp = macregy_e * reg12x;
+   tmp = tmp << (scalefactor == 1);
+@@ -3075,6 +3088,26 @@
+ moveaccreg2: ACC3  is ACC3 & op01=3    { export ACC3; }
+ 
+ :move.l moveaccreg, reg03y  is op=0b1010 & op11=0 & moveaccreg & op8=1 & op47=0b1000 & reg03y    { reg03y = moveaccreg; }
++
++# MOVCLR.L ACCx,Rx - read an accumulator and clear it. Differs from the plain read above by
++# bit 6 only (op47=0b1100 vs 0b1000). Verified against m68k-elf-objdump -m m68k:cfv4e.
++# NOTE: like the stock MAC constructors, this models neither MACSR flag updates, accumulator
++# saturation, nor the ACCext extension bytes - decode and data flow only.
++:movclr.l moveaccreg, reg03y  is op=0b1010 & op11=0 & moveaccreg & op8=1 & op47=0b1100 & reg03y    { reg03y = moveaccreg; moveaccreg = 0; }
++
++# mac.l Ry,Rx,(d16,An),Rw - the (d16,An) mode-5 form (BOTH op6=0 data-reg and op6=1 addr-reg Rw). The
++# op6-specific constructors above exclude mode=5 because m_eal reads d16 from word 2 (the extension
++# word), so a 6-byte insn decodes as 4. Here d16 is placed in word 3 (a third ';'); no op6 pin (macrw
++# selects the reg by op6); mode=5 outranks the m_eal forms. Verified vs objdump at 0x40075cfa/0x400721c6.
++:mac.l macregy_e, reg12x^scalefactor, (d16,regan), macrw, accreg	is ((op=10 & macrw & op8=0 & mode=5 & regan ; reg12x & fbit=0 & wl=1 & scalefactor & macregy_e ; d16) ... & accreg ...)
++{
++  local addr = regan + d16;
++  local tmp = macregy_e * reg12x;
++  tmp = tmp << (scalefactor == 1);
++  tmp = tmp >> (scalefactor == 2);
++  accreg = accreg + tmp;
++  macrw = *:4 addr;
++}
+ 
+ :move.l ACCext01, eal       is (op=0b1010 & op811=0b1011 & op67=0 & ACCext01 & (mode=0 | mode=1 | mode=7)) ... & eal   { ACCext01 = eal; }
+ :move.l ACCext23, eal       is (op=0b1010 & op811=0b1111 & op67=0 & ACCext23 & (mode=0 | mode=1 | mode=7)) ... & eal   { ACCext23 = eal; }
+@@ -3158,7 +3191,7 @@
+   macrw = m_eal;
+ }
+ 
+-:msac.l macregy_e, reg12x^scalefactor, m_eal, macrw, accreg	is ((op=10 & macrw & op8=0 ; reg12x & fbit=1 & wl=1 & scalefactor & macregy_e) ... & accreg ...) ... & m_eal
++:msac.l macregy_e, reg12x^scalefactor, m_eal, macrw, accreg	is ((op=10 & macrw & op8=0 & (mode=2 | mode=3 | mode=4) ; reg12x & fbit=1 & wl=1 & scalefactor & macregy_e) ... & accreg ...) ... & m_eal
+ {
+   local tmp = macregy_e * reg12x;
+   tmp = tmp << (scalefactor == 1);
+@@ -3167,6 +3200,21 @@
+   macrw = m_eal;
+ }
+ 
++# msac.l Ry,Rx,(d16,An),Rw - the (d16,An) mode-5 form (BOTH op6=0 data-reg and op6=1 addr-reg Rw),
++# sibling of the mac.l mode-5 constructor above. The stock msac.l-with-load (no op6 pin) excludes
++# mode=5 for the same reason mac.l does: m_eal reads d16 from word 2 (the extension word), so a
++# 6-byte insn decodes as 4. Here d16 is in word 3 (a third ';'); macrw picks the reg by op6; msac
++# subtracts. Verified vs objdump at 0x40073b6e/0x40075d24.
++:msac.l macregy_e, reg12x^scalefactor, (d16,regan), macrw, accreg	is ((op=10 & macrw & op8=0 & mode=5 & regan ; reg12x & fbit=1 & wl=1 & scalefactor & macregy_e ; d16) ... & accreg ...)
++{
++  local addr = regan + d16;
++  local tmp = macregy_e * reg12x;
++  tmp = tmp << (scalefactor == 1);
++  tmp = tmp >> (scalefactor == 2);
++  accreg = accreg - tmp;
++  macrw = *:4 addr;
++}
++
+ :msaac.l reg03y, reg9dn^scalefactor, accreg, accw	is (op=10 & reg9dn & reg03y & op6=0 & op8=0 & op45=0 ; fbit=1 & wl=1 & scalefactor & accw & odsize=3) ... & accreg ...
+ {
+   local tmp = reg03y * reg9dn;

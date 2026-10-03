@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- A SEPARATE language id from the stock 68000:BE:32:Coldfire, so the built-in one is left intact
+     and the two can be compared. A program is bound to the language it was imported with, so
+     switching an existing project to this one means re-importing the section.
+     Adapted from the ColdFire entry of Ghidra's 68000.ldefs (Apache-2.0); see NOTICE.md. -->
+
+<language_definitions>
+  <language processor="68000"
+            endian="big"
+            size="32"
+            variant="ColdfireEMAC"
+            version="1.0"
+            slafile="coldfire_emac.sla"
+            processorspec="68000.pspec"
+            id="68000:BE:32:ColdfireEMAC">
+    <description>Motorola 32-bit ColdFire, EMAC MOVCLR + mac.l/msac.l-with-load fix (DT OG++)</description>
+    <compiler name="default" spec="68000.cspec" id="default"/>
+    <compiler name="register" spec="68000_register.cspec" id="register"/>
+    <external_name tool="DWARF.register.mapping.file" name="68000.dwarf"/>
+  </language>
+</language_definitions>

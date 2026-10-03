@@ -1,0 +1,53 @@
+# DT OG++ - what must never be committed.
+#
+# You supply the stock firmware and your own manual locally; the tool is built
+# locally; builds and analysis are produced locally. None of it is ever
+# distributed. Elektron firmware and manual text in particular can never be
+# redistributed, so their whole directories are ignored, plus the file kinds
+# themselves in case one is dropped elsewhere in the tree.
+# (Git has no inline comments: every comment below is on its own line.)
+
+# --- user-supplied and generated directories -------------------------------
+# your own stock Digitakt_OS1.52A.syx goes here
+sysex/
+# your own manual PDF goes here
+manuals/
+# the firmware tool is cloned and built into tool/ locally
+tool/
+# built firmware output
+out/
+# analysis and intermediate files
+work/
+# Python bytecode (build/make_listing.py imports build/build.py)
+__pycache__/
+# your own, personal agent memory file (CLAUDE.md imports it if it exists)
+/MEMORY.md
+
+# --- firmware / section / build artefacts (by kind) ------------------------
+*.syx
+*.SYX
+*.bin
+section_*
+*.raw
+
+# --- manuals (by kind) -----------------------------------------------------
+*.pdf
+*.PDF
+
+# --- Ghidra project files --------------------------------------------------
+*.gpr
+*.rep/
+*.gbf
+*.prp
+
+# --- agent-harness and private-memory litter -------------------------------
+.claude/
+.shared_memory
+
+# --- logs ------------------------------------------------------------------
+*.log
+
+# --- macOS litter ----------------------------------------------------------
+.DS_Store
+._*
+__MACOSX

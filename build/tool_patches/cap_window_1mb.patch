@@ -1,0 +1,31 @@
+Cap the compressor's back-reference window at 1 MB (0x100000).
+
+Target: github.com/mischa85/elektron-firmware-tool, commit 065d18f4195793e61891e387813488ee59f6d1ca.
+The tool is MIT-licensed (Copyright (c) 2026 Marcel Bierling); the context lines below are its code,
+see the LICENSE file in the upstream checkout. Applied by build/build_tool.sh with
+  patch --forward --strip=1 --directory=<copy of the checkout> < build/tool_patches/cap_window_1mb.patch
+
+--- a/compress.c
++++ b/compress.c
+@@ -44,6 +44,12 @@
+ #define HSIZE (1<<HBITS)
+ #define MAX_CHAIN 2048
+ #define MAX_MATCH 2048
++/* Stock Digitakt OS 1.52A images never use a back-reference beyond a 1 MB window: the largest
++ * offset in the 2.2 MB MAIN OS stream is 1,048,572, just under 0x100000. The optimal parser here
++ * is unbounded and reaches ~2.1 MB, which asks the on-device depacker for something no stock
++ * image asks of it. Capping costs a little compression ratio and keeps the output inside the
++ * envelope the depacker is known to handle. */
++#define MAX_OFFSET 0x100000
+ #define COST_INF 0xFFFFFFFFu
+ 
+ static inline uint32_t hash2(const uint8_t *d){
+@@ -95,6 +101,8 @@
+             int32_t j=head[hash2(data+i)]; int chain=MAX_CHAIN; uint32_t pm=1;
+             while(j>=0 && chain--){
+                 uint32_t off=(uint32_t)(i-(size_t)j);
++                if(off>MAX_OFFSET) break;   /* chain is ordered by decreasing position, so every
++                                             * later candidate is farther still: stop, don't skip. */
+                 uint32_t l=match_run(data,(size_t)j,i,cap);
+                 if(l>pm){
+                     uint32_t mn=(off>APLIB_FAR_THRESHOLD)?APLIB_MIN_MATCH+1:APLIB_MIN_MATCH;

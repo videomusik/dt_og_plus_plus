@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(./scripts/manual_extract.sh:*)",
+      "Bash(./scripts/manual/crop.sh:*)",
+      "Bash(./scripts/manual/now.sh)",
+      "Bash(python3 scripts/manual/make_chapters.py:*)",
+      "Bash(grep:*)",
+      "Read(./manuals/**)",
+      "Read(./scripts/manual/**)",
+      "Read(./work/manuals/**)",
+      "Edit(./work/manuals/**)"
+    ],
+    "deny": [
+      "Edit(./sysex/**)",
+      "Edit(./manuals/**)"
+    ]
+  }
+}
