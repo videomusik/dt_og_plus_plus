@@ -3,9 +3,11 @@
 Follow the sections in order; each ends with a check. Everything here works on files. No step
 connects to a Digitakt or changes one.
 
-Written for **macOS on Apple Silicon**, where it is tested, with notes for Linux and for Windows
-(through WSL2) in [section 7](#7-linux-and-windows). Tested with Ghidra 12.1.3, OpenJDK 21 and the
-macOS system Python 3.
+Written for **macOS on Apple Silicon** and **Linux**, with notes for Linux and for Windows (through
+WSL2) in [section 7](#7-linux-and-windows). The build and the analysis scripts are run on Linux
+(Debian 12, arm64), with Ghidra 12.1.3, OpenJDK 21 and Python 3. The shell scripts keep to bash 3.2
+and the BSD tools so that they also run on macOS, but their current versions have not been run there.
+The manual pipeline (section 6) needs macOS.
 
 Building DT OG++ needs only sections 0–3. Sections 4–6 are for analysing the firmware yourself; the
 notes that analysis produced, and how to re-check them, start at [`notes/README.md`](../notes/README.md).
@@ -488,8 +490,9 @@ in [`scripts/manual/README.md`](../scripts/manual/README.md).
 
 **Linux.** The build and the analysis scripts use only bash, POSIX tools, Python's standard library,
 `cc` and `patch`; none needs GNU-only or macOS-only options. The build (`build/build_tool.sh`,
-`os/<os>/build/build.py`, `os/<os>/build/verify.py`) runs on Linux (Debian 12, arm64); the analysis
-scripts are expected to work there but have not been run on Linux.
+`os/<os>/build/build.py`, `os/<os>/build/verify.py`) and the analysis scripts (the extract, round
+trip and disassembly scripts, the Ghidra wrappers and the emulator harnesses) run on Linux
+(Debian 12, arm64).
 
 - Ghidra: the release zip and `openjdk-21-jdk` (section 4a); set `GHIDRA_INSTALL_DIR` and `JAVA_HOME`.
   The EMAC extension installs into Ghidra's user settings folder,
