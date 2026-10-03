@@ -73,6 +73,13 @@ here rest on the three checks above.
 
 The transfer task is 5,640 B to its last instruction. How it handles section 8 has not been traced.
 
+## The STARTUP menu's OS upgrade
+
+✅ The OS upgrade of the STARTUP menu is section 2 code (its menu, progress and error strings are
+referenced from section 2; [stock_image.md](stock_image.md#section-2s-run-base)). A build leaves
+section 2 byte-identical, so that route does not run any code a build changes. ⚠️ Whether it calls
+into MAIN OS at any point (for example the flash driver) has not been traced.
+
 ## Routes the set does not cover
 
 These read or reach the flash and lie outside `PROTECTED`. No run of this build touches any of them

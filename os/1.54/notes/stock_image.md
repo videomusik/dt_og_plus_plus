@@ -76,9 +76,23 @@ an `rts`), not the base. A test that counts `jsr` targets that merely land insid
 tell these bases apart: for any base within a few KB, 87 of 97 targets land inside. Calls made with
 PC-relative addressing look like function starts at any base, so they cannot either.
 
-⚠️ So section 2 is the bootstrap that holds the STARTUP menu and its test views (strings above). How
-its 24 B header maps onto SRAM when it is loaded (byte 0 at `0x800003fc`, or the code at
-`0x80000414` after an 8 B prefix at `0x80000404`) needs the loader, which is not in this image.
+So section 2 is the bootstrap that holds the STARTUP menu, its test views and its OS upgrade. Its
+referenced strings (at `0x80000414`) include the menu (`STARTUP MENU`, `... TEST MODE`,
+`2 ... EMPTY RESET`, `3 ... FACTORY RESET`, `4 ... OS UPGRADE`, `5 ... EXIT`), the upgrade's progress
+and errors (`READY TO RECEIVE`, `RECEIVING...`, `UPGRADING...`, `CRC CHECK`, `VERSION CHECK`,
+`LENGTH ERROR`, `DOWNGRADE NOT POSSIBLE`, `BOOTSTRAP UPGRADE`) and the self-test report (`DRAM:`,
+`AUDIO CLK:`, `UI FIRMWARE: 1.%d.%d`, `OS: %s`). ✅ The STARTUP menu's OS upgrade is section 2 code: it
+does not run from MAIN OS, which is the only section a build changes.
+
+**The version check** (`0x80003e1c..0x80004164`, objdump): the bootstrap compares the 32-bit word at
+`0x40000010` with the four-character constants `"002/"`, `"0057"`, `"0067"`, `"0071"`, `"0090"` and
+`"009/"`, combined with a hardware ID it reads through `0x800030f4` and a flag at `0x8000770e`, and on
+failure shows `DOWNGRADE NOT POSSIBLE`. ⚠️ `0x40000010` is offset 8 of the received container when the
+decoded stream, with its 8 B preamble, is staged at `0x40000000`: the container's build/model field
+(`0107` in this image). Which hardware condition selects which threshold has not been worked out.
+
+⚠️ How the 24 B header maps onto SRAM when the section is loaded (byte 0 at `0x800003fc`, or the code
+at `0x80000414` after an 8 B prefix at `0x80000404`) needs the loader, which is not in this image.
 
 ## Section 8
 

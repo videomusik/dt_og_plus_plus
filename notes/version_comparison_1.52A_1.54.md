@@ -28,6 +28,23 @@ absolute `jsr` targets follow an `rts` and 67 of 83 strings are referenced at th
 `0x80000ec0` (OS 1.52A), 2 and 0. The OS 1.52A notes give `0x80000ec0` as the run base; the OS 1.52A
 header's third word is a function address there, as in OS 1.54.
 
+## Moving between the two versions
+
+- **The version checks.** Both versions' bootstraps (section 2) and both MAIN OS sections compare a
+  received image's build/model field with the same four-character thresholds: `"002/"`, `"0057"`,
+  `"0067"`, `"0071"`, `"0090"`, `"009/"` in section 2, and the same set plus `"0021"` in MAIN OS
+  (objdump of both images). OS 1.54 raised none of them. The two images' build/model fields, `0097`
+  (OS 1.52A) and `0107` (OS 1.54), are above all of them. ⚠️ So the version check most likely treats
+  an OS 1.52A image the same whichever of the two versions receives it. Not tried on a unit.
+- **Stored kits.** The kit gate accepts version 9 in OS 1.52A and version 10 in OS 1.54
+  (OS 1.54: `0x4007a4ce`; the OS 1.52A gate is described in its compatibility note). On a mismatch
+  the OS 1.52A loader initialises a cleared kit. ⚠️ So a project saved under OS 1.54 most likely loses
+  its kits when it is loaded under OS 1.52A.
+- **The bootstrap.** Elektron's release notes say the bootstrap is upgraded after some OS upgrades, on
+  the first restart. Section 2 differs between the two images. Whether flashing the OS 1.52A image
+  onto a unit whose bootstrap came from OS 1.54 rewrites the bootstrap, and with which one, has not
+  been traced.
+
 ## Where the new code went
 
 The MAIN OS sections were aligned with every address-like word masked (any 32-bit value in DDR,
