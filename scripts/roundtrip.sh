@@ -3,24 +3,29 @@
 # rebuilt .syx, re-extract it, and compare every decompressed section byte for byte.
 # Passing this is the precondition for trusting the tool with any real modification.
 #
-#   ./scripts/roundtrip.sh                  # your stock file (needs ./scripts/extract.sh first)
-#   ./scripts/roundtrip.sh out/<build>.syx  # any .syx that ./scripts/extract.sh has extracted
+#   ./scripts/roundtrip.sh <image>
+#   ./scripts/roundtrip.sh <os>                       # your stock file (./scripts/extract.sh <os> first)
+#   ./scripts/roundtrip.sh <os>:out/<os>/<build>.syx  # any .syx of that OS, once extracted
 #
 # Expected: the rebuilt rt.syx reports "checksums : ok", and every compared section prints
 # "identical". rt.syx itself will NOT match the original .syx: the tool's compressor emits a different
 # (valid) stream, so only decompressed sections are compared, never the containers.
 
 source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
+
+usage="usage: $0 <image>   (<image> = <os> or <os>:<file.syx>)"
+if [ $# -ne 1 ]; then echo "$usage" >&2; os_usage_list; exit 2; fi
+image_parse "$1"
 require_tool
 
-key="${1:-dt}"
-syx="$(image_syx "$key")"
-dir="$(image_dir "$key")"
+key="$IMG_ARG"
+syx="$IMG_SYX"
+dir="$IMG_DIR"
 rt="$dir/roundtrip"
-check_image "$key" "$syx"
+check_image
 
-MAIN_ID=3                                   # MAIN OS is section id 3 in the Digitakt's ELE3 container
-main_file="$(section_file "$dir" "$MAIN_ID")"
+MAIN_ID="$OS_MAIN_ID"                       # this OS's MAIN OS section id, from its profile
+main_file="$(section_file "$dir" "$MAIN_ID")" || exit 1
 
 mkdir -p "$rt"
 
@@ -55,7 +60,7 @@ for f in "$rt"/section_*; do
     name="$(basename "$f")"
     [ -f "$dir/$name" ] || { echo "EXTRA     $name (only in the re-extract)"; status=1; }
 done
-[ "$found" -gt 0 ] || { echo "error: no section files in $dir (run ./scripts/extract.sh first)" >&2; status=1; }
+[ "$found" -gt 0 ] || { echo "error: no section files in $dir (run ./scripts/extract.sh $key first)" >&2; status=1; }
 
 if [ $status -eq 0 ]; then
     banner "round-trip OK for $key"

@@ -26,5 +26,5 @@ files the built extension needs, are **not** in this repository. `scripts/ghidra
 them out of your local Ghidra install at build time, patches the copy, and installs the result into
 your own Ghidra user folder.
 
-The Ghidra Java scripts in `scripts/ghidra/` and `scripts/emu/` call Ghidra's scripting API but
-contain no Ghidra source code; they are not covered by this notice.
+The Ghidra Java scripts in `scripts/ghidra/` and the OS folders' `os/*/scripts/` call Ghidra's
+scripting API but contain no Ghidra source code; they are not covered by this notice.

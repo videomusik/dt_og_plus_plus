@@ -35,9 +35,9 @@ yours:
 | Size | 4,551,748 bytes, 96 pages |
 | SHA-256 | `8d085bac9be47d3c9fc639e43f54b1a2a413d0f9b1b73e9557f579b6f933a48e` |
 
-The firmware this repo patches is OS 1.52A, but this OS1.50 manual edition is the reference. With a
-different edition the pipeline still works; only the page and chapter numbers differ, so look
-things up by section title instead.
+Each OS folder records which manual edition its notes were checked against; this OS1.50 manual
+edition is the reference. With a different edition the pipeline still works; only the page and
+chapter numbers differ, so look things up by section title instead.
 
 ## Phase 1: mechanical (one command, about 10–40 s)
 

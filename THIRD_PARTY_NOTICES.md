@@ -55,14 +55,14 @@ SOFTWARE.
   [scripts/ghidra_ext/LICENSE-Apache-2.0.txt](scripts/ghidra_ext/LICENSE-Apache-2.0.txt).
 - Ghidra itself is not included. `scripts/ghidra_lang_ext.sh` copies the other files the extension
   needs out of your own Ghidra install at build time. The Ghidra scripts in `scripts/ghidra/` and
-  `scripts/emu/` call Ghidra's scripting API and contain no Ghidra source code.
+  the OS folders' `os/*/scripts/` call Ghidra's scripting API and contain no Ghidra source code.
 
 ## Elektron
 
 - The Digitakt firmware and the Digitakt manual are Elektron's. Neither is included in this
   repository: no firmware file, no extracted section, no manual text and no manual figure. You bring
-  your own copy of each, the stock OS 1.52A update file for the build and the manual PDF for the
-  manual pipeline. Your copies, and what the tools make from them, stay in the git-ignored
+  your own copy of each, the stock OS update file of the OS folder you build and the manual PDF for
+  the manual pipeline. Your copies, and what the tools make from them, stay in the git-ignored
   folders `sysex/`, `manuals/`, `out/` and `work/`, and must not be shared.
 
 ## Tools used but not included

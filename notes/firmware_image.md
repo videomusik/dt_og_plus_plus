@@ -2,75 +2,72 @@
 
 ## What this is
 
-The Digitakt OS 1.52A update is a single SysEx file. Inside it is an ELE3 container with four
-sections, and section 3 (MAIN OS) is the only one this build changes. This note describes the three
-layers of the file (SysEx transport, container, compressed section streams) with the exact figures
-of the stock file, the checks that protect it, and the firmware tool that unpacks and repacks it.
+A Digitakt OS update is a single SysEx file. Inside it is an ELE3 container with a few sections, and
+the MAIN OS section (id 3) is the only one a DT OG++ build changes. This note describes the three
+layers of the file (SysEx transport, container, compressed section streams), the checks that protect
+it, and the firmware tool that unpacks and repacks it. It holds the format, not the figures of any one
+file. Each OS folder records its stock file's figures (OS 1.52A: [stock_image.md](../os/1.52A/notes/stock_image.md)).
 
 ## The stock file
 
-| | |
-|---|---|
-| File | `Digitakt_OS1.52A.syx`, 1,162,400 B |
-| SHA-256 | `01315133041dcdb8b432146190cc74fc8695c47d8466b0f31bd78cef96fa56a4` |
-| Container | ELE3, build/model `0097`, version `1.52A`, 917,072 B |
-| Section 3 (MAIN OS), decompressed | 2,221,632 B, SHA-256 `59278368fbe86c9877fad68a578987050e21fc4b418a289cfa1d1351d8e864ee` |
-| Build timestamp (section 5) | `250709 11:17:03` (2025-07-09) |
-
-[build/build.py](../build/build.py) refuses any other input file.
+Each OS folder names its stock file and records its identity: the file name, size and SHA-256, the
+container's build/model and version strings and its size, the size and SHA-256 of the decompressed
+MAIN OS section, and the build timestamp where the container carries one (OS 1.52A: in section 5).
+That folder's `build/build.py` refuses any other input file
+(OS 1.52A: [stock_image.md](../os/1.52A/notes/stock_image.md#the-stock-file)).
 
 ## Layer 1: SysEx transport
 
-- **Messages.** 9,083 SysEx messages: a 14 B start marker, 9,081 data packets of 126 B (command
-  `0x7E`), and a 14 B end marker.
+- **Messages.** A 14 B start marker, the data packets of 126 B each (command `0x7E`), and a 14 B end
+  marker.
 - **Packet layout.** `00 20 3C <dev> 00 7E block[2] seq <116 B payload> cksum`. The device id is
   `0x0a` for the Digitakt. Each packet is a 9 B header plus 116 B of 8-in-7 payload, which decodes to
   101 bytes.
-- **Blocks.** 72 blocks of 14 to 128 packets. The first block has id 1 and sequence numbers 114..127.
+- **Blocks.** The packets come in blocks: each packet carries its block id (`block[2]`) and a sequence
+  number (`seq`).
 - **Per-packet checksum.** A 7-bit sum over body bytes 6..124, each XORed with `(base + i)`, plus
-  `base`. `base` is byte 0 of the start marker's info field: `0x05` in this file. All 9,081 packets
-  check.
-- **Packet count.** The markers declare the number of data packets (info bytes 4..6): 9,081, which
-  matches.
-- **Decoded stream.** 917,181 B: an 8 B preamble `[u32 container size][u32 content checksum]`, the
-  917,072 B container, and padding.
+  `base`. `base` is byte 0 of the start marker's info field.
+- **Packet count.** The markers declare the number of data packets (info bytes 4..6), which must
+  match the packets present.
+- **Decoded stream.** An 8 B preamble `[u32 container size][u32 content checksum]`, the container,
+  and padding.
+
+The counts of a given file (messages, blocks, `base`, decoded size) are in its OS folder
+(OS 1.52A: [stock_image.md](../os/1.52A/notes/stock_image.md#layer-1-sysex-transport)).
 
 ## Layer 2: the ELE3 container
 
 - **Header.** Magic `ELE3`, then the build/model and version strings (the tool finds the version by
   scanning for `<digit>.<digit>` from offset `0x07`). The section count is at `0x1C` and the section
   table at `0x20`, 16 B per entry: `{id, offset, compressed length, dst}`. All fields are big-endian.
-- **Content checksum.** `acc += (k+1) ^ word[k]` over the container. Stored `0x5a58985d`, calculated
-  `0x5a58985d`.
+- **Content checksum.** `acc += (k+1) ^ word[k]` over the container, compared with the value stored
+  in the preamble.
 - **Section ids.** The tool names them 1 FPGA, 2 DSP, 3 MAIN OS, 4 updater, 5 meta, 6 boot, 7 blob.
-  OS 1.52A contains 2, 3, 4 and 5 only.
+  An image contains only some of them; each OS folder records which, with its section table
+  (OS 1.52A: [stock_image.md](../os/1.52A/notes/stock_image.md#layer-2-the-ele3-container)).
+- **Section table.** Each entry gives the section's offset and stored length in the container and its
+  `dst`. A section is either compressed (Layer 3), with a stream-sum, or stored raw.
 
-| id | Tool name | Offset | Stored length | Contents | `dst` | Stream-sum |
-|---|---|---|---|---|---|---|
-| 5 | meta | `0x000070` | `0x00000f` | 15 B, stored raw | `0x00000000` | — |
-| 2 | DSP | `0x000080` | `0x003a80` | 26,670 B after decompression | `0x03000900` | `0x0018d157` |
-| 3 | MAIN OS | `0x003b00` | `0x0d4334` | 2,221,632 B after decompression | `0x40000400` | `0x058bac61` |
-| 4 | updater | `0x0d7e40` | `0x008008` | 32,776 B, stored raw | `0x80000400` | — |
+`dst` is the section's load address. Whether it is also where the code runs, and so the base a
+disassembler needs, is checked for each section of each image: it is not always so.
 
-`dst` is the section's load address. For sections 3 and 4 it is also where the code runs, and so the
-base a disassembler needs; section 2 is the exception (below).
+The tool's names are labels for the ids, not descriptions of the contents. The shapes below are
+those of the OS 1.52A image; check each one again in any other image. The values of the headers, the
+load ranges and entries of each section, and where each one runs are in the OS folder
+(OS 1.52A: [stock_image.md](../os/1.52A/notes/stock_image.md#layer-2-the-ele3-container)).
+
+What the sections of the OS 1.52A image hold, as an example of what to look for in another version:
 
 - **Section 5 (meta)** holds the build timestamp.
 - **Section 2 ("DSP")** is ColdFire code, not code for a DSP; the Digitakt has no DSP chip
-  ([hardware.md](hardware.md)). A 24 B inner header `{0x6826, 0x80010000, 0x80000ec0, 0x03000900, 0, 0}`
-  comes first, so the code starts at file offset `0x18`. It runs from on-chip SRAM at `0x80000ec0`, the
-  header's third word: imported at that base, 87 of its 97 `jsr` targets land inside the section,
-  against 0 of 97 at `0x03000900` or `0x80010000`. ⚠️ What its `dst` of `0x03000900` means is not
-  known. Its role is described in [section2_map.md](section2_map.md).
-- **Section 3 (MAIN OS)** loads at `0x40000400` in DDR and occupies `0x40000400..0x4021ea40`. A file
-  offset is the load address minus `0x40000400`. It starts with a 16 B header `[entry][0][0][0]`, entry
-  `0x400004e8`, and its code begins with `move.w #$2700,SR`, the usual ColdFire reset prologue. It is
-  C++ compiled with GCC, with RTTI class names still present ([hardware.md](hardware.md)).
-- **Section 4 (updater)** loads at `0x80000400` in SRAM, entry `0x80000492`, with the same header
-  shape and prologue. ⚠️ It is read as the stub that programs the flash during an OS update; see
-  [update_moat.md](update_moat.md).
+  ([hardware.md](hardware.md)). It starts with a 24 B inner header of six words, so the code starts
+  at file offset `0x18`. Where it runs is found by importing it at each candidate base (the header
+  words and its `dst`) and counting how many of its `jsr` targets land inside the section.
+- **Sections 3 (MAIN OS) and 4 (updater)** start with a 16 B header `[entry][0][0][0]`, and their code
+  begins with `move.w #$2700,SR`, the usual ColdFire reset prologue.
 
-The runtime layout of these addresses is in [memory_map.md](memory_map.md).
+The run-time layout of the addresses is in the OS folder's memory map
+(OS 1.52A: [memory_map.md](../os/1.52A/notes/memory_map.md)).
 
 ## Layer 3: section streams
 
@@ -80,7 +77,7 @@ offset 767). The tool copies a section that does not depack as raw bytes.
 
 ## Integrity: checksums only
 
-The checks on this image are:
+The checks on an image are:
 
 1. the per-packet checksums;
 2. the declared packet count;
@@ -90,17 +87,18 @@ The checks on this image are:
 All four are plain arithmetic sums. They catch corruption, not tampering, and a rebuild recomputes
 every one of them.
 
-**No signature trailer.** The tool also supports a 32 B HMAC-SHA256 trailer at the end of a container.
-The 1.52A image has none: the last section ends at `0x0d7e40 + 0x8008 = 917,064`, which rounds up to
-16 as 917,072, exactly the declared container size. A rebuild of the 1.52A image reports
-`trailer : none`, and the report of a 1.52A image shows no trailer block.
-
-✅ The device accepts a tool-built image: an unmodified round-trip rebuild flashed and ran on the test
-unit.
+**Signature trailer.** The tool also supports a 32 B HMAC-SHA256 trailer at the end of a container.
+To test an image for one, add the offset and stored length of the last section, round up to 16, and
+compare the result with the declared container size: a trailer would fill the difference. The tool
+gives two more checks: the `trailer :` line it prints on a rebuild, and whether its report of the
+image shows a trailer block. Each OS folder's `profile.sh` records the result in
+`OS_SIGNATURE_TRAILER`, and `scripts/extract.sh` warns when it is not `none`. The arithmetic for
+OS 1.52A, and the device's acceptance of a tool-built image, are in its folder
+(OS 1.52A: [stock_image.md](../os/1.52A/notes/stock_image.md#integrity)).
 
 ## The firmware tool
 
-This build uses [elektron-firmware-tool](https://github.com/mischa85/elektron-firmware-tool) by
+DT OG++ uses [elektron-firmware-tool](https://github.com/mischa85/elektron-firmware-tool) by
 mischa85 (MIT License), pinned to commit `065d18f4195793e61891e387813488ee59f6d1ca`. It is about 1.7 k
 lines of C (`main.c`, `decompress.c`, `compress.c`, `integrity.c`, `format.h`) and works file in, file
 out. It never talks to a device.
@@ -121,51 +119,53 @@ compiles them with `cc -O2 -Wall -Wextra` into `tool/bin/elektron-firmware-tool-
 
 A rebuild recompresses the replaced section, rewrites the section table, recomputes the stream-sums,
 and rebuilds the preamble and every packet. The other sections are copied unchanged. `-V <version>`
-would rewrite the version field in place (space-padded, and it must fit). This build does not use it,
-so the device still reports OS 1.52A ([compatibility.md](compatibility.md)). The tool caps
-decompression buffers at 64 MB per section. The repo wraps these commands in `scripts/inspect.sh`,
+would rewrite the version field in place (space-padded, and it must fit). DT OG++ does not use it, so
+a Digitakt running a DT OG++ build still reports the stock OS version the build was made from
+(OS 1.52A: [compatibility.md](../os/1.52A/notes/compatibility.md)). The tool caps decompression
+buffers at 64 MB per section. The repo wraps these commands in `scripts/inspect.sh`,
 `scripts/extract.sh` and `scripts/roundtrip.sh`.
 
 **Rebuilt files never match Elektron's byte for byte.** The tool's compressor is a cost-optimal parse:
-its output decodes to the same bytes, but the compressed stream differs from Elektron's packer.
-Rebuilding the stock file with section 3 unchanged, using the upstream tool, gives a 1,094,816 B
-`.syx` and a container of 863,760 B instead of 917,072 B. Compare decompressed sections, never containers. Re-extracting that
-rebuild gives sections 2, 3, 4 and 5 identical to the stock extraction, and `scripts/roundtrip.sh`
-performs exactly that check. For the same reason the build identifies the firmware by its section-3
-hash (`34765cdf253546dca117c67db7e3a9c3d70cb8ebf3851bf981ec638c4888e864`). The reference `.syx` hash in
-`build/patch.json` is reproduced only with the pinned, patched tool.
+its output decodes to the same bytes, but the compressed stream differs from Elektron's packer, so
+even a rebuild of an unmodified stock file differs from that file. Compare decompressed sections,
+never containers. Re-extracting a rebuild must give every section identical to the stock extraction,
+and `scripts/roundtrip.sh` performs exactly that check. For the same reason a build identifies the
+firmware by its section-3 hash. The reference `.syx` hash in an OS folder's `build/patch.json` is
+reproduced only with the pinned, patched tool. The rebuild figures and hashes of one OS are in its
+folder (OS 1.52A: [stock_image.md](../os/1.52A/notes/stock_image.md#rebuilds-with-the-firmware-tool)).
 
 ## The 1 MB back-reference window
 
-Parsing the aPLib token streams gives these figures for section 3:
-
-| Stream | Decompresses to | Largest back-reference offset | Longest match |
-|---|---|---|---|
-| Elektron's, in the stock file | 2,221,632 B | 1,048,572 (`0x0FFFFC`) | 2,048 |
-| The upstream tool, rebuilding stock | 2,221,632 B | 2,157,404 | 2,048 |
-| The patched tool, rebuilding stock | 2,221,632 B | 1,046,544 | — |
-
-Elektron's compressor keeps every back-reference just under 1 MB. The longest match, 2,048, equals
-the tool's own `MAX_MATCH`, so of these two limits the window is the only difference. The upstream
-tool's parser has no window limit and reaches 2.1 MB, which asks the on-device depacker for something
-the stock image never asks of it. The tool's advantage of about 53 KB over Elektron's packer comes
-from its cost-optimal parse, not from the window: the capped tool keeps almost all of it (a container
-of 864,080 B instead of 917,072 B on an unmodified rebuild).
+Parsing the aPLib token streams of a section gives, for each stream, its largest back-reference offset
+and its longest match. In OS 1.52A, Elektron's compressor keeps every back-reference just under 1 MB,
+the longest match equals the tool's own `MAX_MATCH`, and the upstream tool's parser, which has no
+window limit, reaches far beyond 1 MB
+(OS 1.52A figures: [stock_image.md](../os/1.52A/notes/stock_image.md#the-1-mb-back-reference-window)).
+Such a stream asks the on-device depacker for something the stock image never asks of it. In OS 1.52A the tool's size
+advantage over Elektron's packer comes from its cost-optimal parse, not from the window, so the
+capped tool keeps almost all of it.
 
 The patch adds `#define MAX_OFFSET 0x100000` and a `break` in the hash-chain walk (8 lines with their
 comments). The chain is ordered by decreasing position, so stopping at the first candidate beyond the
-window is correct, and it is also faster. It costs 322 B (0.04 %) of compressed size, 815,864 →
-816,186 B.
+window is correct, and it is also faster.
 
-⚠️ The cap is a precaution, not a known fix. An image built without it flashed and ran correctly
-(✅ confirmed on the test unit), so the device demonstrably tolerates offsets above 1 MB. The build uses
-the capped tool so that its output stays inside the envelope of Elektron's own images.
+⚠️ The cap is a precaution, not a known fix: the device has tolerated offsets above 1 MB
+(OS 1.52A unit result: [stock_image.md](../os/1.52A/notes/stock_image.md#the-1-mb-back-reference-window)).
+The build uses the capped tool so that its output stays inside the envelope of Elektron's own images.
+
+**Measure again for a new OS.** The cap rests on the measurement of one stock file. Before the first
+build for another OS version, parse the token streams of its stock MAIN OS section and of a capped
+rebuild again: Elektron's largest back-reference offset shows whether 1 MB is still its envelope, and
+the rebuild shows what the cap costs.
 
 ## Related notes
 
-- [memory_map.md](memory_map.md): where each section lives at run time.
-- [update_moat.md](update_moat.md): the code in section 3 that receives and writes an OS update, and
-  why sections 2 and 4 stay byte-identical.
-- [section2_map.md](section2_map.md): what section 2 does.
+- [hardware.md](hardware.md): the chip, its address spaces, and what runs where.
+- [update_moat_method.md](update_moat_method.md): the code in the MAIN OS section that receives and
+  writes an OS update, and why every other section stays byte-identical.
 - [flash_recovery.md](flash_recovery.md): getting back to stock firmware.
 - [analysis_method.md](analysis_method.md): how the sections are disassembled.
+- OS 1.52A: [stock_image.md](../os/1.52A/notes/stock_image.md): every figure of the stock file.
+- OS 1.52A: [memory_map.md](../os/1.52A/notes/memory_map.md): where each section lives at run time.
+- OS 1.52A: [update_moat.md](../os/1.52A/notes/update_moat.md): the protected ranges.
+- OS 1.52A: [section2_map.md](../os/1.52A/notes/section2_map.md): what section 2 does.

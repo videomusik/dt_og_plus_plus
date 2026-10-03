@@ -1,8 +1,8 @@
 // Find every INSTRUCTION whose operands contain a literal value inside an address window — the
-// addresses that reference queries CANNOT see. Code that does `addi.l #0x8000ba00,d0` or
-// `adda.l #0x80008800,a0` builds an address in a register from an immediate: Ghidra records a scalar
-// operand, not a memory reference, so DumpRefsInRange / RefDensityMap are blind to it. Driver code
-// that owns fixed DMA rings and buffers looks completely unreferenced to them.
+// addresses that reference queries CANNOT see. Code that does `addi.l #0x8000ba00,d0` (OS 1.52A)
+// or `adda.l #0x80008800,a0` (OS 1.52A) builds an address in a register from an immediate: Ghidra
+// records a scalar operand, not a memory reference, so DumpRefsInRange / RefDensityMap are blind to
+// it. Driver code that owns fixed DMA rings and buffers looks completely unreferenced to them.
 // ⭐ Run this before concluding that any region is unused.
 // Run headless as a -postScript (or via scripts/ghidra_query.sh):
 //
