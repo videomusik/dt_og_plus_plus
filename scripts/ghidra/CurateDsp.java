@@ -5,8 +5,9 @@
 // "repeated byte" bookmarks even though the PRIMARY instruction is correct (objdump-verified).
 //
 // This script, iterated to a fixpoint:
-//   1. marks everything OUTSIDE the DSP code window as data (image1 low-SRAM, DSP stack/scalars,
-//      the DMA rings, image2 fast-data, and the zero gaps) — so nothing there is disassembled as code;
+//   1. marks everything OUTSIDE the code windows as data (image1 low-SRAM, section 2's own data, DSP
+//      stack/scalars, the DMA rings, image2 fast-data, and the zero gaps) — so nothing there is
+//      disassembled as code;
 //   2. for each Bad-Instruction error, deletes the phantom references landing at the error address
 //      and clears the conflicting code, then re-disassembles from the containing function's entry so
 //      the correct primary instruction is re-formed;
@@ -28,13 +29,27 @@ import java.util.*;
 
 public class CurateDsp extends GhidraScript {
 
-    // DSP code window; everything else in [0x80000000,0x80010000) is data.
-    static final long CODE_LO = 0x80000ec0L, CODE_HI = 0x800076d6L;
+    // Code windows, [lo, hi); everything else in [0x80000000,0x80010000) is data.
+    //  - the updater's low-SRAM stub, whose routines section 2 calls (0x8000049a, 0x800006c2), up to
+    //    the routine at 0x80000eaa: that one runs on past 0x80000ec0 into bytes section 2 overwrites;
+    //  - section 2's code, which ends with an rts at 0x800066b4;
+    //  - section 2's last two routines (the SPI read and the loader). Between them and the code above
+    //    lies section 2's data: tables, bitmaps, strings and variables, [0x800066b6, 0x8000758c).
+    static final long[][] CODE = {
+        { 0x80000400L, 0x80000eaaL },
+        { 0x80000ec0L, 0x800066b6L },
+        { 0x8000758cL, 0x800076d6L },
+    };
     static final long SRAM_LO = 0x80000000L, SRAM_HI = 0x80010000L;
 
+    private AddressSet codeSet() {
+        AddressSet s = new AddressSet();
+        for (long[] w : CODE) s.add(toAddr(w[0]), toAddr(w[1] - 1));
+        return s;
+    }
+
     private boolean inCode(Address a) {
-        long v = a.getOffset();
-        return v >= CODE_LO && v < CODE_HI;
+        return codeSet().contains(a);
     }
 
     private Set<Address> errorAddrs() {
@@ -56,17 +71,18 @@ public class CurateDsp extends GhidraScript {
 
         int err0 = errorAddrs().size();
 
-        // 1. Clear code outside the DSP code window (data regions) so nothing there is code.
-        AddressSet dataBelow = new AddressSet(toAddr(SRAM_LO), toAddr(CODE_LO - 1));
-        AddressSet dataAbove = new AddressSet(toAddr(CODE_HI), toAddr(SRAM_HI - 1));
-        clearListing(dataBelow);
-        clearListing(dataAbove);
+        // 1. Clear the instructions outside the code windows (data regions) so nothing there is code.
+        //    Defined data there stays (section 2's strings, for one).
+        AddressSet data = new AddressSet(toAddr(SRAM_LO), toAddr(SRAM_HI - 1)).subtract(codeSet());
+        List<Instruction> stray = new ArrayList<>();
+        InstructionIterator ii = listing.getInstructions(data, true);
+        while (ii.hasNext()) stray.add(ii.next());
+        for (Instruction ins : stray) clearListing(ins.getMinAddress(), ins.getMaxAddress());
         // kill references pointing FROM the data regions into anywhere (phantom flows from mis-typed data)
-        removeRefsFrom(rm, dataBelow);
-        removeRefsFrom(rm, dataAbove);
+        removeRefsFrom(rm, data);
 
         try (PrintWriter out = new PrintWriter(new FileWriter(outfile))) {
-            out.printf("# CurateDsp: code window [%08x,%08x), errors before=%d%n", CODE_LO, CODE_HI, err0);
+            out.printf("# CurateDsp: code windows %s, errors before=%d%n", codeSet(), err0);
             out.println("# pass\terrorsAtStart\tphantomRefsRemoved\tclearedSites\terrorsAtEnd");
 
             for (int pass = 1; pass <= maxPasses; pass++) {
@@ -111,11 +127,10 @@ public class CurateDsp extends GhidraScript {
     }
 
     // Remove references whose destination lands strictly inside a defined instruction (start != dest)
-    // within the code window — these are the phantom flows behind the conflict/constructor errors.
+    // within the code windows — these are the phantom flows behind the conflict/constructor errors.
     private int removeMidInstructionRefs(ReferenceManager rm, Listing listing) {
-        AddressSet code = new AddressSet(toAddr(CODE_LO), toAddr(CODE_HI - 1));
         List<Reference> phantom = new ArrayList<>();
-        AddressIterator dests = rm.getReferenceDestinationIterator(code, true);
+        AddressIterator dests = rm.getReferenceDestinationIterator(codeSet(), true);
         while (dests.hasNext()) {
             Address d = dests.next();
             Instruction ins = listing.getInstructionContaining(d);

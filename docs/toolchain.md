@@ -277,21 +277,24 @@ GHIDRA_PROJECT=dt_1.52A_sram ./scripts/ghidra_query.sh dt sram FixDspResidual
 GHIDRA_PROJECT=dt_1.52A_sram ./scripts/ghidra_analyze.sh dt sram      # re-dump: error bookmarks should now be 0
 ```
 
-`CurateDsp.java` marks everything outside the DSP code window as data and removes the phantom
-mid-instruction references that jump-table recovery creates; `FixDspResidual.java` re-forms the last
-few conflicting instructions one at a time.
+`CurateDsp.java` clears every instruction outside its code windows and removes the phantom
+mid-instruction references that jump-table recovery creates. The windows are the updater stub that
+section 2 shares, section 2's code, and section 2's last two routines; section 2's own data lies
+between the last two ([`notes/section2_map.md`](../notes/section2_map.md#the-unified-sram-view)).
+`FixDspResidual.java` re-forms the last few conflicting instructions one at a time.
 
-<!-- REVIEW: the _seed and _sram recipes were reconstructed from the analysis notes and re-expressed with the GHIDRA_PROJECT wrappers; the individual scripts are the ones that made the reference projects, but these exact command sequences have not been re-run end to end. -->
-
-**Reference numbers**, to compare your own run against (from `summary.txt` and the query outputs):
+**Reference numbers**, to compare your own run against (from `summary.txt` and the query outputs).
+They count the saved project, as a later `ghidra_analyze.sh` run on it re-dumps them. For the two
+MAIN OS imports the summary of the first run counts a little less: `dt_1.52A` 11,054 functions and
+426,631 instructions, `dt_1.52A_emac` 11,063 and 431,212.
 
 | Project | Functions | Instructions | In functions | Error bookmarks |
 |---|---:|---:|---:|---:|
-| `dt_1.52A` | 11,053 | 426,467 | 60.6 % | 47 |
-| `dt_1.52A_emac` | 11,073 | 431,212 | 61.3 % | 1 |
+| `dt_1.52A` | 11,064 | 426,654 | 60.6 % | 47 |
+| `dt_1.52A_emac` | 11,073 | 431,235 | 61.3 % | 1 |
 | `dt_1.52A_seed` | 11,905 | | code windows 99.9 % disassembled | 1 |
 | `dt_1.52A_dsp` | 132 | 5,557 | 61.7 % | 27 |
-| `dt_1.52A_sram` | 150 straight after import | 6,534 | | 27 → 0 after curation |
+| `dt_1.52A_sram` | 150 | 6,486 | 29.2 % | 26 → 0 after curation |
 
 - `dt_1.52A`: the RTTI walk finds 1,786 classes and 1,591 vtables; 46 of the 47 errors come from the
   EMAC gaps. The 47th, an unrelated `jsr`/`0x0000` data-in-code boundary at `0x40115fe6`, is the one
@@ -307,6 +310,11 @@ few conflicting instructions one at a time.
   section alone does not contain (some live in the updater's low-SRAM stub, which the `_sram` image
   includes), and phantom mid-instruction references from jump-table recovery, which the curation
   scripts remove. That is why the `_sram` project exists.
+- `dt_1.52A_sram`: straight after import it has 149 functions, 6,533 instructions and 26 error
+  bookmarks, and the import's log says it could not create the entry function at `0x80000ec0`; the
+  re-dump after curation creates it. Five of the 150 functions lie outside the code windows and have
+  no code: the updater routine at `0x80000eaa`, three that analysis made in section 2's data, and
+  `0x8000f010`, which is loaded from flash at run time.
 
 ### 4e. Decompiling and querying
 
@@ -435,9 +443,8 @@ in [`scripts/manual/README.md`](../scripts/manual/README.md).
 expected to work there but have not been run on Linux.
 
 - Ghidra: the release zip and `openjdk-21-jdk` (section 4a); set `GHIDRA_INSTALL_DIR` and `JAVA_HOME`.
-  The EMAC extension installs into `$HOME/.ghidra/.ghidra_12.1.3_PUBLIC/Extensions/`. Not tested:
-  Ghidra 11.1 and later probably look for user extensions in
-  `${XDG_CONFIG_HOME:-$HOME/.config}/ghidra/ghidra_12.1.3_PUBLIC/Extensions/` on Linux instead.
+  The EMAC extension installs into Ghidra's user settings folder,
+  `${XDG_CONFIG_HOME:-$HOME/.config}/ghidra/ghidra_12.1.3_PUBLIC/Extensions/`.
 - binutils: with the Debian/Ubuntu package, set `M68K_PREFIX=m68k-linux-gnu-`; a source build for
   `m68k-elf` needs nothing set (section 5).
 - Hashes: `sha256sum` instead of `shasum -a 256`.

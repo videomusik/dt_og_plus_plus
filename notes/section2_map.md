@@ -33,12 +33,20 @@ fill at run time. `scripts/build_sram_image.py` assembles the SRAM as it is at b
 
 Imported at `0x80000000` on the EMAC language (entry `0x80000ec0`) and curated with
 `scripts/ghidra/CurateDsp.java` and `scripts/ghidra/FixDspResidual.java`, the unified project has
-136 functions and **0 error bookmarks**. The recipe is in
-[../scripts/ghidra_analyze.sh](../scripts/ghidra_analyze.sh) (`dt sram`).
+**0 error bookmarks**, down from 26 straight after import. The recipe and the counts are in
+[../docs/toolchain.md](../docs/toolchain.md#4d-the-projects-and-how-to-make-them).
 
-- ⚠️ `CurateDsp.java`'s code window is `0x80000ec0`–`0x800076d6`. It marks everything else in SRAM
-  as data, including the shared updater stub at `0x80000400`–`0x80000ec0` (below). A fresh import of
-  the image with the updater layered in shows 27 auto-analysis phantoms before curation.
+- ✅ `CurateDsp.java` keeps three code windows and clears every instruction outside them. The
+  boundaries were read in the code with objdump and checked against the references in the curated
+  project:
+  - `0x80000400`–`0x80000eaa`: the updater's stub that section 2 shares (below), up to the updater
+    routine at `0x80000eaa`. That routine runs on past `0x80000ec0`, into bytes that section 2
+    overwrites.
+  - `0x80000ec0`–`0x800066b6`: section 2's code, which ends with an `rts` at `0x800066b4`.
+  - `0x8000758c`–`0x800076d6`: section 2's last two routines, the SPI read and the loader (below).
+- ✅ Section 2's data lies in `0x800066b6`–`0x8000758c`: tables, strings, variables and a block that
+  reads as bitmaps. Code reaches it only by data reads and writes, never by a call or a jump. Treated
+  as code, it gives analysis three false functions and two error bookmarks that curation cannot clear.
 - ⛔ Ruled out: the error sites are EMAC decode gaps. They are real calls into SRAM that is filled at
   run time, plus phantom mid-instruction references that Ghidra's jump-table recovery lays over real
   indirect-call targets.
