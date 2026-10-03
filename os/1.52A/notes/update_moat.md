@@ -3,13 +3,20 @@
 ## What this is
 
 A Digitakt can always be returned to stock firmware as long as the code that receives an OS update
-and writes it to flash still works. This note lists that code as a set of address ranges, describes
-the update flow they implement, and states the two rules every patch in this build follows.
-`build/build.py` enforces the address rule on every build.
+and writes it to flash still works. This note lists that code in OS 1.52A as a set of address ranges,
+describes the update flow they implement, and shows how this build follows the two rules every patch
+follows. The rules, the method behind the ranges, why the set exists and the design constraints are
+in [update_moat_method.md](../../../notes/update_moat_method.md).
+`PROTECTED` in `os/1.52A/build/build.py` holds these ranges and enforces the address rule on every
+build. [docs/reference.md](../docs/reference.md#protected-ranges) lists the same ranges: this note,
+`PROTECTED` and that table change together.
 
 ## The OS-update flow
 
-1. **Transport.** An OS `.syx` ([firmware_image.md](firmware_image.md)) arrives over MIDI or USB MIDI.
+The same flow in general terms: [update_moat_method.md](../../../notes/update_moat_method.md#the-os-update-flow-in-stages).
+
+1. **Transport.** An OS `.syx` ([firmware_image.md](../../../notes/firmware_image.md)) arrives over MIDI
+   or USB MIDI.
 2. **SysEx front door.** The functions of `SysexReceiveMenuView` take the messages in; the protected
    code at `0x40080868` is the `DigitaktSysex` destructor (its vtable at `0x40192c54` has two slots,
    the destructor and the deleting destructor at `0x4008088c`). ⚠️ The RTTI strings also name
@@ -31,7 +38,9 @@ the update flow they implement, and states the two rules every patch in this bui
 
 ## The protected set
 
-These are the `[start, end)` load-address ranges in `PROTECTED` in `build/build.py`.
+These are the `[start, end)` load-address ranges in `PROTECTED` in `os/1.52A/build/build.py`.
+What goes into each class, and how the extents are fixed:
+[update_moat_method.md](../../../notes/update_moat_method.md#the-protected-set-what-goes-in).
 
 | Class | Range | Contents |
 |---|---|---|
@@ -84,40 +93,41 @@ since no change needs it.
 `FUN_40066b3e`, `FUN_40066c1a`, `FUN_40066cf6`, `FUN_40066dd2`, `FUN_40066ea6` and `FUN_40066f82`; and
 `0x40067096`.
 
-## Two rules for every patch
+## The two rules applied to this build
+
+The two rules every patch follows, the reach that was ruled out and why the set exists are in
+[update_moat_method.md](../../../notes/update_moat_method.md#two-rules-for-every-patch). In this build:
 
 1. **Address rule.** Every patched byte lies inside section 3 and outside every protected range
-   (classes A to E and G). `build/build.py` refuses a run that touches a protected range. It also
-   refuses overlapping runs, and after packing it re-extracts the file and requires sections 2, 4 and
-   5 to equal stock.
+   (classes A to E and G). `os/1.52A/build/build.py` refuses a run that touches a protected range. It
+   also refuses overlapping runs, and after packing it re-extracts the file and requires sections 2, 4
+   and 5 to equal stock.
 2. **Call rule.** Inserted code never calls a flash erase or write, which means anything in A or B.
-   Reading the NOR is what boot does and is fine; writing it stays the update path's job alone. The
-   build does not check this rule. The disassembly of every patched code range in
+   The build does not check this rule. The disassembly of every patched code range in
    [docs/patch_listing.md](../docs/patch_listing.md) (662 instructions, 106 distinct direct branch and
    call targets) has no target in a protected range. Calls through a register (six `jsr`) are outside
    that check.
 
-The landing pads are dead leaf functions, so by construction they are not the live driver code above.
-Each pad is still checked against the ranges ([landing_pads.md](landing_pads.md)).
+Each landing pad of this build is checked against the ranges ([landing_pads.md](landing_pads.md)).
 
-⛔ Ruled out: protecting everything `FUN_4006753e` can reach. The task calls the firmware's shared
-utilities (memory copy, allocation, streams), so its transitive callees are about half of MAIN OS, and
-the rule would forbid nearly every patch. The flash-write endpoints all sit in A and B, which the
-address set covers.
+⛔ Ruled out: protecting everything `FUN_4006753e` can reach. Its transitive callees are about half of
+MAIN OS. The flash-write endpoints all sit in A and B, which the address set covers.
 
-## Why the set exists
-
-There are two ways back to stock firmware: an ordinary OS update sent to the running firmware (it
-runs through classes A to D and the class-G code of the transfer task, including its launcher), and
-the OS upgrade mode of the startup menu ([flash_recovery.md](flash_recovery.md)). Keeping the
-protected ranges and sections 2 and 4 unchanged is meant to keep both routes working. ⚠️ Where the
-startup menu's upgrade code lives has not been traced.
+The ordinary OS update sent to the running firmware runs through classes A to D and the class-G code
+of the transfer task, including its launcher. The other route back to stock is the OS upgrade mode of
+the startup menu ([flash_recovery.md](../../../notes/flash_recovery.md)). Keeping the protected ranges
+and sections 2 and 4 unchanged is meant to keep both routes working. ⚠️ Where the startup menu's
+upgrade code lives has not been traced.
 
 ## Related notes
 
-- [firmware_image.md](firmware_image.md): the sections and their load addresses.
+- [update_moat_method.md](../../../notes/update_moat_method.md): the flow in stages, the two rules, how
+  the extents are fixed, why the set exists and the design constraints.
+- [docs/reference.md](../docs/reference.md#protected-ranges): the same ranges as `PROTECTED` holds
+  them.
+- [stock_image.md](stock_image.md): the sections and their load addresses.
 - [landing_pads.md](landing_pads.md): where new code goes instead.
 - [section2_map.md](section2_map.md): section 2 and the NOR loader.
 - [function_ledger.md](function_ledger.md): rows for some of the functions named here (the class-A
   driver module as one group row).
-- [flash_recovery.md](flash_recovery.md): recovering from a bad flash.
+- [flash_recovery.md](../../../notes/flash_recovery.md): recovering from a bad flash.

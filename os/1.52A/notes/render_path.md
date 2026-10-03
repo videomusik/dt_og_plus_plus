@@ -195,7 +195,7 @@ The byte runs are in [docs/patch_listing.md](../docs/patch_listing.md).
   often live across a hook. In `FUN_40074af2`, `%d0` carries the sample-slot base past the hook.
 - **Expect a mistake to be heard at once.** An error here gives a wrong or stuck slice, silence, or a
   fault inside the audio interrupt. It is not a boot-path change, though: the render only runs once
-  the engine is up. See [flash_recovery.md](flash_recovery.md).
+  the engine is up. See [startup_hooks.md](startup_hooks.md#this-build-runs-code-at-startup) for the code this build runs at startup.
 
 ## Ruled out
 
@@ -209,4 +209,4 @@ The byte runs are in [docs/patch_listing.md](../docs/patch_listing.md).
 - ⛔ **Ruled out: `FUN_40072xxx` is a level meter or display code.** These functions are the
   per-track DSP chain.
 - ⛔ **Ruled out: an emulator run shows the running state.** An idle run, with no voice started,
-  shows only the defaults. See [emulator.md](emulator.md) and [analysis_method.md](analysis_method.md).
+  shows only the defaults. See [emulator.md](../../../notes/emulator.md) and [analysis_method.md](../../../notes/analysis_method.md).

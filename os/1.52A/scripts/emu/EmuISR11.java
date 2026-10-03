@@ -5,7 +5,7 @@
 // BCD ops, whose bcdAdjust p-code op is not implemented; trap), so control flow and memory copies
 // survive. The accumulator math is wrong after a skip, but only memory writes are watched. If any a18
 // word becomes 0xBB.., a CPU function read the fetch buffer into a18 -> log its PC.
-//   ./scripts/ghidra_emu.sh EmuISR11
+//   ./scripts/ghidra_emu.sh 1.52A EmuISR11
 // Runs in Ghidra's emulator only; nothing touches a device. @category dt_og_plus_plus
 import ghidra.app.script.GhidraScript;
 import ghidra.app.emulator.EmulatorHelper;

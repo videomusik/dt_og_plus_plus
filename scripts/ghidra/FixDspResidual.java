@@ -1,7 +1,8 @@
 // Last-resort cleanup for the handful of DSP residual errors where a correct instruction and a
 // phantom (at start+2/+4) oscillate: clear a generous window, strip every reference into it, then
 // re-form ONLY the correct instruction at the error address with a flow-restricted disassemble so
-// no cascade re-creates the phantom. The error address is the true instruction start (objdump-verified).
+// no cascade re-creates the phantom. The error address is the true instruction start (verified
+// with objdump on the OS 1.52A _sram project; check it for any other project first).
 //
 //   analyzeHeadless <proj> <name> -process <bin> -noanalysis -scriptPath scripts/ghidra \
 //      -postScript FixDspResidual.java <outfile>

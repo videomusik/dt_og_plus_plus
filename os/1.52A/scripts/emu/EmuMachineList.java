@@ -8,7 +8,7 @@
 //   0x400229d8  moveq #4     -> moveq #5
 // (these are the build's edits at the same three sites; four machines become five).
 // Run it on a project imported from the stock MAIN OS (e.g. dt_1.52A_emac). No arguments.
-//   ./scripts/ghidra_emu.sh EmuMachineList
+//   ./scripts/ghidra_emu.sh 1.52A EmuMachineList
 // Runs in Ghidra's emulator only; nothing touches a device. @category dt_og_plus_plus
 import ghidra.app.script.GhidraScript;
 import ghidra.app.emulator.EmulatorHelper;

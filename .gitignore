@@ -8,7 +8,7 @@
 # (Git has no inline comments: every comment below is on its own line.)
 
 # --- user-supplied and generated directories -------------------------------
-# your own stock Digitakt_OS1.52A.syx goes here
+# your own stock Digitakt OS files go here (one per OS folder)
 sysex/
 # your own manual PDF goes here
 manuals/
@@ -18,7 +18,7 @@ tool/
 out/
 # analysis and intermediate files
 work/
-# Python bytecode (build/make_listing.py imports build/build.py)
+# Python bytecode (os/<version>/build/make_listing.py imports the build.py next to it)
 __pycache__/
 # your own, personal agent memory file (CLAUDE.md imports it if it exists)
 /MEMORY.md
@@ -29,6 +29,8 @@ __pycache__/
 *.bin
 section_*
 *.raw
+# Elektron's OS files and their readmes, wherever they are dropped
+Digitakt_OS*
 
 # --- manuals (by kind) -----------------------------------------------------
 *.pdf

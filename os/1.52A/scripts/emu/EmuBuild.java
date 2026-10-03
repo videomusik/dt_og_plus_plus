@@ -1,7 +1,7 @@
 // Run FUN_4007489e (builds the engine object) with a tagged voice mirror, and check that each engine
 // block picks up its own track's fields. Doubles as an EMAC probe (its first loop uses the MAC
 // accumulators).
-//   ./scripts/ghidra_emu.sh EmuBuild
+//   ./scripts/ghidra_emu.sh 1.52A EmuBuild
 // Runs in Ghidra's emulator only; nothing touches a device. @category dt_og_plus_plus
 import ghidra.app.script.GhidraScript;
 import ghidra.app.emulator.EmulatorHelper;

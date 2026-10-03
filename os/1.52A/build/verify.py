@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Tell what a Digitakt .syx file is.
 
-    python3 build/verify.py FILE.syx [FILE.syx ...] [--tool tool/bin/elektron-firmware-tool-capped]
+    python3 os/1.52A/build/verify.py FILE.syx [FILE.syx ...] [--tool tool/bin/elektron-firmware-tool-capped]
 
 By the SHA-256 of the whole file, each FILE is one of:
     stock Digitakt OS 1.52A      Elektron's unmodified update file

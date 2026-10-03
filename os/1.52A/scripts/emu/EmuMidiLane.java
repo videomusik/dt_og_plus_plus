@@ -19,10 +19,10 @@
 //   4. SP is balanced on exit and the task's own registers (a2-a6, d2-d7) survive
 //   5. control leaves only via `jmp 0x400c46da`
 //
-// Argument: the decompressed MAIN OS of a DT OG++ build (./scripts/extract.sh out/<build>.syx, then
-// work/<build>/section_3_MAIN_OS.bin), from which the 50-byte arm is read at 0x40015186; or a raw
-// file holding just the arm, assembled for that address.
-//   ./scripts/ghidra_emu.sh EmuMidiLane work/<build>/section_3_MAIN_OS.bin
+// Argument: the decompressed MAIN OS of a DT OG++ build (./scripts/extract.sh 1.52A:out/1.52A/<build>.syx,
+// then work/dt_1.52A-<build>/section_3_MAIN_OS.bin), from which the 50-byte arm is read at 0x40015186;
+// or a raw file holding just the arm, assembled for that address.
+//   ./scripts/ghidra_emu.sh 1.52A EmuMidiLane work/dt_1.52A-<build>/section_3_MAIN_OS.bin
 // Runs in Ghidra's emulator only; nothing touches a device. @category dt_og_plus_plus
 import ghidra.app.script.GhidraScript;
 import ghidra.app.emulator.EmulatorHelper;

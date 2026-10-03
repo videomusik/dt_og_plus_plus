@@ -1,6 +1,6 @@
 // Audio-ISR probe 5: a full ISR run that defeats the codec-ready waits dynamically (sets the ready bit
 // whenever a `(0x1e,An)` poll comes up) and logs every FUN_40074af2 call's block.
-//   ./scripts/ghidra_emu.sh EmuISR5
+//   ./scripts/ghidra_emu.sh 1.52A EmuISR5
 // Runs in Ghidra's emulator only; nothing touches a device. @category dt_og_plus_plus
 import ghidra.app.script.GhidraScript;
 import ghidra.app.emulator.EmulatorHelper;

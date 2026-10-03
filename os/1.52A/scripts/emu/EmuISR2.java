@@ -1,6 +1,6 @@
 // Audio-ISR probe 2: find where the ISR spins. Histogram the PCs of a FUN_40077120 run and report the
 // hottest ones (the spin body is a hardware-ready wait that never completes in the emulator).
-//   ./scripts/ghidra_emu.sh EmuISR2
+//   ./scripts/ghidra_emu.sh 1.52A EmuISR2
 // Runs in Ghidra's emulator only; nothing touches a device. @category dt_og_plus_plus
 import ghidra.app.script.GhidraScript;
 import ghidra.app.emulator.EmulatorHelper;

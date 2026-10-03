@@ -2,7 +2,7 @@
 // and print each instruction with its length. On a project imported with the ColdFire-EMAC language
 // (scripts/ghidra_ext/) 0x40075cfa and 0x400721c6 decode as 6-byte mac.l; on the stock language they
 // come out 4 bytes long or fail. Nothing is saved (ghidra_emu.sh opens the project read-only).
-//   ./scripts/ghidra_emu.sh TestMac5
+//   ./scripts/ghidra_emu.sh 1.52A TestMac5
 // @category dt_og_plus_plus
 import ghidra.app.script.GhidraScript;
 import ghidra.program.model.address.Address;

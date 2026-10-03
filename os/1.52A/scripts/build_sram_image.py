@@ -14,17 +14,20 @@ in the MAIN OS tail; then the section-2 blob runs from 0x80000ec0:
 Everything else is zeroed by the crt0. The result is written to work/dt_1.52A/sram_unified.bin; import
 it into Ghidra at base 0x80000000 on the ColdFire EMAC language, entry 0x80000ec0:
 
-    python3 scripts/build_sram_image.py
-    GHIDRA_LANG_VARIANT=emac GHIDRA_PROJECT=dt_1.52A_sram ./scripts/ghidra_analyze.sh dt sram
+    python3 os/1.52A/scripts/build_sram_image.py
+    GHIDRA_LANG_VARIANT=emac GHIDRA_PROJECT=dt_1.52A_sram ./scripts/ghidra_analyze.sh 1.52A sram
 
 It is regenerable and gitignored: this script is the record of how, not the bytes.
-Needs ./scripts/extract.sh first. An optional argument names another extract folder under work/.
+Needs ./scripts/extract.sh 1.52A first. An optional argument names another extract folder under work/.
 """
 import glob
 import os
 import sys
 
-REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+HERE = os.path.dirname(os.path.abspath(__file__))
+OS_DIR = os.path.dirname(HERE)                  # os/<version>/, the OS folder this script sits in
+OS_ID = os.path.basename(OS_DIR)
+REPO = os.path.dirname(os.path.dirname(OS_DIR))
 
 DDR_BASE = 0x40000400           # MAIN OS load base -> file offset = addr - DDR_BASE
 SRAM_BASE = 0x80000000
@@ -49,12 +52,12 @@ def section(workdir, sid):
             if os.path.isfile(p) and ".from" not in os.path.basename(p)]
     if len(hits) != 1:
         sys.exit(f"error: expected one section_{sid}_* file in {workdir}, found {len(hits)}; "
-                 f"run ./scripts/extract.sh first")
+                 f"run ./scripts/extract.sh {OS_ID} first")
     return hits[0]
 
 
 def main():
-    workdir = os.path.join(REPO, "work", sys.argv[1] if len(sys.argv) > 1 else "dt_1.52A")
+    workdir = os.path.join(REPO, "work", sys.argv[1] if len(sys.argv) > 1 else f"dt_{OS_ID}")
     main_img = open(section(workdir, 3), "rb").read()
     dsp = open(section(workdir, 2), "rb").read()[DSP_HEADER:]
     upd = open(section(workdir, 4), "rb").read()
@@ -67,6 +70,15 @@ def main():
     def put(dst, blob):
         off = dst - SRAM_BASE
         sram[off:off + len(blob)] = blob
+
+    # Refuse an extract too short for the two init images before anything is layered.
+    if len(main_img) < ddr(IMG2[1]):
+        sys.exit(f"error: the MAIN OS (section 3) is short ({len(main_img)} of {ddr(IMG2[1])} B); "
+                 f"wrong extract?")
+    for layer, (lo, hi, _dst) in (("image 1", IMG1), ("image 2", IMG2)):
+        n = len(main_img[ddr(lo):ddr(hi)])
+        if n != hi - lo:
+            sys.exit(f"error: {layer} is short ({n} of {hi - lo} B); wrong extract?")
 
     # Layer low to high; later layers win where they overlap.
     put(IMG1[2], main_img[ddr(IMG1[0]):ddr(IMG1[1])])   # 1. low SRAM / vectors (mostly zero)
@@ -87,4 +99,11 @@ def main():
 
 
 if __name__ == "__main__":
+    # Refuse a folder that is not a work folder of this OS (work/dt_<OS_ID>/ or work/dt_<OS_ID>-<build>/)
+    # before anything is read.
+    if len(sys.argv) > 1:
+        name = sys.argv[1].rstrip("/")
+        own = f"dt_{OS_ID}"
+        if "/" in name or "\\" in name or not (name == own or name.startswith(own + "-")):
+            sys.exit(f"error: refusing work/{sys.argv[1]}: not a work folder of OS {OS_ID}")
     main()

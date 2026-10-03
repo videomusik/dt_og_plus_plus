@@ -1,6 +1,6 @@
 // Full run of FUN_40074af2 (the slice-window function) with seeded memory: proves argument seeding
 // and memory mapping, and computes one slice (select=3, grid 16 -> index 2).
-//   ./scripts/ghidra_emu.sh EmuAf2
+//   ./scripts/ghidra_emu.sh 1.52A EmuAf2
 // Runs in Ghidra's emulator only; nothing touches a device. @category dt_og_plus_plus
 import ghidra.app.script.GhidraScript;
 import ghidra.app.emulator.EmulatorHelper;

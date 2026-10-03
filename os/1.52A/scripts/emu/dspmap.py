@@ -3,8 +3,8 @@
 its size, caller/callee counts, indirect calls, whether it halts, the peripheral modules it
 addresses (MCF54415 map: SSI, eDMA, DMA crossbar, DSPI, PIT/INTC, FlexBus) and a few DDR addresses.
 
-    SECTION=dsp ./scripts/ghidra_decompile.sh dt 're:.*'          # decompile every DSP function first
-    python3 scripts/emu/dspmap.py [decomp-folder]
+    SECTION=dsp ./scripts/ghidra_decompile.sh 1.52A 're:.*'          # decompile every DSP function first
+    python3 os/1.52A/scripts/emu/dspmap.py [decomp-folder]
 
 The folder defaults to work/ghidra/out/dt_1.52A_dsp/decomp. Prints a table, largest function first.
 The table lists addresses and module names only; the decompiled C it reads stays in work/.
@@ -14,8 +14,11 @@ import os
 import re
 import sys
 
-REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-D = sys.argv[1] if len(sys.argv) > 1 else os.path.join(REPO, "work", "ghidra", "out", "dt_1.52A_dsp", "decomp")
+HERE = os.path.dirname(os.path.abspath(__file__))
+OS_DIR = os.path.dirname(os.path.dirname(HERE))     # os/<version>/, the OS folder this script sits in
+OS_ID = os.path.basename(OS_DIR)
+REPO = os.path.dirname(os.path.dirname(OS_DIR))
+D = sys.argv[1] if len(sys.argv) > 1 else os.path.join(REPO, "work", "ghidra", "out", f"dt_{OS_ID}_dsp", "decomp")
 
 
 def mod(a):
@@ -36,7 +39,7 @@ def mod(a):
 
 
 if not os.path.isdir(D):
-    sys.exit(f"error: {D} not found; run SECTION=dsp ./scripts/ghidra_decompile.sh dt 're:.*' first")
+    sys.exit(f"error: {D} not found; run SECTION=dsp ./scripts/ghidra_decompile.sh {OS_ID} 're:.*' first")
 rows = []
 for f in sorted(glob.glob(os.path.join(D, "FUN_*.c"))):
     t = open(f, errors='ignore').read()

@@ -6,31 +6,37 @@ registers, runs the code, and checks what it did. They answer questions like "do
 stack balanced?" before anything goes near hardware. Nothing here builds firmware, and nothing talks
 to a device.
 
+These harnesses and helpers are for OS 1.52A only. The method is in
+[notes/emulator.md](../../../../notes/emulator.md). What each harness checks is in the tables below;
+some runs are also recorded in [emulator_runs.md](../../notes/emulator_runs.md).
+
 They are analysis tooling only: the build does not need them, and neither QEMU nor Unicorn is
 involved.
 
 ## What you need
 
-- Ghidra 12.1.3 and OpenJDK 21 ([`docs/toolchain.md`](../../docs/toolchain.md) section 4).
+- Ghidra 12.1.3 and OpenJDK 21 ([`docs/toolchain.md`](../../../../docs/toolchain.md) section 4).
 - The ColdFire EMAC language extension (`./scripts/ghidra_lang_ext.sh`) and a MAIN OS project
   imported with it:
 
-      ./scripts/extract.sh
+      ./scripts/extract.sh 1.52A
       ./scripts/ghidra_lang_ext.sh
-      GHIDRA_LANG_VARIANT=emac ./scripts/ghidra_analyze.sh dt main     # -> work/ghidra/dt_1.52A_emac
+      GHIDRA_LANG_VARIANT=emac ./scripts/ghidra_analyze.sh 1.52A main     # -> work/ghidra/dt_1.52A_emac
 
   Import the **stock** MAIN OS. The pad harnesses write the pad bytes into the emulator's memory
   themselves, and `EmuMachineList` compares the project's own bytes with the edited ones.
 - For the pad harnesses that read their bytes from a build: your own DT OG++ build, extracted.
-  `./scripts/extract.sh out/<build>.syx` writes `work/<build>/section_3_MAIN_OS.bin`.
+  `./scripts/extract.sh 1.52A:out/1.52A/<build>.syx` writes
+  `work/dt_1.52A-<build>/section_3_MAIN_OS.bin`.
 
 ## Running one
 
-    ./scripts/ghidra_emu.sh <Harness> [arguments]
+    ./scripts/ghidra_emu.sh 1.52A <Harness> [arguments]
 
 `ghidra_emu.sh` opens the EMAC project read-only, runs the harness as a post-script, keeps the full
 log in `work/ghidra/out/dt_1.52A_emac/emu/<Harness>.log`, and prints the verdict lines. Set
-`GHIDRA_PROJECT` to run against another project (for example `GHIDRA_PROJECT=dt_1.52A_seed`).
+`GHIDRA_PROJECT` to run against another project; it must be `dt_1.52A` or start with `dt_1.52A_`
+(for example `GHIDRA_PROJECT=dt_1.52A_seed`).
 Close the Ghidra GUI on the project first: a project is locked while it is open.
 
 A pad harness prints one line per case (`OK` or `**FAIL**` with the reason; `EmuReadAlias` and
@@ -79,9 +85,9 @@ These explore the stock audio path; they check no DT OG++ code. None takes an ar
 ## Limits
 
 - The p-code model of the EMAC unit has no MACSR flags, no saturation and a 32-bit accumulator (see
-  [`../ghidra_ext/README.md`](../ghidra_ext/README.md)). The pad harnesses step plain integer code,
-  so this does not affect them. The ISR probes stub or skip the MAC-heavy render functions and watch
-  only memory writes and control flow.
+  [`scripts/ghidra_ext/README.md`](../../../../scripts/ghidra_ext/README.md)). The pad harnesses
+  step plain integer code, so this does not affect them. The ISR probes stub or skip the MAC-heavy
+  render functions and watch only memory writes and control flow.
 - The emulator has no peripherals. Code that waits on hardware spins forever unless the harness sets
   the ready bit, and code that reads peripheral state reads zeros.
 - A passing harness shows that the code does what the harness asserts, in the state the harness sets
@@ -91,9 +97,9 @@ These explore the stock audio path; they check no DT OG++ code. None takes an ar
 
 | Script | Reads | Prints |
 |---|---|---|
-| `mainos_classes.py [functions.tsv]` | the EMAC project's `functions.tsv` | functions and bytes per class name |
-| `dspmap.py [decomp folder]` | the DSP section's decompiled functions | a per-function table of peripheral modules touched |
-| `f2_heap.py [section_3 file]` | the stock MAIN OS | the allocator's pool-control words, and the room below the patches' state block just above the end of `.bss` (from a built-in highest `.bss` reference, not read from the file) |
-| `audit.py [notes folder] [address ...]` | markdown notes | every mention of a set of key addresses, to spot contradictions |
+| `python3 os/1.52A/scripts/emu/mainos_classes.py [functions.tsv]` | the EMAC project's `functions.tsv` | functions and bytes per class name |
+| `python3 os/1.52A/scripts/emu/dspmap.py [decomp folder]` | the DSP section's decompiled functions | a per-function table of peripheral modules touched |
+| `python3 os/1.52A/scripts/emu/f2_heap.py [section_3 file]` | the stock MAIN OS | the allocator's pool-control words, and the room below the patches' state block just above the end of `.bss` (from a built-in highest `.bss` reference, not read from the file) |
+| `python3 os/1.52A/scripts/emu/audit.py [notes folder] [address ...]` | markdown notes (by default `os/1.52A/notes/`) | every mention of a set of key addresses, to spot contradictions |
 
 Their outputs are tables of addresses, sizes and names; the decompiled C they read stays in `work/`.

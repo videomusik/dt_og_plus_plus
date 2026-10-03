@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
 """Build DT OG++ for the Digitakt (original model) from your own stock OS 1.52A file.
 
-    python3 build/build.py [--syx sysex/Digitakt_OS1.52A.syx]
-                           [--tool tool/bin/elektron-firmware-tool-capped]
-                           [--out out]
+    python3 os/1.52A/build/build.py [--syx sysex/Digitakt_OS1.52A.syx]
+                                    [--tool tool/bin/elektron-firmware-tool-capped]
+                                    [--out out/1.52A]
 
-Defaults are relative to the repository root (the parent of this build/ folder); paths you pass
+Defaults are relative to the repository root (three folders above this build/ folder); paths you pass
 on the command line are taken relative to your current directory.
 
 Steps, each one checked:
   1. The .syx must be the unmodified Elektron file, by SHA-256. There is no override.
   2. Extract it with the firmware tool; section 3 (MAIN OS) must hash to the stock value.
-  3. Apply build/patch.json. Every run must lie inside section 3 and outside the protected
+  3. Apply os/1.52A/build/patch.json. Every run must lie inside section 3 and outside the protected
      ranges (the OS-update, flash, SysEx-receive and storage-transfer code), no two runs may
      overlap, and the result must hash to the published section-3 hash.
   4. Pack the patched section 3 into a copy of the stock container:  tool -i <stock> -c 3 ...
@@ -27,12 +27,12 @@ Python 3 standard library only.
 import argparse, hashlib, json, os, re, shutil, subprocess, sys, tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-ROOT = os.path.dirname(HERE)
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(HERE)))
 PATCH_JSON = os.path.join(HERE, "patch.json")
 
 DEFAULT_SYX = os.path.join(ROOT, "sysex", "Digitakt_OS1.52A.syx")
 DEFAULT_TOOL = os.path.join(ROOT, "tool", "bin", "elektron-firmware-tool-capped")
-DEFAULT_OUT = os.path.join(ROOT, "out")
+DEFAULT_OUT = os.path.join(ROOT, "out", "1.52A")
 
 PATCH_FORMAT = "dt-og-plus-plus-patch"
 PATCH_FORMAT_VERSION = 1
@@ -296,7 +296,7 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description="Build DT OG++ from the stock Digitakt OS 1.52A .syx")
     ap.add_argument("--syx", default=DEFAULT_SYX, help="stock Digitakt_OS1.52A.syx (default: sysex/ in the repo)")
     ap.add_argument("--tool", default=DEFAULT_TOOL, help="firmware tool binary (default: tool/bin/ in the repo)")
-    ap.add_argument("--out", default=DEFAULT_OUT, help="output folder (default: out/ in the repo)")
+    ap.add_argument("--out", default=DEFAULT_OUT, help="output folder (default: out/1.52A/ in the repo)")
     a = ap.parse_args(argv)
     try:
         build(os.path.abspath(a.syx), os.path.abspath(a.tool), os.path.abspath(a.out))

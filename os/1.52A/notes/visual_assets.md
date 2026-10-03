@@ -3,15 +3,15 @@
 ## What this is
 
 This build draws two new 1-bit images: a robin for the SLICE values RRBN and RRND, and a small
-keyboard for POLY in the machine menu. This note gives both pixel grids and the stock `Bitmap` format
+keyboard for POLY in the machine menu. This note gives the stock `Bitmap` format of OS 1.52A that
 they are encoded in. It also records where each image lives in the firmware image, and the bit order
-of rows, which is easy to get upside down.
+of rows, which is easy to get upside down. Both pixel grids, their master images and the house
+style are in [icon_artwork.md](../../../notes/icon_artwork.md).
 
-Each grid has a 1-bit master image in [assets/icons/](../assets/icons/), generated from the grid at
-its native size. Each is a greyscale PNG with one bit per pixel, where a white pixel is a `#` in the
+The masters are in [assets/icons/](../../../assets/icons/). In each, a white pixel is a `#` in the
 grid, a set bit in the colour plane. The grids remain the source of truth, and
 [build/patch.json](../build/patch.json) holds the encoded bytes. Each master decodes back to its
-grid pixel for pixel, and each grid encodes to exactly the colour-plane bytes in `build/patch.json`.
+grid pixel for pixel, and each grid encodes to exactly the colour-plane bytes in `os/1.52A/build/patch.json`.
 Neither image has a mask plane of its own: each points plane B at a fully opaque stock mask
 ([shared masks](#static-bitmaps-and-shared-masks)), so the master is the whole image.
 
@@ -56,10 +56,10 @@ the dimensions.
 - ⛔ **Ruled out: "the most significant bit is the top row".** It can be derived from the blit's shift
   direction and is self-consistent, but it renders every image upside down.
 - ⛔ **Ruled out: row-major planes.** They render every glyph transposed.
-- ⚠️ **Text is the reliable orientation control.** A picture exposes a flip only if you have pinned
-  beforehand which way up it must be; a bird or a keyboard looks plausible either way. All four stock
-  machine-menu icons are vertically symmetric, so they cannot reveal a flip at all.
-- ⚠️ **Encode each new asset from its grid, then decode the bytes back and compare.** The rule itself
+- ⚠️ **Text is the reliable orientation control**, and each new asset is checked by encoding it from
+  its grid and decoding the bytes back: see
+  [Checking an encoding](../../../notes/icon_artwork.md#checking-an-encoding). All four stock
+  machine-menu icons are vertically symmetric, so they cannot reveal a flip at all. The rule itself
   is settled.
 
 **The blit** is `FUN_400b3b80` (376 B), `(canvas, bitmap, x, y, centre)`.
@@ -108,38 +108,13 @@ only its colour plane:
   - Its artwork is 11 × 11, centred.
   - Its planes are `0x4020f738` (colour) and `0x4020f6f4` (mask), 68 B each; it is built at
     `0x400f5e62`.
-  - The house style it shows: solid filled forms, a margin of about 3 px, no 1-pixel detail, and an
-    opaque tile.
+  - The house style it shows is in [icon_artwork.md](../../../notes/icon_artwork.md#house-style).
 
 ## The robin (RRBN and RRND)
 
-RRBN is short for round robin, hence a robin. The tile is 17 × 17 and strictly 1-bit, with 97 ink
-pixels. The artwork fills columns 1–15 and rows 1–15, a 15 × 15 area, and the 1 px border ring is
-clear on all four sides. `#` is ink:
-
-```
-    col 0         1
-        01234567890123456
-row  0  .................
-     1  ....####.........
-     2  ...######........
-     3  ...######........
-     4  .########........    beak, pointing left
-     5  ...#######.......
-     6  ..#########......
-     7  ..##..######.....
-     8  ..#...#######....
-     9  ..#....######....
-    10  ..#.....######...
-    11  ...#........###..    tail begins
-    12  ....##....######.
-    13  .....#######..##.
-    14  .....#....#......    legs
-    15  ....##...##......    feet
-    16  .................
-```
-
-Master image: [assets/icons/robin_17x17.png](../assets/icons/robin_17x17.png) (17 × 17, 1-bit).
+The tile is 17 × 17 and strictly 1-bit, with 97 ink pixels. Its grid is in
+[icon_artwork.md](../../../notes/icon_artwork.md#the-robin), and its master image is
+[assets/icons/robin_17x17.png](../../../assets/icons/robin_17x17.png).
 
 **Plane A**, one word per column (0–16), under the row-order rule above:
 
@@ -162,24 +137,9 @@ The selector code is in [features/slice_round_robin.md](features/slice_round_rob
 
 ## The keyboard (POLY in the machine menu)
 
-The icon is 11 × 7 and 1-bit, with 47 ink pixels: three white keys, with two black keys carved into
-the top four rows. It uses the same motif as the stock NOTE tile, since POLY means many notes at
-once. It is deliberately vertically asymmetric, so a flip would show.
-
-```
-    col 0         1
-        01234567890
-row  0  ##...#...##
-     1  ##...#...##
-     2  ##...#...##
-     3  ##...#...##
-     4  ###.###.###
-     5  ###.###.###
-     6  ###.###.###
-```
-
-Master image: [assets/icons/poly_keyboard_11x7.png](../assets/icons/poly_keyboard_11x7.png)
-(11 × 7, 1-bit).
+The icon is 11 × 7 and 1-bit, with 47 ink pixels, and deliberately vertically asymmetric, so a flip
+would show. Its grid is in [icon_artwork.md](../../../notes/icon_artwork.md#the-keyboard), and its
+master image is [assets/icons/poly_keyboard_11x7.png](../../../assets/icons/poly_keyboard_11x7.png).
 
 **Plane A**, one word per column (0–10):
 
@@ -259,7 +219,8 @@ The artwork sits in 1200 B of linker padding at `0x40213b50..0x40214000`.
   filled candidates, and three of them were in use. Scan the whole image for words pointing into a
   candidate range before using it.
 
-See [landing_pads.md](landing_pads.md) and [memory_map.md](memory_map.md).
+See [landing_pads.md](landing_pads.md) and [memory_map.md](memory_map.md). The method for surveying
+`.rodata` is in [landing_pad_method.md](../../../notes/landing_pad_method.md#surveying-rodata).
 
 ## Other display changes
 

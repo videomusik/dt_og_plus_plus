@@ -19,13 +19,13 @@
 //
 // Arguments: <MAIN OS of a DT OG++ build | raw pad file> [addend shortname popupname]
 //   The pad bytes (104 B) are read at 0x4001511e from the build's decompressed MAIN OS
-//   (./scripts/extract.sh out/<build>.syx, then work/<build>/section_3_MAIN_OS.bin), or taken whole
-//   from a raw pad file assembled for that address.
+//   (./scripts/extract.sh 1.52A:out/1.52A/<build>.syx, then work/dt_1.52A-<build>/section_3_MAIN_OS.bin),
+//   or taken whole from a raw pad file assembled for that address.
 //   The three entry points default to the reference build's (0x4001511e 0x40015134 0x40015154), whose
 //   bytes the build pins by hash. If you assemble the pads yourself, pass the entry points from your
 //   own listing: a wrong entry makes the harness execute mid-instruction, which looks like a firmware
 //   bug but is a harness bug.
-//   ./scripts/ghidra_emu.sh EmuChanLabel work/<build>/section_3_MAIN_OS.bin
+//   ./scripts/ghidra_emu.sh 1.52A EmuChanLabel work/dt_1.52A-<build>/section_3_MAIN_OS.bin
 // Runs in Ghidra's emulator only; nothing touches a device. @category dt_og_plus_plus
 import ghidra.app.script.GhidraScript;
 import ghidra.app.emulator.EmulatorHelper;

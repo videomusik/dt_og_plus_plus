@@ -3,11 +3,13 @@
 // step — VALIDATE it, undoing the whole function if its body contains a Bad Instruction (a seed that
 // decoded plausibly but is really data). Iterate to a fixpoint.
 //
-//   analyzeHeadless <proj> <name> -process <bin> -noanalysis -scriptPath scripts/ghidra \
+//   analyzeHeadless <proj> <name> -process <bin> -noanalysis \
+//      -scriptPath "scripts/ghidra;os/1.52A/scripts/ghidra" \
 //      -postScript SeedCodeGaps.java <outfile> [minLen=2] [maxPasses=10]
 //
-// Via the wrapper (on a copied project, see docs/toolchain.md section 4d):
-//   GHIDRA_PROJECT=dt_1.52A_seed ./scripts/ghidra_query.sh dt main SeedCodeGaps
+// Via the wrapper (on a copied project, see docs/toolchain.md section 4d and
+// os/1.52A/notes/analysis_reference.md):
+//   GHIDRA_PROJECT=dt_1.52A_seed ./scripts/ghidra_query.sh 1.52A main SeedCodeGaps
 //
 // ⚠️ Seeds are restricted to the two real code windows of the Digitakt OS 1.52A MAIN OS (main
 // 0x400004b2-0x40162748, island 0x40210e4a-0x40211ef2). Seeding into .rodata/.data disassembles
@@ -52,6 +54,11 @@ public class SeedCodeGaps extends GhidraScript {
 
     @Override
     public void run() throws Exception {
+        // Fail closed: WINDOWS belongs to this OS folder; an empty table is never a default.
+        if (WINDOWS.length == 0) {
+            printerr("SeedCodeGaps: WINDOWS is empty; fill it from this OS folder's own analysis");
+            return;
+        }
         String[] args = getScriptArgs();
         String outfile = args.length > 0 ? args[0] : "seed_out.txt";
         int minLen = args.length > 1 ? Integer.decode(args[1]) : 2;

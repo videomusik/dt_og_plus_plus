@@ -1,7 +1,7 @@
 // Audio-ISR probe 9: WHO FILLS the 8 per-track audio buffers at 0x80001a18 (0x80 per track)? Run the
 // ISR (idle), watch every write into that region and log the distinct writer PCs. A positive
 // (pc, addr) pair is direct evidence of who touches the audio buffers.
-//   ./scripts/ghidra_emu.sh EmuISR9
+//   ./scripts/ghidra_emu.sh 1.52A EmuISR9
 // Runs in Ghidra's emulator only; nothing touches a device. @category dt_og_plus_plus
 import ghidra.app.script.GhidraScript;
 import ghidra.app.emulator.EmulatorHelper;

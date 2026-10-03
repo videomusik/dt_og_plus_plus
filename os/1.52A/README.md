@@ -1,4 +1,4 @@
-# DT OG++
+# DT OG++ for OS 1.52A
 
 DT OG++ is a modified OS 1.52A for the Digitakt (the original model). It adds round-robin slice
 selection for the Slice machine, a Poly machine that lets one Sound play several notes at the same
@@ -6,6 +6,8 @@ time, and a way for MIDI tracks to play the audio tracks without a cable. This r
 no Elektron firmware. You build DT OG++ yourself, on your own computer, from your own copy of
 Elektron's stock OS 1.52A update file, and the build refuses any other input. DT OG++ is not
 affiliated with or endorsed by Elektron.
+
+Other OS versions and the shared documentation: [README.md](../../README.md).
 
 ## NEW FEATURES
 
@@ -98,7 +100,7 @@ For how each feature works inside the firmware, see the feature list in
 ## DIFFERENCES FROM STOCK YOU MAY NOTICE
 
 The Digitakt still reports OS 1.52A: the build does not change the version string. Use
-`build/verify.py` to tell a DT OG++ file from the stock one.
+`os/1.52A/build/verify.py` to tell a DT OG++ file from the stock one.
 
 ## QUICK START
 
@@ -109,8 +111,9 @@ You need:
 - to build the firmware tool: a C compiler (`cc`), `patch`, `shasum` or `sha256sum`, and git to
   clone the tool's source once.
 
-The build runs on macOS and Linux; on Windows, use WSL2 ([docs/toolchain.md](docs/toolchain.md),
-section 7). Full details are in [docs/building.md](docs/building.md).
+The build runs on macOS and Linux; on Windows, use WSL2
+([docs/toolchain.md](../../docs/toolchain.md#7-linux-and-windows), section 7). Full details are in
+[docs/building.md](../../docs/building.md).
 
 1. Save the Digitakt OS 1.52A `.syx` update file as
    `sysex/Digitakt_OS1.52A.syx` in the repository root (create the `sysex` folder).
@@ -126,8 +129,8 @@ section 7). Full details are in [docs/building.md](docs/building.md).
 
    ```
    bash build/build_tool.sh
-   python3 build/build.py
-   python3 build/verify.py out/dt_og_plus_plus_v0.1_<hash8>.syx --tool tool/bin/elektron-firmware-tool-capped
+   python3 os/1.52A/build/build.py
+   python3 os/1.52A/build/verify.py out/1.52A/dt_og_plus_plus_v0.1_<hash8>.syx --tool tool/bin/elektron-firmware-tool-capped
    ```
 
    In the last command, use the file name that `build.py` prints at `[7/7] wrote`.
@@ -144,24 +147,26 @@ What the three commands do:
   never changes your clone; if the clone is missing or not at the pinned commit, it stops and prints
   the two commands of step 2. `--src DIR` builds from a clone in another folder, and `--bin-dir DIR`
   writes the binary somewhere else.
-- `build/build.py` checks your stock file, applies `build/patch.json`, packs and re-checks the result,
-  and only then writes `out/dt_og_plus_plus_v0.1_<first 8 hex digits of its SHA-256>.syx`. This is the file
-  you flash. It prints the name at `[7/7] wrote`. `--syx FILE`, `--tool FILE` and `--out DIR` override
+- `os/1.52A/build/build.py` checks your stock file, applies `os/1.52A/build/patch.json`, packs and
+  re-checks the result, and only then writes
+  `out/1.52A/dt_og_plus_plus_v0.1_<first 8 hex digits of its SHA-256>.syx`. This is the file you
+  flash. It prints the name at `[7/7] wrote`. `--syx FILE`, `--tool FILE` and `--out DIR` override
   the default locations.
-- `build/verify.py` tells you what a `.syx` file is: stock Digitakt OS 1.52A, DT OG++ (reference
-  build), or unknown. With `--tool` it also checks the firmware inside the file (section 3, MAIN OS),
-  whichever tool packed it.
+- `os/1.52A/build/verify.py` tells you what a `.syx` file is: stock Digitakt OS 1.52A, DT OG++
+  (reference build), or unknown. With `--tool` it also checks the firmware inside the file (section
+  3, MAIN OS), whichever tool packed it.
 
-The stock file's hash, and how the result is checked: [docs/building.md](docs/building.md#expected-result).
+The stock file's hash, and the expected result: [docs/reference.md](docs/reference.md#expected-result);
+how the build checks it: [docs/building.md](../../docs/building.md#what-buildpy-checks).
 
 ## BEFORE YOU FLASH
 
 Building never talks to the Digitakt; flashing is a separate step and your own decision. Read
-[SAFETY.md](SAFETY.md) first. It lists what to have ready (your stock file, Elektron Transfer, a DIN
-MIDI interface, backups of your projects and samples), explains why you flash only the file
-`build/build.py` names, and gives the recovery steps. Some of the patched code runs while the
-Digitakt starts up, so a problem can show before the normal update route is available. The recovery
-route through the STARTUP menu needs a DIN MIDI cable into the Digitakt's MIDI IN, not USB.
+[SAFETY.md](../../SAFETY.md) first. It lists what to have ready (your stock file, Elektron Transfer, a
+DIN MIDI interface, backups of your projects and samples), explains why you flash only the file
+`os/1.52A/build/build.py` names, and gives the recovery steps. Some of the patched code runs while
+the Digitakt starts up, so a problem can show before the normal update route is available. The
+recovery route through the STARTUP menu needs a DIN MIDI cable into the Digitakt's MIDI IN, not USB.
 
 ## GOING BACK TO STOCK
 
@@ -179,24 +184,28 @@ A project made on stock firmware loads unchanged on DT OG++. Details:
 
 ## FOR DEVELOPERS AND AGENTS
 
-- [AGENTS.md](AGENTS.md): instructions for coding agents working in this repository.
-- [notes/README.md](notes/README.md): the reverse-engineering notes, including the notes on the
-  features.
-- [docs/building.md](docs/building.md): the build, its checks, the protected ranges and the expected
-  hashes.
+- [AGENTS.md](../../AGENTS.md): instructions for coding agents working in this repository.
+- [notes/README.md](notes/README.md): the OS 1.52A reverse-engineering notes, including the notes on
+  the features.
+- [notes/README.md](../../notes/README.md) (shared): the conventions and the method that the notes of
+  every OS version follow.
+- [docs/building.md](../../docs/building.md): the build and its checks.
+- [docs/reference.md](docs/reference.md): the protected ranges and the expected hashes for OS 1.52A.
 - [docs/patch_listing.md](docs/patch_listing.md): every changed byte, with its disassembly.
-- [docs/toolchain.md](docs/toolchain.md): the analysis toolchain (extraction, Ghidra, emulation).
-- [scripts/manual/README.md](scripts/manual/README.md): turning your own copy of the Digitakt manual
-  into searchable text.
+- [docs/toolchain.md](../../docs/toolchain.md): the analysis toolchain (extraction, Ghidra,
+  emulation).
+- [scripts/manual/README.md](../../scripts/manual/README.md): turning your own copy of the Digitakt
+  manual into searchable text.
+- [os/README.md](../README.md): the OS folders, one per supported OS version.
 
 ## LICENCE
 
 This repository's own content is dedicated to the public domain under CC0 1.0 Universal (see
-[LICENSE](LICENSE)). Two parts keep their own terms:
+[LICENSE](../../LICENSE)). Two parts keep their own terms:
 
 - `build/tool_patches/cap_window_1mb.patch` contains context lines from elektron-firmware-tool. Those
   lines stay under the tool's MIT License.
 - `scripts/ghidra_ext/` is derived from Ghidra's Motorola 68000 processor module and is distributed
-  under the Apache License 2.0 ([scripts/ghidra_ext/NOTICE.md](scripts/ghidra_ext/NOTICE.md)).
+  under the Apache License 2.0 ([scripts/ghidra_ext/NOTICE.md](../../scripts/ghidra_ext/NOTICE.md)).
 
-What comes from where, and the licence texts: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+What comes from where, and the licence texts: [THIRD_PARTY_NOTICES.md](../../THIRD_PARTY_NOTICES.md).

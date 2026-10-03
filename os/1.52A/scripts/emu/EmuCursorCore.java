@@ -19,10 +19,10 @@
 // Memory is laid out like the real page: marker widget = PAGE+0x1c4, grid widget = PAGE+0x1f8, so that
 // the grid stub's "&marker.dirty = grid-3" really lands on PAGE+0x1c4+0x31.
 //
-// Argument: the decompressed MAIN OS of a DT OG++ build (./scripts/extract.sh out/<build>.syx, then
-// work/<build>/section_3_MAIN_OS.bin), from which the 190-byte core is read at 0x40015060; or a raw
-// file holding just the core, assembled for that address.
-//   ./scripts/ghidra_emu.sh EmuCursorCore work/<build>/section_3_MAIN_OS.bin
+// Argument: the decompressed MAIN OS of a DT OG++ build (./scripts/extract.sh 1.52A:out/1.52A/<build>.syx,
+// then work/dt_1.52A-<build>/section_3_MAIN_OS.bin), from which the 190-byte core is read at 0x40015060;
+// or a raw file holding just the core, assembled for that address.
+//   ./scripts/ghidra_emu.sh 1.52A EmuCursorCore work/dt_1.52A-<build>/section_3_MAIN_OS.bin
 // Runs in Ghidra's emulator only; nothing touches a device. @category dt_og_plus_plus
 import ghidra.app.script.GhidraScript;
 import ghidra.app.emulator.EmulatorHelper;

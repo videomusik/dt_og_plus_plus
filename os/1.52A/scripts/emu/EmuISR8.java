@@ -3,7 +3,7 @@
 // a later tick). The post-slot DSP chain is stubbed so each tick completes. Watch BOTH render slots'
 // Select and sample-slot bytes every step and log any writer PC; log every FUN_40074af2 call.
 // Over 14 ticks: does track 7's data (marker 0x77 / sample slot 0x37) ever land in a slot?
-//   ./scripts/ghidra_emu.sh EmuISR8
+//   ./scripts/ghidra_emu.sh 1.52A EmuISR8
 // Runs in Ghidra's emulator only; nothing touches a device. @category dt_og_plus_plus
 import ghidra.app.script.GhidraScript;
 import ghidra.app.emulator.EmulatorHelper;

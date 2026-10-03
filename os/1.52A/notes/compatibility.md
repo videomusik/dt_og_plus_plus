@@ -15,7 +15,7 @@ back as ONESHOT.
 | SLICE Select = RRBN (−1) or RRND (−2) | The track plays, with Select as NOTE. The rest of the project is intact, and nothing crashes | ✅ confirmed on the test unit |
 | A track set to the POLY machine | ⚠️ Most likely loads as ONESHOT (machine 0): the stock kit loader clamps machine 4 to 0 | ⚠️ inferred from code; not tested on stock |
 | A MIDI track with CHAN = TRK1–TRK8 | ⚠️ The value is kept, and that MIDI track sends nothing | ⚠️ inferred from code; not tested on stock |
-| Anything else | Unaffected: the other features change code, constants and RAM, not what a project stores | ⚠️ read from `build/patch.json` |
+| Anything else | Unaffected: the other features change code, constants and RAM, not what a project stores | ⚠️ read from `os/1.52A/build/patch.json` |
 
 Loading a project that uses the POLY machine or a TRK value on stock firmware is still to be tested
 on a unit. The two ⚠️ rows for them are what the code predicts.
@@ -25,9 +25,9 @@ values. The [tick-wipe fix](features/tick_wipe_fix.md) removes a stock defect th
 meet.
 
 **The device still reports OS 1.52A.** The build does not rewrite the version string, and
-`build/build.py` requires the packed file to report version 1.52A. The version display does not tell
+`os/1.52A/build/build.py` requires the packed file to report version 1.52A. The version display does not tell
 this build from stock. A build's file name carries the first 8 hex digits of its SHA-256, and section
-3's SHA-256 identifies the firmware ([firmware_image.md](firmware_image.md)).
+3's SHA-256 identifies the firmware ([stock_image.md](stock_image.md)).
 
 ## Three kinds of change
 
@@ -88,7 +88,7 @@ Every deserializer checks an exact version and initialises a default on a mismat
 - **Pattern and project** storage carry their own version numbers.
 
 Bumping one of them would make stock reset that object rather than load it. This build bumps none:
-`build/patch.json` touches no serializer and no version gate, and its one loader edit is the machine
+`os/1.52A/build/patch.json` touches no serializer and no version gate, and its one loader edit is the machine
 bound at `0x4007a995`.
 
 ## Related notes
@@ -100,4 +100,4 @@ bound at `0x4007a995`.
 - [features/midi_loopback.md](features/midi_loopback.md): the TRK values of CHAN.
 - [pattern_layout.md](pattern_layout.md): the stored layouts.
 - [parameters.md](parameters.md): the parameter descriptors and their ranges.
-- [firmware_image.md](firmware_image.md): the version string and the build's identity.
+- [stock_image.md](stock_image.md): the version string and the build's identity.

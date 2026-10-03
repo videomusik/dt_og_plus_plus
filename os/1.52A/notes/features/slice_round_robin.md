@@ -90,7 +90,7 @@ Moving the minimum is therefore the whole UI range change, with no encoder code 
 ## What the build changes
 
 Every run of changed bytes, by purpose. The generated per-byte listing is in
-[docs/patch_listing.md](../../docs/patch_listing.md).
+[os/1.52A/docs/patch_listing.md](../../docs/patch_listing.md).
 
 | Where (load) | Raw (file offset) | Size | What |
 |---|---|---|---|
@@ -296,7 +296,7 @@ formatter at `0x400b2410` is a signed version:
 The Slice Select cell drawer is `entry_40065234` (186 B, runtime record 136). Stock clamps negative
 values to 0. It then draws the NOTE bitmap `0x421b9c3c` for values ≤ 0, and the slice-ruler bitmap
 `0x421b9b60` with the number for values ≥ 1. The build adds a third case: any value < 0 draws the
-robin. The artwork and the `Bitmap` format are in [visual_assets.md](../visual_assets.md).
+robin. The artwork is in [icon_artwork.md](../../../../notes/icon_artwork.md#the-robin); its encoding, placement and the `Bitmap` format are in [visual_assets.md](../visual_assets.md).
 
 - **Edit 1, at `0x40065264`:** `movel %sp@(20),%d1 ; andl %d0,%d2` (6 B) becomes `jmp 0x400aff34`
   (6 B). It uses `jmp`, not `jsr`, so `%sp` is unchanged inside the pad.
@@ -350,6 +350,7 @@ See [open_questions.md](../open_questions.md).
 - [function_ledger.md](../function_ledger.md#the-pool-map-build-and-refresh) and
   [patch_listing.md](../../docs/patch_listing.md#poly-engine): `groupSource[]` and the pool map.
 - [pool_cursors.md](pool_cursors.md): the SRC page 2 cursors, which show the latch at work.
-- [visual_assets.md](../visual_assets.md): the robin's pixels and the `Bitmap` format.
+- [visual_assets.md](../visual_assets.md) and
+  [icon_artwork.md](../../../../notes/icon_artwork.md#the-robin): the robin's pixels and the `Bitmap` format.
 - [landing_pads.md](../landing_pads.md): why `FUN_400b23b0` and `FUN_400aff0e` are safe to overwrite.
 - [function_ledger.md](../function_ledger.md): every function named here.

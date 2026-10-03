@@ -200,7 +200,7 @@ The loop and the tail:
 ```
 
 Here `d2` holds S, `a5` the selected track, `d5` the width and `d6` the x origin. The whole listing is in
-[docs/patch_listing.md](../../docs/patch_listing.md).
+[os/1.52A/docs/patch_listing.md](../../docs/patch_listing.md).
 
 ### Register and stack contract
 
@@ -214,7 +214,7 @@ Here `d2` holds S, `a5` the selected track, `d5` the width and `d6` the x origin
 
 The core was also stepped in the emulator for stack balance, the untouched frame, `d7`/`a6` preservation,
 the set of voices drawn and their x, and both dirty bytes, for both variants (see
-[emulator.md](../emulator.md)).
+[EmuCursorCore](../../scripts/emu/README.md#the-pad-harnesses-dt-og-code)).
 
 ### Refresh
 

@@ -17,7 +17,7 @@
 //
 // The pad bytes are built in (our own code, as the assembler produced it, checked against objdump at
 // 0x400afe46 and identical to the reference build). No arguments.
-//   ./scripts/ghidra_emu.sh EmuReadAlias
+//   ./scripts/ghidra_emu.sh 1.52A EmuReadAlias
 // Runs in Ghidra's emulator only; nothing touches a device. @category dt_og_plus_plus
 import ghidra.app.script.GhidraScript;
 import ghidra.app.emulator.EmulatorHelper;

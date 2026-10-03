@@ -4,14 +4,16 @@
 
 Where the firmware lives at run time: DDR (the MAIN OS image, `.bss`, the heap, the stacks) and the
 64 KB of on-chip SRAM, as MAIN OS's startup code sets them up. The note also lists the RAM this build
-uses for its own state, the routes for adding new code that are closed and why, and the method rule
-that decides whether a region is really unused. Addresses are load addresses.
+uses for its own state, the routes for adding new code that are closed and why, and where this image
+shows the method rule that decides whether a region is really unused (the rule itself is in
+[analysis_method.md](../../../notes/analysis_method.md#never-call-anything-unused-on-one-method)).
+Addresses are load addresses.
 
 ## Two address spaces
 
 - **The file.** Section 3 (MAIN OS) decompresses to 2,221,632 B (`0x21E640`) and loads at `0x40000400`,
   so it occupies `0x40000400..0x4021ea40`. A file offset is the load address minus `0x40000400`.
-- **Run time.** Each section's `dst` ([firmware_image.md](firmware_image.md)):
+- **Run time.** Each section's `dst` ([stock_image.md](stock_image.md#layer-2-the-ele3-container)):
 
 | Section | `dst` | Where it runs |
 |---|---|---|
@@ -20,9 +22,9 @@ that decides whether a region is really unused. Addresses are load addresses.
 | 3 MAIN OS, 2.2 MB | `0x40000400` | DDR |
 | 4 updater, 32 KB | `0x80000400` | SRAM, during an OS update |
 
-The standard linker sections apply: `.text` (code), `.rodata` (constants, including every string
-literal), `.data` (initialised read-write data) and `.bss` (zero-filled read-write data). The
-ColdFire stack is full-descending (SP = A7, pre-decrement).
+The chip-level layout (the DDR, SRAM and peripheral address spaces, the standard linker sections
+`.text`, `.rodata`, `.data` and `.bss`, and the full-descending ColdFire stack) is in
+[hardware.md](../../../notes/hardware.md).
 
 ## DDR
 
@@ -132,16 +134,14 @@ A Ghidra reference query reports memory *references*. Driver code often builds a
 *immediates* instead: `addi.l #0x8000ba00,d0` or `adda.l #0x80008800,a0` produce a scalar operand, not
 a reference. A region owned by fixed-address DMA rings is therefore invisible to `DumpRefsInRange`,
 `RefDensityMap` and `FindDeadSpace`, and a reference query over `0x80008300..0x8000c000` returns zero
-from both MAIN OS and section 2.
+from both MAIN OS and section 2. `FindAddressLiterals`, which scans every instruction's operand
+scalars, finds the rings ([Tools](#tools)). The region is also all zeros in the image and ends where
+the 16 KB-aligned table at `0x8000c000` starts, so alignment padding would be a plausible explanation.
+Neither is evidence: a region built at run time looks exactly like that.
 
-⛔ **Never call a region unused on reference queries alone.** Run `FindAddressLiterals`, which scans
-every instruction's operand scalars, first. Zeros in the image and a plausible explanation (such as
-alignment padding before a 16 KB-aligned table) are not evidence either: a region built at run time
-looks exactly like that.
-
-Raw big-endian word scans of the section are a superset check only. On code they are noisy, because
-opcode pairs such as `41f9` or `46fc` read as `0x4xxxxxxx` values, and at unaligned offsets they invent
-hits. Use them to find candidates, then confirm in Ghidra or with `m68k-elf-objdump -m m68k:cfv4e`.
+⛔ **Never call a region unused on reference queries alone.** The rule, and how raw word scans and
+objdump fit in, is in
+[analysis_method.md](../../../notes/analysis_method.md#never-call-anything-unused-on-one-method).
 
 ## `.bss` occupancy
 
@@ -189,19 +189,21 @@ The query scripts are in `scripts/ghidra/` and run through `scripts/ghidra_query
 the project:
 
 - `RefDensityMap <lo> <hi> [bucket] [gaps]`: the whole-`.bss` map is
-  `./scripts/ghidra_query.sh dt main RefDensityMap 0x40214000 0x439902a0`.
+  `./scripts/ghidra_query.sh 1.52A main RefDensityMap 0x40214000 0x439902a0`.
 - `DumpRefsInRange <lo> <hi> [maxSources] [bucket]`: the low-`.bss` detail is
-  `./scripts/ghidra_query.sh dt main DumpRefsInRange 0x40214000 0x40240000`.
+  `./scripts/ghidra_query.sh 1.52A main DumpRefsInRange 0x40214000 0x40240000`.
 - `FindDeadSpace <start> <end> [minLen]`: the undefined-and-unreferenced pass is
-  `./scripts/ghidra_query.sh dt main FindDeadSpace 0x40000400 0x40214000 16`.
+  `./scripts/ghidra_query.sh 1.52A main FindDeadSpace 0x40000400 0x40214000 16`.
 - `FindAddressLiterals <lo> <hi> [bucket]`: the scan that finds the DMA rings, for example
-  `./scripts/ghidra_query.sh dt main FindAddressLiterals 0x80000000 0x80010000 0x800`.
+  `./scripts/ghidra_query.sh 1.52A main FindAddressLiterals 0x80000000 0x80010000 0x800`.
 
-How complete the disassembly is, and how it was made so, is in [analysis_method.md](analysis_method.md).
+How complete the disassembly of this image is: [analysis_reference.md](analysis_reference.md#reference-numbers).
+How it was made so: [analysis_method.md](../../../notes/analysis_method.md).
 
 ## Related notes
 
-- [firmware_image.md](firmware_image.md): the sections and their load addresses.
+- [stock_image.md](stock_image.md#layer-2-the-ele3-container): the sections and their load addresses.
+- [hardware.md](../../../notes/hardware.md): the chip's address spaces.
 - [landing_pads.md](landing_pads.md): the code pads and the `.rodata` budget.
 - [render_path.md](render_path.md): the SRAM voice arrays in use.
 - [section2_map.md](section2_map.md): section 2's own use of SRAM.

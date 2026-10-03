@@ -1,7 +1,7 @@
 // Audio-ISR probe 7: probe 6 plus a distinct sample-slot marker in every voice struct, so the report
 // shows which voices the run wrote (i.e. which tracks were allocated or loaded), and each voice's
 // window position/length afterwards.
-//   ./scripts/ghidra_emu.sh EmuISR7
+//   ./scripts/ghidra_emu.sh 1.52A EmuISR7
 // Runs in Ghidra's emulator only; nothing touches a device. @category dt_og_plus_plus
 import ghidra.app.script.GhidraScript;
 import ghidra.app.emulator.EmulatorHelper;

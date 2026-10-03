@@ -3,7 +3,7 @@
 of a Class::method name before the last ::), with the C++ standard-library templates collapsed into
 one row. The names come from the RTTI walk (scripts/ghidra/NameFromRtti.java).
 
-    python3 scripts/emu/mainos_classes.py [functions.tsv]
+    python3 os/1.52A/scripts/emu/mainos_classes.py [functions.tsv]
 
 The file defaults to work/ghidra/out/dt_1.52A_emac/functions.tsv (written by ghidra_analyze.sh).
 Reads only.
@@ -13,11 +13,14 @@ import os
 import re
 import sys
 
-REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+HERE = os.path.dirname(os.path.abspath(__file__))
+OS_DIR = os.path.dirname(os.path.dirname(HERE))     # os/<version>/, the OS folder this script sits in
+OS_ID = os.path.basename(OS_DIR)
+REPO = os.path.dirname(os.path.dirname(OS_DIR))
 path = sys.argv[1] if len(sys.argv) > 1 else os.path.join(
-    REPO, "work", "ghidra", "out", "dt_1.52A_emac", "functions.tsv")
+    REPO, "work", "ghidra", "out", f"dt_{OS_ID}_emac", "functions.tsv")
 if not os.path.isfile(path):
-    sys.exit(f"error: {path} not found; run GHIDRA_LANG_VARIANT=emac ./scripts/ghidra_analyze.sh dt main first")
+    sys.exit(f"error: {path} not found; run GHIDRA_LANG_VARIANT=emac ./scripts/ghidra_analyze.sh {OS_ID} main first")
 
 cls_funcs = collections.Counter(); cls_bytes = collections.Counter()
 named = 0; total = 0

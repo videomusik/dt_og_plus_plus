@@ -420,8 +420,8 @@ evidently a larger object than the ring event (its only caller is `0x4000b660`, 
 ## Patched bytes
 
 All edits are in section 3 (MAIN OS). The generated per-run listing is
-[docs/patch_listing.md](../../docs/patch_listing.md); the build data is
-[build/patch.json](../../build/patch.json).
+[os/1.52A/docs/patch_listing.md](../../docs/patch_listing.md); the build data is
+[os/1.52A/build/patch.json](../../build/patch.json).
 
 | load address | file offset | size | new bytes | part |
 |---|---|---|---|---|
@@ -455,7 +455,7 @@ Where each piece runs, which is also where a fault would show:
 | record filter | the recorder feed | every recorder event: live notes from any source, pads included |
 
 Verification: the display pads and the private-lane arm were also stepped in the emulator (see
-[emulator.md](../emulator.md)); the channel hook, the tap and the record filter were verified from the
+[EmuChanLabel and EmuMidiLane](../../scripts/emu/README.md#the-pad-harnesses-dt-og-code)); the channel hook, the tap and the record filter were verified from the
 disassembly and on the test unit.
 
 ## Open questions

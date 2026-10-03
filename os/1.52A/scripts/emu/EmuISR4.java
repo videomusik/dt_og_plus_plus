@@ -1,6 +1,6 @@
 // Audio-ISR probe 4: as probe 3, but with the machine type written straight into the ISR's own
 // per-track table (0x41960316) and a PC histogram of what remains hot.
-//   ./scripts/ghidra_emu.sh EmuISR4
+//   ./scripts/ghidra_emu.sh 1.52A EmuISR4
 // Runs in Ghidra's emulator only; nothing touches a device. @category dt_og_plus_plus
 import ghidra.app.script.GhidraScript;
 import ghidra.app.emulator.EmulatorHelper;

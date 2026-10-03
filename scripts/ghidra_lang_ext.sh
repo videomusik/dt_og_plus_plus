@@ -103,5 +103,5 @@ echo "installed : $ext_dir"
 echo "language  : $LANG_ID"
 echo
 echo "A program is bound to the language it was imported with, so use this by importing into a NEW"
-echo "project (GHIDRA_LANG_VARIANT=emac ./scripts/ghidra_analyze.sh dt main). The stock"
+echo "project (GHIDRA_LANG_VARIANT=emac ./scripts/ghidra_analyze.sh <os> main). The stock"
 echo "68000:BE:32:Coldfire projects are untouched and stay available to compare."

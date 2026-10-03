@@ -5,7 +5,7 @@
 // functions that fault). Watch a18: if any word becomes the sample pattern, a CPU reader filled it ->
 // log the PC. If a18 only ever clears despite active voices, the fill is eDMA (hardware), so the
 // sample read is NOT CPU code.
-//   ./scripts/ghidra_emu.sh EmuISR10
+//   ./scripts/ghidra_emu.sh 1.52A EmuISR10
 // Runs in Ghidra's emulator only; nothing touches a device. @category dt_og_plus_plus
 import ghidra.app.script.GhidraScript;
 import ghidra.app.emulator.EmulatorHelper;

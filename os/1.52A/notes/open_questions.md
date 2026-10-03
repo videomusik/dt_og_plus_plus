@@ -5,9 +5,9 @@
 What is still not known about the stock Digitakt firmware, where it matters for understanding this
 build or extending it. Each entry says what is unknown, why it matters, and what would answer it.
 Questions that belong to a single feature are listed at the end of that feature's note; this note
-collects the ones about stock code and about behaviour whose cause is not found. The last sections
-record what is settled, so it is not re-opened, and the design constraints that close some routes by
-choice.
+collects the ones about stock code and about behaviour whose cause is not found. The last section
+records what is settled, so it is not re-opened.
+Design constraints that hold for every version: [notes/update_moat_method.md](../../../notes/update_moat_method.md#design-constraints).
 
 ## Behaviour seen on the test unit, cause not found
 
@@ -236,14 +236,14 @@ choice.
   - The bodies of `FUN_80002b9e` (572 B), `FUN_80002902` (564 B), `FUN_80004946` (628 B) and
     `FUN_80004754` (498 B), and about 50 leaf helpers.
 - **Why it matters.** The startup-menu recovery route lives in this code
-  ([flash_recovery.md](flash_recovery.md)). This build leaves sections 2 and 4 byte-identical, so the
+  ([flash_recovery.md](../../../notes/flash_recovery.md)). This build leaves sections 2 and 4 byte-identical, so the
   route is stock either way; knowing it would say exactly what the recovery depends on.
 - **What would answer it.** Trace `FUN_800014da`'s final jump; find what reads the boot status.
 
 ### Which UI code runs before the first usable screen
 
 - **Known.** The machine-type query `FUN_4002af58` runs as the screen first draws, and the
-  parameter-grid draw runs at first paint ([flash_recovery.md](flash_recovery.md)).
+  parameter-grid draw runs at first paint ([startup_hooks.md](startup_hooks.md)).
 - **Unknown.** Whether the SRC page's 30 Hz tick (which invalidates the page every 12th tick and feeds
   the playhead cursor) runs before the UI is up, and which page the unit restores at startup, hence
   which page draws run then.
@@ -260,7 +260,7 @@ choice.
   `FUN_4006753e` (the host-communication task, on the update path) zeroes from `0x40225e70`: a
   sub-object, or is the buffer smaller than it looks?
 - **The meta section's 15 bytes**, assumed to be a build stamp and never read
-  ([firmware_image.md](firmware_image.md)).
+  ([stock_image.md](stock_image.md)).
 - **`0x4000b564`**, a 2,270-byte function that is the target of a slot in hundreds of vtables: a shared
   base or not-implemented handler? Decompile it and see whether it returns or throws. Knowing it would
   remove a lot of noise from vtable reading.
@@ -273,7 +273,8 @@ choice.
 
 - **Known.** The code region is 99.91 % disassembled in the seeded project, but "dead" is still argued
   from missing references, and the only proof a landing pad is free is a run on a unit
-  ([landing_pads.md](landing_pads.md), [analysis_method.md](analysis_method.md)).
+  ([landing_pad_method.md](../../../notes/landing_pad_method.md),
+  [analysis_method.md](../../../notes/analysis_method.md)).
 - **Why it matters.** Landing-pad vetting from references alone can be wrong in both directions, and every new feature needs
   free space.
 - **What would answer it.** A reachability closure over the seeded project. Roots: the reset vector →
@@ -286,7 +287,7 @@ choice.
 ### Why OS transfers sometimes wedge
 
 - **Known.** A transfer sometimes stalls or will not start, with stock firmware as well as with built
-  images, and a restart clears it ([flash_recovery.md](flash_recovery.md)).
+  images, and a restart clears it ([flash_recovery.md](../../../notes/flash_recovery.md)).
 - **Unknown.** Where the fault is: the host, the USB-MIDI link, or the unit's receive state.
 - **What would answer it.** Whether restarting before every transfer makes it reliable; if it recurs,
   look on the host side (the transfer application, the MIDI port) rather than at the image.
@@ -297,20 +298,3 @@ choice.
   `FUN_40074e84` plays NOTE mode at the fixed note 60 (`0x3c0000`) and every other Select value, the
   round-robin values included, at the trig's note. A trig at note 52 plays 8 semitones below NOTE mode; set the
   trig note to 60 for the same pitch ([SLICE round robin](features/slice_round_robin.md)).
-
-## Design constraints
-
-These routes are closed by choice, not for lack of knowledge.
-
-- **The boot loader (section 2) and the updater (section 4) are never modified.** They stay
-  byte-identical to stock, which keeps the startup-menu recovery stock ([update_moat.md](update_moat.md)).
-  It also rules out adding a new image section that loads above `.bss`, which was the only route to
-  contiguous new space, so all new code goes into vetted landing pads in section 3
-  ([landing_pads.md](landing_pads.md)). Reading the updater to understand it remains open.
-- **MAIN OS is not relocated or relinked.** Recovering relocations for a 2.2 MB, vtable-heavy C++
-  image would take months and never be fully trustworthy. Every stock address therefore stays where it
-  is, and every patch is an in-place edit or a jump to a pad.
-- **A running unit is not instrumented over the SysEx RPC protocol.** That layer sits beside the OS
-  update route. Offline emulation ([emulator.md](emulator.md)) and flash-and-observe on the test unit
-  are used instead, so questions above that need a RAM image of a running unit stay open until one
-  can be taken another way (for example over the BDM header, [hardware.md](hardware.md)).

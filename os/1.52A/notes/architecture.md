@@ -10,7 +10,7 @@ recovered. It is the index to drill down from; per-function detail is in
 
 ## Boot
 
-The CPU is a ColdFire MCF54415 ([hardware.md](hardware.md)). The chain from reset to the scheduler:
+The CPU is a ColdFire MCF54415 ([hardware.md](../../../notes/hardware.md)). The chain from reset to the scheduler:
 
 1. `entry_400004e8`, the reset entry (`move.w #$2700,SR`).
 2. crt0:
@@ -209,7 +209,7 @@ compression), and `BackupFileExportAdapter` / `ImportAdapter`.
 
 `OsUpgradeMenuView`, `OsUpgradeState`, `OsUpgradeDelegate`, `DigitaktSysexRpc`: the MAIN OS side of
 the SysEx OS update. The flash programmer itself is section 4. None of this may be patched; see
-[update_moat.md](update_moat.md) and [flash_recovery.md](flash_recovery.md).
+[update_moat.md](update_moat.md) and [flash_recovery.md](../../../notes/flash_recovery.md).
 
 ### MIDI and the stock MidiRpc SysEx command set
 
@@ -283,7 +283,7 @@ With all four EMAC fixes the error bookmarks are 1 (the `mac.l` mode-5 fix takes
   MAC-family instructions decoded rise from 80 to 404, with no length mismatch against
   `m68k-elf-objdump`. The one error left after all four fixes is an unrelated `jsr %pc@(…)` / `0x0000`
   boundary at `0x40115fe6`. The EMAC sites span `0x4006a570`–`0x40115fe6`. Details:
-  [../scripts/ghidra_ext/README.md](../scripts/ghidra_ext/README.md). Use the EMAC project for anything
+  [../../../scripts/ghidra_ext/README.md](../../../scripts/ghidra_ext/README.md). Use the EMAC project for anything
   that touches audio code.
 - ⛔ Ruled out: data-in-code at the branches that land on odd addresses. They were the symptom of a
   6-byte MAC instruction decoded as 4 bytes, which puts the next fetch mid-instruction.
@@ -293,7 +293,7 @@ The scripts are `scripts/ghidra_analyze.sh` (import, auto-analysis, RTTI naming,
 `scripts/ghidra_decompile.sh` (decompiled text per function, by `class:`, `addr:`, `re:`, `str:`,
 `xref:`, `callers:` or `mkfunc:` selector). Raw binaries declare no entry point, so the analysis
 creates the entry function at `0x400004e8` itself. The method is in
-[analysis_method.md](analysis_method.md).
+[analysis_method.md](../../../notes/analysis_method.md).
 
 ### The RTTI walk
 

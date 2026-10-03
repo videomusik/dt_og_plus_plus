@@ -19,10 +19,10 @@
 //                     sample-slot base; clobbering it would corrupt the render) and must be intact.
 //   6. CONTROL FLOW   execution leaves the pad only via `jmp 0x40074b62`.
 //
-// Argument: the decompressed MAIN OS of a DT OG++ build (./scripts/extract.sh out/<build>.syx, then
-// work/<build>/section_3_MAIN_OS.bin), from which the pad bytes are read at 0x400b23b0; or a raw file
-// holding just the pad, assembled for that address.
-//   ./scripts/ghidra_emu.sh EmuSliceLatch work/<build>/section_3_MAIN_OS.bin
+// Argument: the decompressed MAIN OS of a DT OG++ build (./scripts/extract.sh 1.52A:out/1.52A/<build>.syx,
+// then work/dt_1.52A-<build>/section_3_MAIN_OS.bin), from which the pad bytes are read at 0x400b23b0;
+// or a raw file holding just the pad, assembled for that address.
+//   ./scripts/ghidra_emu.sh 1.52A EmuSliceLatch work/dt_1.52A-<build>/section_3_MAIN_OS.bin
 // Runs in Ghidra's emulator only; nothing touches a device. @category dt_og_plus_plus
 import ghidra.app.script.GhidraScript;
 import ghidra.app.emulator.EmulatorHelper;

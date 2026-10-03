@@ -13,8 +13,13 @@
 //      the correct primary instruction is re-formed;
 //   3. removes the now-stale error bookmarks.
 //
-//   analyzeHeadless <proj> <name> -process <bin> -noanalysis -scriptPath scripts/ghidra \
+//   analyzeHeadless <proj> <name> -process <bin> -noanalysis \
+//      -scriptPath "scripts/ghidra;os/1.52A/scripts/ghidra" \
 //      -postScript CurateDsp.java <outfile> [maxPasses=6]
+//
+// Via the wrapper (it changes the project; see docs/toolchain.md section 4d and
+// os/1.52A/notes/analysis_reference.md):
+//   GHIDRA_PROJECT=dt_1.52A_sram ./scripts/ghidra_query.sh 1.52A sram CurateDsp
 //
 // @category dt_og_plus_plus
 
@@ -61,6 +66,11 @@ public class CurateDsp extends GhidraScript {
 
     @Override
     public void run() throws Exception {
+        // Fail closed: CODE belongs to this OS folder; an empty table is never a default.
+        if (CODE.length == 0) {
+            printerr("CurateDsp: CODE is empty; fill it from this OS folder's own analysis");
+            return;
+        }
         String[] args = getScriptArgs();
         String outfile = args.length > 0 ? args[0] : "curate_dsp.txt";
         int maxPasses = args.length > 1 ? Integer.decode(args[1]) : 6;

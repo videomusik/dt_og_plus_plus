@@ -12,7 +12,7 @@ in the test descriptions, as on the device. A *pool* (in code: a *region*) is a 
 POLY followers after it; `groupSource[v] == S` for each of its voices, and a track outside any pool is a pool of
 one (see the ledger's [pool map](../function_ledger.md#the-pool-map-build-and-refresh) and the
 [patch listing](../../docs/patch_listing.md#poly-engine)). Decompile line numbers refer to the project's Ghidra decompile
-of the named function and are only a locator ([../analysis_method.md](../analysis_method.md)).
+of the named function and are only a locator ([notes/analysis_method.md](../../../../notes/analysis_method.md)).
 
 ## The stock priority gate the allocator works with
 

@@ -1,7 +1,7 @@
 // Ghidra p-code emulator smoke test: single-step FUN_40074af2 (the slice-window function: integer
 // code, MVS and a memory read, no EMAC) for 40 steps and print the registers.
 // Checks that the emulator executes a program imported with the ColdFire-EMAC language.
-//   ./scripts/ghidra_emu.sh EmuTest
+//   ./scripts/ghidra_emu.sh 1.52A EmuTest
 // Runs in Ghidra's emulator only; nothing touches a device. @category dt_og_plus_plus
 import ghidra.app.script.GhidraScript;
 import ghidra.app.emulator.EmulatorHelper;
@@ -20,8 +20,9 @@ public class EmuTest extends GhidraScript {
     emu.writeRegister(sp, SP);
     // intended as plausible values for the 4 args. NOTE: SP+28,32,36,40 is where the function reads its
     // args only AFTER its prologue (lea -0x18,SP); at the entry, where this starts, callers leave them
-    // at SP+4..+0x10 (notes/emulator.md, "Seeding stock code"). So the function does not get these
-    // values as its args. Harmless for this smoke test, which only checks that the emulator steps it.
+    // at SP+4..+0x10 (notes/emulator.md, "Seeding stock code"; the values for this function:
+    // os/1.52A/notes/emulator_runs.md). So the function does not get these values as its args.
+    // Harmless for this smoke test, which only checks that the emulator steps it.
     // arg 1 = a param block (points into .data scratch), arg 2 = note<<16, arg 3, arg 4 = lane 0
     emu.writeStackValue(28, 4, 0x40190000L);   // param_1 (block)
     emu.writeStackValue(32, 4, 0x003c0000L);   // param_2 (note<<16)

@@ -15,14 +15,14 @@ renderer and does not run during playback. This build leaves section 2 byte-iden
   Strip the header before import. The code runs from on-chip SRAM at the load base **`0x80000ec0`**
   (the header's third word): at that base 87 of its 97 `jsr` targets land inside the blob, against 0
   of 97 at `0x03000900` or `0x80010000`. ⚠️ `0x03000900` is read as a staging address, not where the
-  code runs ([hardware.md](hardware.md)). All addresses in this note are load addresses.
+  code runs ([stock_image.md](stock_image.md#image-evidence-for-the-hardware-notes)). All addresses in this note are load addresses.
 - 132 functions when imported alone. None are named: section 2 has no RTTI.
-- Where the image sections sit and how they are extracted: [firmware_image.md](firmware_image.md).
+- Where the image sections sit: [stock_image.md](stock_image.md); how they are extracted: [notes/firmware_image.md](../../../notes/firmware_image.md#the-firmware-tool).
 
 ### The unified SRAM view
 
 Imported alone, section 2 has 27 error bookmarks, because it calls into SRAM that other images
-fill at run time. `scripts/build_sram_image.py` assembles the SRAM as it is at boot:
+fill at run time. `os/1.52A/scripts/build_sram_image.py` assembles the SRAM as it is at boot:
 
 | SRAM | Contents |
 |---|---|
@@ -32,9 +32,9 @@ fill at run time. `scripts/build_sram_image.py` assembles the SRAM as it is at b
 | `0x80008000` | image 2: MAIN OS DDR `[0x40217350, 0x4021ea40)`, 30,448 B, non-zero in `0x8000c000`–`0x8000e663` |
 
 Imported at `0x80000000` on the EMAC language (entry `0x80000ec0`) and curated with
-`scripts/ghidra/CurateDsp.java` and `scripts/ghidra/FixDspResidual.java`, the unified project has
+`os/1.52A/scripts/ghidra/CurateDsp.java` and `scripts/ghidra/FixDspResidual.java`, the unified project has
 **0 error bookmarks**, down from 26 straight after import. The recipe and the counts are in
-[../docs/toolchain.md](../docs/toolchain.md#4d-the-projects-and-how-to-make-them).
+[analysis_reference.md](analysis_reference.md#the-ghidra-projects).
 
 - ✅ `CurateDsp.java` keeps three code windows and clears every instruction outside them. The
   boundaries were read in the code with objdump and checked against the references in the curated
@@ -96,7 +96,7 @@ DDR addresses it touches, all control rather than sample streaming:
 
 ## Loading code from the NOR flash
 
-The board boots from a 16 MB S25FL128S SPI NOR flash on DSPI `0xfc05c000` ([hardware.md](hardware.md)).
+The board boots from a 16 MB S25FL128S SPI NOR flash on DSPI `0xfc05c000` ([hardware.md](../../../notes/hardware.md)).
 
 - `FUN_8000758c(flash_addr, len, dst)` is the SPI read. Registers `+0x2c` = SR, `+0x34` = PUSHR,
   `+0x38` = POPR. It pushes a 4-byte address (with the SPI CONT bit set), then pops N bytes.
@@ -172,8 +172,8 @@ helpers.
 ## Generated table (largest first)
 
 Columns: address, size, callers, callees, indirect calls, halts (H), peripheral modules, DDR
-addresses. Regenerate with `SECTION=dsp ./scripts/ghidra_decompile.sh dt 're:.*'`, then
-`python3 scripts/emu/dspmap.py`.
+addresses. Regenerate with `SECTION=dsp ./scripts/ghidra_decompile.sh 1.52A 're:.*'`, then
+`python3 os/1.52A/scripts/emu/dspmap.py`.
 
 ```
 addr         sz clr cle ind h modules                dram

@@ -1,7 +1,7 @@
 // Audio-ISR probe 6: inject a TRACK-7 note-on event into the ISR's event queue and run FUN_40077120.
 // Watch whether FUN_40074af2 (slice select) is EVER called for track 7's block (0x80002a7a) or stays
 // on blocks 0/1, and watch the OTHER 8-track loop (the FUN_40072544 family).
-//   ./scripts/ghidra_emu.sh EmuISR6
+//   ./scripts/ghidra_emu.sh 1.52A EmuISR6
 // Runs in Ghidra's emulator only; nothing touches a device. @category dt_og_plus_plus
 import ghidra.app.script.GhidraScript;
 import ghidra.app.emulator.EmulatorHelper;

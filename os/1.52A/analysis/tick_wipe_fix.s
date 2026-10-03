@@ -1,8 +1,8 @@
 | Tick-wipe fix: in-place rewrite of the audio ISR's post-loop bookkeeping wipe mask,
-| FUN_40077120 at 0x40077a72..0x40077a8a (24 B, MAIN OS load addresses). See notes/features/tick_wipe_fix.md.
+| FUN_40077120 at 0x40077a72..0x40077a8a (24 B, MAIN OS load addresses). See os/1.52A/notes/features/tick_wipe_fix.md.
 | After the build the 24 bytes at 0x40077a72..0x40077a8a are
 |   200680aeffb424034682c480428041f94395ddf443e8012c
-| (build/patch.json lists 23 of them, as two runs of 16 B at 0x40077a72 and 7 B at 0x40077a83, because the
+| (os/1.52A/build/patch.json lists 23 of them, as two runs of 16 B at 0x40077a72 and 7 B at 0x40077a83, because the
 | byte at 0x40077a82, 0x43, is the same as in stock), and m68k-elf-objdump (-m m68k:cfv4e) decodes them to
 | exactly the instructions below, with the next instruction starting at 0x40077a8a as in stock.
 |

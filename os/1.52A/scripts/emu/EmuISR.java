@@ -1,6 +1,6 @@
 // Audio-ISR probe 1 (gauge): run the audio ISR FUN_40077120 on zero-mapped state, log every call to
 // FUN_40074af2 (block pointer, note, lane), and report the first fault.
-//   ./scripts/ghidra_emu.sh EmuISR
+//   ./scripts/ghidra_emu.sh 1.52A EmuISR
 // Runs in Ghidra's emulator only; nothing touches a device. @category dt_og_plus_plus
 import ghidra.app.script.GhidraScript;
 import ghidra.app.emulator.EmulatorHelper;

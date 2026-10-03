@@ -101,7 +101,7 @@ pool has a separate eMMC storage class
 
 ## Other tools
 
-- **elektron-firmware-tool**, which this build uses for the OS image ([firmware_image.md](firmware_image.md)),
+- **elektron-firmware-tool**, which this build uses for the OS image ([firmware_image.md](../../../notes/firmware_image.md)),
   decodes the OS transport (`F0 … F7`, 8-in-7, checksums) and the firmware containers (ELE3). It does
   not decode data dumps: given one, it reports "not a recognizable Elektron OS .syx". Its transport
   constants are still a useful reference (manufacturer `00 20 3C`, device DIGITAKT `0x0a`).

@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """Simulate the Digitakt's pooled-voice bookkeeping for a MIDI-track chord that retriggers through MIDI Loopback,
 using ONLY mechanisms read off the code (the voice-allocation pad, the owner-latch note-off scan, the audio ISR's
-tick and its post-loop wipe). See notes/features/tick_wipe_fix.md.
+tick and its post-loop wipe). See os/1.52A/notes/features/tick_wipe_fix.md.
 
 It models the STOCK post-loop wipe, i.e. the defect the tick-wipe fix removes, so it reproduces the drone counts
 measured on the test unit on an image without that fix: drones = max(0, 2N - P) for N notes on a pool of P voices.
 
-Usage:  python3 analysis/tick_wipe_sim.py [src|end] [trig|old]
+Usage:  python3 os/1.52A/analysis/tick_wipe_sim.py [src|end] [trig|old]
 
 Model (each item cites where it was read; addresses are MAIN OS load addresses, "ISR" = FUN_40077120):
 - Region = voices S..S+P-1 (groupSource contiguous). All notes come from one track, event[2] = S (a MIDI track

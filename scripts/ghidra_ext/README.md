@@ -27,24 +27,24 @@ independent second opinion whenever a decoding looks wrong.
    the `.l` one is a typo. The patch adds the `op6=1` form (modes 2/3/4).
 3. **`mac.l Ry,Rx,(d16,An),Rw` (mode 5, `(d16,An)` addressing) was mis-decoded.** The shared `m_eal`
    EA table reads `d16` from the word right after the opcode, but for a MAC that word is the
-   *extension word*, so a 6-byte instruction decoded as 4 and derailed everything after it (e.g.
-   `0x40075cfa` in `FUN_400754fe`, `0x400721c6` in `FUN_40072178`). The patch adds a dedicated
-   constructor that puts `d16` in **word 3** (a third `;`), one constructor for both `op6=0`
-   (data-register `Rw`) and `op6=1` (address-register `Rw`), since `macrw` picks the register by
-   `op6`, and it excludes `mode=5` from the two op6-specific constructors so the new one wins. After a
-   rebuild and re-import, Ghidra decodes both sites as `[len 6]`, matching objdump.
+   *extension word*, so a 6-byte instruction decoded as 4 and derailed everything after it, for
+   example at `0x40075cfa` in `FUN_400754fe` and `0x400721c6` in `FUN_40072178` (OS 1.52A). The patch
+   adds a dedicated constructor that puts `d16` in **word 3** (a third `;`), one constructor for both
+   `op6=0` (data-register `Rw`) and `op6=1` (address-register `Rw`), since `macrw` picks the register
+   by `op6`, and it excludes `mode=5` from the two op6-specific constructors so the new one wins.
+   After a rebuild and re-import, Ghidra decodes both sites as `[len 6]`, matching objdump.
 4. **`msac.l Ry,Rx,(d16,An),Rw` (mode 5) was mis-decoded** the same way: it is the
    multiply-*subtract* sibling of gap 3. The stock `msac.l`-with-load constructor has no `op6` pin, but
    it shares `m_eal`, so its `(d16,An)` form was also sized 6 → 4. It shows up only once gap 3 is fixed,
    because the corrected `mac.l` decode keeps the stream aligned far enough to reach the `msac.l`
-   sites (e.g. `0x40073b6e` in `FUN_40073900`, `0x40075d24` in `FUN_400754fe`). The patch adds the
-   dedicated word-3-`d16` constructor (`accreg = accreg - tmp`) and excludes `mode=5` from the stock
-   `msac.l`-with-load form.
+   sites, for example `0x40073b6e` in `FUN_40073900` and `0x40075d24` in `FUN_400754fe` (OS 1.52A).
+   The patch adds the dedicated word-3-`d16` constructor (`accreg = accreg - tmp`) and excludes
+   `mode=5` from the stock `msac.l`-with-load form.
 
-Result on the MAIN OS: the error bookmarks fall from 47 (stock language) to 1, and the one left is an
-unrelated `jsr`/`0x0000` data-in-code boundary at `0x40115fe6`. After the first two fixes, all 404
-MAC-family instructions matched objdump's instruction lengths; the mode-5 sites fixed later were each
-checked against objdump, but the whole-image comparison was not re-run with all four fixes.
+The two comment lines in `coldfire_emac.patch` that name addresses cite OS 1.52A sites where the
+decoding was checked against objdump; the patch itself applies to any ColdFire code.
+
+Result on the OS 1.52A MAIN OS: [os/1.52A/notes/analysis_reference.md](../../os/1.52A/notes/analysis_reference.md#the-emac-language-extension-on-this-image).
 
 The patch is **additive**: it adds constructors and narrows the modes of two existing ones, and never
 widens an existing pattern. Simply deleting the stray `& op6=0` pin would make the stock constructor
@@ -67,9 +67,10 @@ What this costs:
   cannot be resolved. Read the assembly there. This already happens with the stock `mac.l`.
 - Numeric data flow through the accumulators is approximate (a 32-bit model of a 48-bit accumulator,
   no saturation), so "what does this filter compute" stays a read-the-algorithm job.
-- The emulator harnesses in `scripts/emu/` run Ghidra's p-code, so their verdicts hold only for code
-  that does no accumulator arithmetic. The pad harnesses step plain integer code; the audio-ISR
-  probes stub or skip the MAC-heavy render functions and watch only memory writes and control flow.
+- The emulator harnesses in each OS folder's `os/<os>/scripts/emu/` run Ghidra's p-code, so their
+  verdicts hold only for code that does no accumulator arithmetic. The pad harnesses step plain
+  integer code; the audio-ISR probes stub or skip the MAC-heavy render functions and watch only
+  memory writes and control flow.
 
 Modelling the flags later is an incremental edit to the same constructors, not a redesign.
 
@@ -111,7 +112,7 @@ A program is bound to the language it was imported with, so moving an existing p
 needs a fresh import. The variant also gives the project its own folder, so the stock analysis stays
 as a control:
 
-    GHIDRA_LANG_VARIANT=emac ./scripts/ghidra_analyze.sh dt main     # -> work/ghidra/dt_1.52A_emac
+    GHIDRA_LANG_VARIANT=emac ./scripts/ghidra_analyze.sh <os> main     # -> work/ghidra/dt_<os>_emac
 
 To measure what the fix recovers, compare `error bookmarks`, `instructions` and `functions` in the two
 `summary.txt` files under `work/ghidra/out/`.

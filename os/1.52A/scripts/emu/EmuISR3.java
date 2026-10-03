@@ -1,6 +1,6 @@
 // Audio-ISR probe 3: run the ISR with every track's machine type set to SLICE (via the ISR's copy
 // source) and the hardware-ready waits defeated; log each FUN_40074af2 call's block/note/lane.
-//   ./scripts/ghidra_emu.sh EmuISR3
+//   ./scripts/ghidra_emu.sh 1.52A EmuISR3
 // Runs in Ghidra's emulator only; nothing touches a device. @category dt_og_plus_plus
 import ghidra.app.script.GhidraScript;
 import ghidra.app.emulator.EmulatorHelper;
