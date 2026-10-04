@@ -17,6 +17,7 @@ them; this page describes the layout, the command line and how a new OS folder i
 | OS folder | Firmware | Page | Build |
 |---|---|---|---|
 | `1.52A` | Digitakt OS 1.52A, for the original Digitakt | [1.52A/README.md](1.52A/README.md) | `python3 os/1.52A/build/build.py` |
+| `1.54` | Digitakt OS 1.54, for the original Digitakt | [1.54/README.md](1.54/README.md) | `python3 os/1.54/build/build.py` |
 
 To find out which OS folder a `.syx` file belongs to, run
 [`scripts/identify.py`](../scripts/identify.py) from the repo root:

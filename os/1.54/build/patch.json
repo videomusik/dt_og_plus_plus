@@ -1,0 +1,953 @@
+{
+ "format": "dt-og-plus-plus-patch",
+ "format_version": 1,
+ "target": "Digitakt OS 1.54",
+ "section": 3,
+ "load_base": "0x40000400",
+ "stock": {
+  "syx_sha256": "f78ba80fa7b1da5fb0e1ff61ad61e9e71aafe79f4364fc49679f3651353e3cf6",
+  "syx_size": 1423776,
+  "section3_sha256": "5c58bf9e3949ef09977c5fc007a61e8d026931f67f1621238379dfb8ee4d31a2",
+  "section3_size": 2479680
+ },
+ "result": {
+  "section3_sha256": "5a7eb2a4f84bea3a65cac570d9846c5250ae5ab14b0e415580043a079424c451",
+  "syx_sha256_reference": "6dec6823f61fbb208afd11928e14459d3847a5ec0e07d5f43729f92c560604bd",
+  "syx_size_reference": 1348640,
+  "syx_reference_note": "only with the pinned tool",
+  "pinned_tool": "github.com/mischa85/elektron-firmware-tool 065d18f4195793e61891e387813488ee59f6d1ca + build/tool_patches/cap_window_1mb.patch"
+ },
+ "features": [
+  {
+   "id": "slice_round_robin",
+   "title": "SLICE machine: round-robin slice select (RRBN) and the robin icon",
+   "runs": [
+    {
+     "addr": "0x400654a8",
+     "bytes": "4ef9400bee28",
+     "kind": "code"
+    },
+    {
+     "addr": "0x4006551b",
+     "bytes": "094e714e71",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40074e38",
+     "bytes": "4a846a064ef9400c1338",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400bee28",
+     "bytes": "227c421faa044a806606227c40252b94222f0014c4",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400bee3e",
+     "bytes": "4ef9400654ae",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400c1338",
+     "bytes": "222f0028283980001228e2ac0284",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400c1347",
+     "bytes": "00000145f9439d100477b21800158418002641",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400c1364",
+     "bytes": "45f9439d10104a8366104a84670c",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400c1374",
+     "bytes": "1c",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400c1376",
+     "bytes": "26321c0015",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400c137c",
+     "bytes": "b82073b2b8207604ebab53",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400c1388",
+     "bytes": "c28324014ef940074e62",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400c1398",
+     "bytes": "202f0008e080",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400c139f",
+     "bytes": "2f",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400c13a1",
+     "bytes": "0c0c80fffffffe67180c80ffffffff67184a",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400c13b4",
+     "bytes": "671c2f40000c203c401d031b6016203c400c13e6600e203c400c13eb6006203c401d69a12f4000082f4100044ef940000e82",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400c13e6",
+     "bytes": "52524e44",
+     "kind": "data"
+    },
+    {
+     "addr": "0x400c13eb",
+     "bytes": "5252424e00",
+     "kind": "data"
+    },
+    {
+     "addr": "0x401524f5",
+     "bytes": "0c1398",
+     "kind": "code"
+    },
+    {
+     "addr": "0x401abc44",
+     "bytes": "fffffe",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252b55",
+     "bytes": "08",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252b58",
+     "bytes": "03e8",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252b5c",
+     "bytes": "047e",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252b60",
+     "bytes": "483f",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252b64",
+     "bytes": "783f",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252b68",
+     "bytes": "10ff",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252b6c",
+     "bytes": "11ff",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252b70",
+     "bytes": "13fe",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252b74",
+     "bytes": "53f0",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252b78",
+     "bytes": "7be0",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252b7c",
+     "bytes": "1bc0",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252b80",
+     "bytes": "0f80",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252b84",
+     "bytes": "0e",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252b88",
+     "bytes": "1c",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252b8c",
+     "bytes": "18",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252b94",
+     "bytes": "401b7734",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252b9b",
+     "bytes": "11",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252b9f",
+     "bytes": "11",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252ba3",
+     "bytes": "0140252b504024de68",
+     "kind": "data"
+    }
+   ]
+  },
+  {
+   "id": "poly_engine",
+   "title": "POLY machine: engine",
+   "runs": [
+    {
+     "addr": "0x400225f1",
+     "bytes": "04",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40022f81",
+     "bytes": "14",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40022fb3",
+     "bytes": "14",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40022fe7",
+     "bytes": "05",
+     "kind": "code"
+    },
+    {
+     "addr": "0x4002a60b",
+     "bytes": "037a24",
+     "kind": "code"
+    },
+    {
+     "addr": "0x4002a771",
+     "bytes": "04",
+     "kind": "code"
+    },
+    {
+     "addr": "0x4002acee",
+     "bytes": "004c",
+     "kind": "code"
+    },
+    {
+     "addr": "0x4002acf3",
+     "bytes": "0c1138",
+     "kind": "code"
+    },
+    {
+     "addr": "0x4002ad8a",
+     "bytes": "004c",
+     "kind": "code"
+    },
+    {
+     "addr": "0x4002ad8f",
+     "bytes": "0c1138",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40037a24",
+     "bytes": "41fa000a2e884ef94000d9fc4eb9400bf17c4ef94002a60e4eb9400e0cb02f004eb9400bf18c201f4e75242a",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40037a51",
+     "bytes": "0841f9439d1050428010302800222a00240281000000815381675a222a00045381664ab48066064aaa0028661a2200e589d280e989d280e3892879800019ac49f41820254c",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40037a97",
+     "bytes": "28",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40037aba",
+     "bytes": "20024e754eb9400c119c60f449f9439d1058428112340800240160e4",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400771e8",
+     "bytes": "4ef9400bed9c4e71",
+     "kind": "code"
+    },
+    {
+     "addr": "0x4007735a",
+     "bytes": "4ef9400bf16c4e71",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400776e9",
+     "bytes": "037a3c",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400777a2",
+     "bytes": "4eb940037a4e",
+     "kind": "code"
+    },
+    {
+     "addr": "0x4007910d",
+     "bytes": "04",
+     "kind": "code"
+    },
+    {
+     "addr": "0x4007911b",
+     "bytes": "0c1034",
+     "kind": "code"
+    },
+    {
+     "addr": "0x4007912d",
+     "bytes": "04",
+     "kind": "code"
+    },
+    {
+     "addr": "0x4007913b",
+     "bytes": "0c1038",
+     "kind": "code"
+    },
+    {
+     "addr": "0x4007a2d1",
+     "bytes": "06",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400bed9d",
+     "bytes": "2f",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400bed9f",
+     "bytes": "087208b0816c3e41f9439d1050428112300800b081662e2f032f0428017607b830380066162f2f",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400bedc7",
+     "bytes": "142f032f2f001461144fef000c41f9439d105053836ae0281f261f4e752f027410222f00084ef9400771f0",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400bf16e",
+     "bytes": "001c4eb9400bf17c4ef940076c9e43f9439d105870071380080053806af82079800019ac41e8009e43f9439d1050700012100c010004660000104a806700000a123108ff6000000422001381080041e800a252807208b0816d",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400bf1c8",
+     "bytes": "ffd64e75",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400c1034",
+     "bytes": "401cc9f2401c6f07401c6975401c6975401c6f0c401cc9fa401cc9ff401c6f1f400c105c40",
+     "kind": "data"
+    },
+    {
+     "addr": "0x400c105a",
+     "bytes": "105c504f4c5900",
+     "kind": "data"
+    },
+    {
+     "addr": "0x400c1138",
+     "bytes": "4e5600002f0a2f03246e",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400c1143",
+     "bytes": "08262e",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400c1147",
+     "bytes": "0c2f0a22522269",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400c114f",
+     "bytes": "244e91588fd6804a836c0242832f0a22522269000c4e91588f5380b6806f0226002543016842a72f032f0a22522269001c4e914fef",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400c1186",
+     "bytes": "41eaffb42f084eb9400c9a3a588f261f245f4e5e4e752f0241f9439d10504280",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400c11aa",
+     "bytes": "720743f94399eb54b03018",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400c11b6",
+     "bytes": "661c49f11c002414b4aa000c6610242c012cb4aa001866062401588f4e7553816ada241f",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400c135a",
+     "bytes": "45f9439d105012321800",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400c1372",
+     "bytes": "52b2",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400c1387",
+     "bytes": "83",
+     "kind": "code"
+    }
+   ]
+  },
+  {
+   "id": "pad_fill",
+   "title": "Landing pads: fill bytes left in the cleared unused functions",
+   "runs": [
+    {
+     "addr": "0x400152c0",
+     "bytes": "42",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400152c2",
+     "bytes": "4e7542804e7542804e754280",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400156da",
+     "bytes": "4e7542804e754280",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400bed94",
+     "bytes": "4e754e754e75",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400bee22",
+     "bytes": "4e75",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400bee26",
+     "bytes": "4e75",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400bee64",
+     "bytes": "4e754e75",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40177104",
+     "bytes": "4e7542804e7542804e7542804e754280",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40177115",
+     "bytes": "7542804e7542804e7542804e7542804e7542804e7542804e7542804e754280",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40177136",
+     "bytes": "42804e7542804e7542804e7542804e7542804e7542804e7542804e7542804e7542804e7542804e7542804e7542804e7542804e7542804e7542804e754280",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40177176",
+     "bytes": "42804e7542804e7542804e7542804e7542804e7542804e754280",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40177191",
+     "bytes": "75",
+     "kind": "code"
+    }
+   ]
+  },
+  {
+   "id": "poly_ui",
+   "title": "POLY machine: parameter pages show and edit the source track",
+   "runs": [
+    {
+     "addr": "0x4002b691",
+     "bytes": "0bed74",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400308dd",
+     "bytes": "0bed3a",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400309d3",
+     "bytes": "0bee02",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400309e4",
+     "bytes": "65",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40030a2a",
+     "bytes": "2f024e71",
+     "kind": "code"
+    },
+    {
+     "addr": "0x4003ab15",
+     "bytes": "0bed74",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400bed3a",
+     "bytes": "202f000c5280662c2f2f00044eb940014d862e804eb94001d24e588f4a806d147207b2806d0e41f9439d1050103008002f40000c4ef9400191fe2f2f00044eb94001d24e588f4a806d107207b2",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400bed88",
+     "bytes": "6d0a41f9439d105010300800",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400bee02",
+     "bytes": "2f2f",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400bee05",
+     "bytes": "044eb94001d24e588f4a806d127207b2",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400bee16",
+     "bytes": "6d0c41f9439d105010300800",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400bee24",
+     "bytes": "70ff",
+     "kind": "code"
+    }
+   ]
+  },
+  {
+   "id": "pool_cursors",
+   "title": "POLY machine: one playhead cursor per voice on SRC page 2",
+   "runs": [
+    {
+     "addr": "0x40015559",
+     "bytes": "4a43ea00312002600a41eafffc43eafffd200426482849260042844eb940138882",
+     "kind": "code"
+    },
+    {
+     "addr": "0x4001557d",
+     "bytes": "0000302f00",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40015583",
+     "bytes": "b94001d24e588f7207b280650000742a4045f9439d1050143208002a2b00202c05dcab0028558652854878ffff2f062f0542a72f032a2b00242c2b",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400155bf",
+     "bytes": "1c428310323800b4006600002cbbc3670000262f034eb940076258588f4a",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400155de",
+     "bytes": "67",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400155e0",
+     "bytes": "00164c050800e080d0862f40",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400155ed",
+     "bytes": "044eb940",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400155f2",
+     "bytes": "1268780152837008b08366",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400155fe",
+     "bytes": "ffc44fef00144200174000314a8467000006700118804e75",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400bd5b0",
+     "bytes": "4eb940015558",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400bd9ee",
+     "bytes": "4eb940015562",
+     "kind": "code"
+    }
+   ]
+  },
+  {
+   "id": "midi_loopback",
+   "title": "Virtual MIDI Loopback: a MIDI track with CHAN at TRK1-TRK8 plays an audio track without a cable, with the TRK number display",
+   "runs": [
+    {
+     "addr": "0x400151ac",
+     "bytes": "713008464a806a1e50800c8000000007621241f94197c70020300c000c800000000f630270ff4ef9400e0a08202f00045780660000d4",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400151e6",
+     "bytes": "71902200e88951810c8100000001620000be2239421a9d400c8100000040620000ae720fc0814feffff448d7040c720745f9421c956424321c0008020000672c766a2401",
+     "kind": "code"
+    },
+    {
+     "addr": "0x4001522b",
+     "bytes": "0328",
+     "kind": "code"
+    },
+    {
+     "addr": "0x4001522e",
+     "bytes": "45f9421c91aa753228004a826a1650827607b483620e45f94197c70024322c00b480670653816ac0605445f9439d10e075925282761fc4831482e58a45f9439d1060d5c2260a",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40015277",
+     "bytes": "1414d814d814d84eb9400d2cf8224074032282234300042f094879421a9d3c4eb940",
+     "kind": "code"
+    },
+    {
+     "addr": "0x4001529a",
+     "bytes": "1b7a508f4879421a9d344eb940001840588f4cd7040c4fef000c73b9421b66204ef9400e1008",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40015616",
+     "bytes": "202f000c6b08203c000001004e75203c",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40015627",
+     "bytes": "0009004e75222f00080c810000008c660e4aaf00646a08203c401d0d444e75",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40015647",
+     "bytes": "f94000fe8a222f00080c810000008c66204878ffff2f022f0a2052206800544e904fef000c4a806a08203c401cca3f4e754ef94000feac4879421a9d3c4e942240206900042f4800301210588f7181e888487800202f112f0820720c",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400156a4",
+     "bytes": "4e904fef000c",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400156ab",
+     "bytes": "f9400d48e6206f000471900c800000000c660c2028000c0c8000000020670e2f0224394219cc1c4ef9400d4df44e75",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40030dad",
+     "bytes": "01562c",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40032d39",
+     "bytes": "01564c",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40063222",
+     "bytes": "4ef9400bee54",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40065896",
+     "bytes": "4eb940015616",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400bee54",
+     "bytes": "4a",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400bee56",
+     "bytes": "6c0250",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400bee5a",
+     "bytes": "52802f004ef940063228",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400d49e0",
+     "bytes": "4ef94001567e",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400d4dec",
+     "bytes": "4ef9400156b04e71",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400e0a00",
+     "bytes": "4ef9400151ac",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400e1002",
+     "bytes": "4ef9400151d8",
+     "kind": "code"
+    },
+    {
+     "addr": "0x401abd14",
+     "bytes": "fffff8",
+     "kind": "data"
+    }
+   ]
+  },
+  {
+   "id": "poly_icon",
+   "title": "POLY machine: menu icon",
+   "runs": [
+    {
+     "addr": "0x40029e81",
+     "bytes": "04",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40029e89",
+     "bytes": "0452804e7542004e754e75",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40029e96",
+     "bytes": "4e75",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40029ef6",
+     "bytes": "59807201",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40029efc",
+     "bytes": "65",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40029f06",
+     "bytes": "4ef9400bee44",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400bee44",
+     "bytes": "41f940252bf822300c004ef940029f0c",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40252bb0",
+     "bytes": "fe",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252bb4",
+     "bytes": "fe",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252bb8",
+     "bytes": "e0",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252bc0",
+     "bytes": "e0",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252bc4",
+     "bytes": "fe",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252bc8",
+     "bytes": "e0",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252bd0",
+     "bytes": "e0",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252bd4",
+     "bytes": "fe",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252bd8",
+     "bytes": "fe",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252bdc",
+     "bytes": "401b7734",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252be3",
+     "bytes": "0b",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252be7",
+     "bytes": "07",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252beb",
+     "bytes": "0140252bb04023e0a0",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252bf8",
+     "bytes": "421fa35c40252bdc",
+     "kind": "data"
+    }
+   ]
+  },
+  {
+   "id": "voice_allocation",
+   "title": "POLY machine: voice allocation (free voice first, then steal)",
+   "runs": [
+    {
+     "addr": "0x40037a98",
+     "bytes": "4e",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40037a9a",
+     "bytes": "40",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40037a9c",
+     "bytes": "70a6",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40037aa7",
+     "bytes": "714e714e714e71",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40037aaf",
+     "bytes": "714e714e714e714e714e71",
+     "kind": "code"
+    },
+    {
+     "addr": "0x401770a6",
+     "bytes": "2f0949f9439d105843f94399eb54428112340800611e24014ab11c00670a6114b28266f442b11c001981080024012002225f4e7552810c0100086706b0301800670222004e75",
+     "kind": "code"
+    }
+   ]
+  },
+  {
+   "id": "mute_by_origin",
+   "title": "POLY machine: mute follows the track a note came from",
+   "runs": [
+    {
+     "addr": "0x400777ca",
+     "bytes": "4eb9401770ec",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400777d6",
+     "bytes": "4e714eb9401770f8",
+     "kind": "code"
+    },
+    {
+     "addr": "0x401770ec",
+     "bytes": "222effb0202a0008e0a14e75202a000801394199f47d4e75",
+     "kind": "code"
+    }
+   ]
+  },
+  {
+   "id": "owner_latch",
+   "title": "POLY machine: held notes release across a pattern switch",
+   "runs": [
+    {
+     "addr": "0x40037a99",
+     "bytes": "b9",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40037a9e",
+     "bytes": "202a0008118028f8",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400c11a6",
+     "bytes": "20024e71",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400c11b5",
+     "bytes": "f8",
+     "kind": "code"
+    }
+   ]
+  },
+  {
+   "id": "tick_wipe_fix",
+   "title": "Fix: a note released and re-triggered in the same audio tick no longer hangs",
+   "runs": [
+    {
+     "addr": "0x40077d72",
+     "bytes": "200680aeffb424034682c480428041f9",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40077d83",
+     "bytes": "99eb5443e8012c",
+     "kind": "code"
+    }
+   ]
+  }
+ ]
+}

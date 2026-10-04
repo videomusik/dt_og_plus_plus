@@ -12,6 +12,7 @@ Each supported OS version has its own OS folder, with its own build, documentati
 | OS version | Page | Build command |
 |---|---|---|
 | 1.52A | [os/1.52A/README.md](os/1.52A/README.md) | `python3 os/1.52A/build/build.py` |
+| 1.54 | [os/1.54/README.md](os/1.54/README.md) | `python3 os/1.54/build/build.py` |
 
 ## NEW FEATURES
 

@@ -177,3 +177,6 @@ Each OS folder's notes are indexed in its own `os/<os>/notes/README.md`; [os/REA
 lists the OS folders and what each holds.
 
 - OS 1.52A: [os/1.52A/notes/README.md](../os/1.52A/notes/README.md)
+- OS 1.54: [os/1.54/notes/README.md](../os/1.54/notes/README.md)
+- The two compared: [version_comparison_1.52A_1.54.md](version_comparison_1.52A_1.54.md): what
+  changed between the two images, and how the OS 1.52A build was carried over to OS 1.54.
