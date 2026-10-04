@@ -42,4 +42,5 @@ Chain Recording ([features/chain_record.md](features/chain_record.md)):
   branch and the stop hook (`0x4007687a`) in its state-2 branch; start-up clears the state, which is
   in `.bss`, to 0. ARM and REC (`0x400768c2`, `0x400768fa`, `0x40076900`) run only on a key press.
 - ⚠️ Its view hooks (`0x400a7f40`, `0x400a8e7c`, `0x400a8f48`, `0x400a9026`) run only while the
-  recorder page is shown, and so at the first paint only if the unit restores that page.
+  recorder page is shown, and so at the first paint only if the unit restores that page. The NO-key
+  hook (`0x400a9878`) runs only on a key press on that page.

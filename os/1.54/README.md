@@ -101,30 +101,41 @@ MIDI back, every note arrives twice.
 ### CHAIN RECORDING
 
 Chain Recording records a sample chain one slot at a time, so that the Slice machine can play it with
-one hit per slice. On the recorder page, data entry knob **D** sets the number of slots: OFF, 4, 8,
-16, 32 or 64. With a number of slots set and RLEN at a number of steps (not MAX), each recording is
-one slot of RLEN steps:
+one hit per slice. On the recorder page, data entry knob **D** sets the chain. Turned up from OFF it
+sets the number of slots, 4, 8, 16, 32 or 64, and you arm each slot yourself. Turned down from OFF it
+sets the same numbers with automatic arming, AUTO 4 to AUTO 64: the recorder arms itself again after
+each slot. With a chain set and RLEN at a number of steps (not MAX), each recording is one slot of
+RLEN steps:
 
-1. Turn **D** to the number of slots, for example 8. The prompt reads `YES: ARM 1/8`.
+1. Turn **D** to the number of slots, for example up to 8. The prompt reads `YES: ARM 1/8`, or
+   `YES: AUTO 1/8` when turned down.
 2. Press **[YES]** to arm (`ARMED 1/8`), and play the sound: the threshold starts the slot, as a stock
    recording starts. **[FUNC] + [YES]** records the slot at once instead.
-3. After RLEN steps the recorder stops and waits, keeping what it has recorded. The prompt reads
-   `YES: ARM 2/8`. Arm and play again for each slot.
+3. After RLEN steps the recorder stops, keeping what it has recorded. When you arm each slot, it waits:
+   the prompt reads `YES: ARM 2/8`; arm and play again for each slot. With AUTO it arms itself
+   (`ARMED 2/8`), and the next sound over the threshold records the next slot.
 4. After the last slot, the recording is normalised as a whole, and trimming and saving work as for
    any recording.
 
 All slots have the same length, so on a Slice machine with GRID set to the number of slots, each
 slice is one of your hits. MEM shows the length of the whole chain; as on stock, `!!` beside it means
-that it does not fit in the sample memory.
+that it does not fit in the sample memory, and the time reads as seconds and hundredths: `03'42"` is
+3.42 seconds.
 
 - **[YES]** while a slot records stops the chain there and goes to the save, with the slots so far.
-- **[FUNC] + [NO]** while armed aborts, as on stock: the whole chain is dropped.
-- Turning **D** between slots starts a new chain.
+- **[FUNC] + [NO]** drops the whole chain: while armed, as on stock, and also while the recorder waits
+  between slots for you to arm the next one.
+- Turning **D** between slots starts a new chain. D changes the chain only while the recorder is
+  idle, not while it is armed or recording; on the trim screen it moves its trim point as on stock.
+- With AUTO, a sound still over the threshold when a slot ends starts the next slot at once: set the
+  threshold above the tail of your sounds.
 - Keep RLEN and the tempo the same for all slots of a chain; otherwise the slots differ in length.
-- With RLEN at MAX, or the number of slots at OFF, the recorder works as on stock.
-- The number of slots is not saved with the project.
+- With RLEN at MAX, or D at OFF, the recorder works as on stock.
+- The chain setting is not saved with the project.
 
-Chain Recording has not yet been tested on a Digitakt.
+Chain Recording has been tested on a Digitakt with OS 1.54. One display glitch is known: after the
+screen that asks whether to apply the new sample to a track, the top and bottom of the screen may stay
+black, with only the sample showing.
 
 For how each feature works inside the firmware, see the feature list in
 [notes/README.md](notes/README.md#the-features-in-this-build).

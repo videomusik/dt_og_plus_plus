@@ -13,10 +13,10 @@ needs (the stock .syx in sysex/ and the firmware tool).
 The build without Chain Recording is rebuilt from patch.json first (its chain_record runs dropped, the
 landing pads it uses given back their earlier contents), and must hash to BASE_SECTION3, so the merge
 always starts from the same image. Stages, written to out/1.54/stages/:
-  S3   that build + the new pad 0x40124a6c..0x40124b32 filled with 'clrl %d0 ; rts' (its fill test)
-  S4   S3 + every Chain Recording hook, each pad only replaying what its hook displaced (INERT)
-  S5a  S3 + Chain Recording with auto re-arm (the recorder re-arms itself after each slot but the last)
-  S5   S3 + Chain Recording, the user arming each slot: the reference build, = patch.json"""
+  S6   that build + the two pads Chain Recording adds, 0x40124a6c..0x40124b32 and
+       0x40128244..0x401282e0, filled with 'clrl %d0 ; rts' (their fill test)
+  S7   S6 + every Chain Recording hook, each pad only replaying what its hook displaced (INERT)
+  S8   S6 + Chain Recording: the reference build, = patch.json"""
 import json, os, shutil, subprocess, sys, tempfile
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", "..", "..", ".."))
@@ -28,7 +28,8 @@ PATCH = os.path.join(ROOT, "os", "1.54", "build", "patch.json")
 STOCK3 = os.path.join(ROOT, "work", "dt_1.54", "section_3_MAIN_OS.bin")
 BASE_SECTION3 = "5a7eb2a4f84bea3a65cac570d9846c5250ae5ab14b0e415580043a079424c451"   # without Chain Recording
 FID = "chain_record"
-TITLE = "Chain Recording: the recorder fills a sample chain one armed slot at a time (encoder D sets the slot count)"
+TITLE = ("Chain Recording: the recorder fills a sample chain one slot at a time (encoder D sets the slot "
+         "count, armed by the user or re-armed automatically)")
 
 # Each hook: the stock bytes it displaces (objdump of stock 1.54), which must be there.
 HOOKS = {
@@ -43,16 +44,19 @@ HOOKS = {
     ".hook_fmt_pop":   (0x400a8f60, "4fef0020"),               # lea %sp@(32),%sp
     ".hook_armed":     (0x400a9026, "4879401ddbff48780002"),   # pea 0x401ddbff ; pea 0x2
     ".hook_armed_pop": (0x400a9044, "4fef001c"),               # lea %sp@(28),%sp
+    ".hook_no":        (0x400a9878, "2f024eb9400c33cc"),       # movel %d2,%sp@- ; jsr 0x400c33cc
 }
 # Where the code may go, and what the build without Chain Recording holds there.
 STL_SPAN = (0x401770a6, 0x40177194)          # its tail holds the span's fill, from the span's start
 PADS = {".pad_stl": (0x40177104, 0x40177194, "fill"),
         ".pad_len": (0x400bf1cc, 0x400bf1e8, "stock"),
         ".pad_mem": (0x400c1062, 0x400c1080, "stock"),
-        ".pad_new": (0x40124a6c, 0x40124b32, "stock"),
+        ".pad_flt": (0x40124a6c, 0x40124b32, "stock"),
+        ".pad_frm": (0x40128244, 0x401282e0, "stock"),
         ".rodata_fmt": (0x40252c00, 0x40253000, "stock")}
-NEWPAD = [(0x40124a6c, 0x40124ac4), (0x40124ac4, 0x40124b32)]   # the new pad's two member functions
-VARIANTS = {"inert": ["--defsym", "INERT=1"], "auto": ["--defsym", "AUTOARM=1"], "full": []}
+NEWPAD = [(0x40124a6c, 0x40124ac4), (0x40124ac4, 0x40124b32),   # the two pads' member functions
+          (0x40128244, 0x40128288), (0x40128288, 0x401282e0)]
+VARIANTS = {"inert": ["--defsym", "INERT=1"], "full": []}
 
 
 def fill(lo, hi):
@@ -195,10 +199,10 @@ def main():
     for lo, hi in NEWPAD:
         assert all(a not in owner for a in range(lo, hi))
         img3[lo - BASE:hi - BASE] = fill(lo, hi)
-    imgs = {"S3": bytes(img3)}
+    imgs = {"S6": bytes(img3)}
     tmp = tempfile.mkdtemp(prefix="chain-")
     try:
-        for variant, name in (("inert", "S4"), ("auto", "S5a"), ("full", "S5")):
+        for variant, name in (("inert", "S7"), ("full", "S8")):
             secs = assemble(variant, tmp)
             imgs[name], mine = place(img3, owner, stock, secs)
             used = {n: len(d) for n, (v, d) in secs.items() if n in PADS}
@@ -206,19 +210,19 @@ def main():
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
     features = [f for f in patch["features"] if f["id"] != FID] + [{"id": FID, "title": TITLE}]
-    feats = patch_runs(stock, imgs["S5"], owner, mine, features)
-    s5 = build.sha256_bytes(imgs["S5"])
+    feats = patch_runs(stock, imgs["S8"], owner, mine, features)
+    s8 = build.sha256_bytes(imgs["S8"])
     current = patch["result"]["section3_sha256"]
-    same = feats == patch["features"] and s5 == current
-    print("S5 section 3 %s; patch.json %s" % (s5, "is up to date" if same else "differs (%s)" % current))
+    same = feats == patch["features"] and s8 == current
+    print("S8 section 3 %s; patch.json %s" % (s8, "is up to date" if same else "differs (%s)" % current))
     if stages:
         out = os.path.join(ROOT, "out", "1.54", "stages")
         os.makedirs(out, exist_ok=True)
-        res = {n: build_stage(n, stock, imgs[n], out) for n in ("S3", "S4", "S5a", "S5")}
+        res = {n: build_stage(n, stock, imgs[n], out) for n in ("S6", "S7", "S8")}
         if write:
             patch["features"] = feats
-            patch["result"] = dict(patch["result"], section3_sha256=s5,
-                                   syx_sha256_reference=res["S5"][0], syx_size_reference=res["S5"][1])
+            patch["result"] = dict(patch["result"], section3_sha256=s8,
+                                   syx_sha256_reference=res["S8"][0], syx_size_reference=res["S8"][1])
             with open(PATCH, "w") as f:
                 json.dump(patch, f, indent=1)
                 f.write("\n")

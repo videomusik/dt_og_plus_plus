@@ -26,7 +26,22 @@ the code, with its method.
    the POLY picker icon and the robin, and MIDI tracks playing audio tracks through TRK values. No stuck
    note was seen; the stuck-note test itself was not run.
 
-Chain Recording, which the build in this folder adds on top of that, has not yet run on a unit.
+Then, for Chain Recording, which the build in this folder adds on top of that
+([features/chain_record.md](features/chain_record.md#testing-on-the-unit)):
+
+5. that build with the soft-float pad filled (`.syx` `2c292d2e…`), and the same with a first Chain
+   Recording build's hooks, each replaying only the stock code it displaced (`.syx` `a2501d97…`): each
+   started and ran, with nothing found wrong;
+6. that first Chain Recording build (`.syx` `688066c9…`): a chain of four slots of 8 steps, each armed
+   with YES and started by the threshold, was recorded, normalised, trimmed and saved. FUNC+NO between
+   slots did nothing, and encoder D moved much faster than encoder G;
+7. the build in this folder (`.syx` `3fd4b0a3…`), which changes those two and adds auto re-arm,
+   after its two stages (the new pad filled, `.syx` `4aae845e…`; every hook replaying stock code,
+   `.syx` `ad7c9a72…`): the three images started and ran, and what was checked on them worked,
+   reported as a whole. ⚠️ One
+   display glitch is open: after the screen that asks whether to apply the new sample to a track, the
+   top and bottom of the screen stay black
+   ([features/chain_record.md](features/chain_record.md#open-the-screen-after-saving)).
 
 ## The features in this build
 
@@ -49,9 +64,10 @@ The same features as the OS 1.52A build, carried over to this image by the metho
 
 New in this image, not in the OS 1.52A build:
 
-- **Chain Recording.** Encoder D on the recorder page sets a slot count; the recorder then fills a
-  sample chain one armed slot of RLEN steps at a time, for the SLICE machine's GRID.
-  ⚠️ Not yet run on a unit. [features/chain_record.md](features/chain_record.md).
+- **Chain Recording.** Encoder D on the recorder page sets a slot count, with arming by the user or
+  auto re-arm; the recorder then fills a sample chain one slot of RLEN steps at a time, for the SLICE
+  machine's GRID. ✅ Run on the test unit; ⚠️ one display glitch open.
+  [features/chain_record.md](features/chain_record.md).
 
 The other features have run on the test unit ([The test unit](#the-test-unit)).
 

@@ -12,8 +12,8 @@ from, the vetting recipe, the rules for code in a pad, the `.rodata` survey) is 
 ⚠️ A pad is trusted only once it has run on a unit ([AGENTS.md](../../../AGENTS.md)). ✅ The nine pads
 that held the code before Chain Recording have run on the test unit with OS 1.54: an image with all nine
 filled with `clrl %d0 ; rts` started and ran, and so did the build whose features live in them
-([README.md](README.md#the-test-unit)). The tenth, `FUN_40124a6c` + `FUN_40124ac4`, has not yet run on a
-unit; it is a vetted candidate until its fill test has.
+([README.md](README.md#the-test-unit)). ✅ So have the tenth, `FUN_40124a6c` + `FUN_40124ac4`, and the
+eleventh, `FUN_40128244` + `FUN_40128288`: each its fill test, and then Chain Recording's code in it.
 
 ## The pads
 
@@ -31,14 +31,15 @@ occupants are the same code as in the patch listing ([docs/patch_listing.md](../
 | `FUN_400bed3a`, `FUN_400bed9c`, `FUN_400bee02` | `0x400bed3a..0x400bee6a` | 304 B | POLY parameter-read alias, machine alias, knob-follow loop, parameter-write alias, SLICE robin selector, picker-icon lookup, MIDI Loopback dial-number pad |
 | span at `0x40015558` | `0x40015558..0x400156e4` | 396 B | pool cursors, MIDI Loopback display pads, private-lane arm and record filter |
 | span at `0x400151ac` | `0x400151ac..0x400152d0` | 292 B | MIDI Loopback channel hook and tap |
-| the STL span | `0x401770a6..0x40177194` | 238 B | voice allocation, mute-by-origin detours; Chain Recording's chain state and `stop_pad` in the tail, `0x40177104..0x40177182` |
-| `FUN_40124a6c` + `FUN_40124ac4` | `0x40124a6c..0x40124b32` | 198 B | Chain Recording: `enc_pad`, `fmt_arm`/`fmt_armed`, `arm_pad`, `0x40124a6c..0x40124b28`; the rest keeps its fill. ⚠️ New in this image, vetted below; its fill test is the stage image S3 |
+| the STL span | `0x401770a6..0x40177194` | 238 B | voice allocation, mute-by-origin detours; Chain Recording's chain state and `stop_pad` in the tail, `0x40177104..0x40177192` |
+| `FUN_40124a6c` + `FUN_40124ac4` | `0x40124a6c..0x40124b32` | 198 B | Chain Recording: `enc_pad` and `arm_pad`, `0x40124a6c..0x40124b24`; the rest keeps its fill. Vetted below |
+| `FUN_40128244` + `FUN_40128288` | `0x40128244..0x401282e0` | 156 B | Chain Recording: `fmt_arm`/`fmt_armed` and `no_pad`, `0x40128244..0x401282ce`; the rest keeps its fill. Vetted below |
 
-Free code space: 106 B in eleven blocks, none larger than 18 B: 18 B at `0x40177182` (the STL
-span's tail, `clrl %d0 ; rts` fill), 16 B at `0x400152c0`, 16 B at `0x400bedf2`, 10 B at
-`0x40124b28` (fill), 10 B at `0x400156da`, 8 B at `0x400bf1e0`, 8 B at `0x40037ad6`, 6 B at
-`0x400c1392`, 6 B at `0x400bed96`, 6 B at `0x400bee64` and 2 B at `0x400c107e`. Chain Recording's code
-in the pads: [features/chain_record.md](features/chain_record.md#where-the-code-lives).
+Free code space: 112 B in twelve blocks, none larger than 18 B: 18 B at `0x401282ce` (fill), 16 B
+at `0x400152c0`, 16 B at `0x400bedf2`, 14 B at `0x40124b24` (fill), 10 B at `0x400156da`, 8 B at
+`0x400bf1e0`, 8 B at `0x40037ad6`, 6 B at `0x400c1392`, 6 B at `0x400bed96`, 6 B at `0x400bee64`,
+2 B at `0x40177192` (the STL span's tail, fill) and 2 B at `0x400c107e`. Chain Recording's code in the
+pads: [features/chain_record.md](features/chain_record.md#where-the-code-lives).
 
 ## Why each pad is dead in this image
 
@@ -66,7 +67,7 @@ in the pads: [features/chain_record.md](features/chain_record.md#where-the-code-
    listing 5; the extra listing hit is a PC-relative `lea`, invisible to the raw scan) and the voice
    build `FUN_400772e6` (raw 6, listing 6).
 
-## The new pad: `FUN_40124a6c` + `FUN_40124ac4`
+## The soft-float pad: `FUN_40124a6c` + `FUN_40124ac4`
 
 Two adjacent leaf functions, 88 B and 110 B, with no calls, no peripheral addresses and no MAC
 instructions (objdump):
@@ -97,7 +98,49 @@ read in this image:
    by a fresh function with a `linkw` (`0x40124b32`).
 8. **Moat.** Outside every protected range ([update_moat.md](update_moat.md)).
 
-The fill test on a unit is the stage image S3 ([features/chain_record.md](features/chain_record.md#testing-on-the-unit)).
+✅ Its fill test, the stage image S3, started and ran on the test unit with OS 1.54, and so did the
+stages with Chain Recording's code in it ([features/chain_record.md](features/chain_record.md#testing-on-the-unit)).
+
+## The frame-registration pad: `FUN_40128244` + `FUN_40128288`
+
+Two adjacent functions, 68 B and 88 B, with no peripheral addresses and no MAC instructions
+(objdump). Each links an object record into the list whose head is the word `0x421faa74`;
+`FUN_40128288` first allocates the 24 B record (`FUN_400d412c`), so it is not a leaf. Around them
+lie two more functions of the same kind: `0x401281fc`, the same code as `FUN_40128244` with two more
+fields stored, and the function at `0x401282e0`.
+
+⚠️ Very probably the support library's frame registration (`__register_frame_info`,
+`__register_frame` and their siblings), an inference from what they do. A firmware that never
+registers frames this way leaves all of them unused.
+
+✅ The vetting steps of [landing_pad_method.md](../../../notes/landing_pad_method.md#vetting-a-new-pad),
+read in this image:
+
+1. **Candidate.** Both are rows of the candidate list below with `ghRefs=0`, `ptrWord=-`, `opLit=-`;
+   `FUN_40128244` has `leafPad=PAD`. `FUN_40128288` has one callee, the allocator, so it is not a leaf
+   as step 1 asks; it is vetted with its neighbour as one span by the steps below.
+2. **objdump.** Extent `0x40128244..0x401282e0`, from the `rts` at `0x40128286` and at `0x401282de`.
+3. **Raw pointer scan**, every byte offset: 0 words point into the span from outside it.
+4. **Listing scan**, hex operands and decimal immediates: 0 instructions outside the span name an
+   address inside it.
+5. **Switch tables.** Within ±32 KB of the span there are 14 indexed `jmp`s. Walking 512 table words
+   from each base finds four words that would land in the span: entries 141 and 243 of the table at
+   `0x40125a96`, and entries 64 and 291 of the table at `0x40125ff2`. Each table has 13 entries: the
+   `cmpl #12` and `bcs` before its `jmp` (`0x40125a92`, `0x40125fee`) bound the index. So no table
+   reaches the span.
+6. **Live twins.** The other 13 words that name the list head `0x421faa74` all lie in the
+   neighbouring functions of the same code (`0x4012821e` to `0x4012856e`). Neither `0x401281fc` nor
+   `0x401282e0` has a reference either (raw and listing scans): the whole family of registration
+   functions is unreferenced, as the method's heuristic expects of a dead family.
+7. **Fall-through.** The instruction before the span is an `rts` (`0x40128242`); the span is followed
+   by a fresh function (`0x401282e0`).
+8. **Moat.** Outside every protected range ([update_moat.md](update_moat.md)).
+
+The controls of steps 3 and 4 gave their known counts in the same run
+([Vetting controls on this image](#vetting-controls-on-this-image)).
+
+✅ Its fill test, the stage image S6, started and ran on the test unit with OS 1.54, and so did the
+stages with Chain Recording's code in it ([features/chain_record.md](features/chain_record.md#testing-on-the-unit)).
 
 ## The candidate list on this image
 
@@ -122,7 +165,8 @@ Spans of adjacent leaf candidates of 120 B or more, other than the pads in use:
 | Span | Size | Note |
 |---|---:|---|
 | `0x40124a6c..0x40124b32` | 198 B | in use, above |
-| `0x400c2d00..0x400c2e12` | 274 B | a masked bitmap copy from the drawing code; its sibling just before has the same epilogue |
+| `0x40128244..0x401282e0` | 156 B | in use, above; the second member is not a leaf |
+| `0x400c2d00..0x400c2e12` | 274 B | a masked bitmap copy from the drawing code (it XORs a source through a mask into a destination); its sibling just before has the same body. Not taken as a pad: this build's icons are drawn with masks, and a drawing routine reached through a computed address would escape every scan |
 | `0x4001e1d4..0x4001e27e` | 170 B | calls through a vtable (`jsr %a0@`), so not a leaf in fact |
 | `0x401365ec..0x4013668a` | 158 B | its code goes on past Ghidra's extent and calls `0x40136538` |
 | `0x400025f4..0x4000268e` | 154 B | in the I/O region |
@@ -131,7 +175,7 @@ Spans of adjacent leaf candidates of 120 B or more, other than the pads in use:
 | `0x400214e8..0x4002156c` | 132 B | not examined |
 | `0x40071a16..0x40071b30` | 282 B | in the audio code |
 | `0x4007b2e8..0x4007b56a` | 642 B | in the audio code |
-| `0x4024f5be..0x4024f686`, `0x4024f7f0..0x4024f86c` | 200 B, 124 B | in the second code window |
+| `0x4024f5be..0x4024f686`, `0x4024f7f0..0x4024f86c` | 200 B, 124 B | in the second code window; the first reads the peripheral registers `0xffff8010..0xffff8013` and data at `0x800xxx`, in SRAM. Not taken as a pad: I/O code |
 
 ⛔ A row here is a candidate, never a budget ([landing_pad_method.md](../../../notes/landing_pad_method.md#where-candidates-come-from)).
 
@@ -163,7 +207,7 @@ This build puts its icons and strings there:
 | `0x40252bb0` | 44 B | the POLY keyboard icon's colour plane |
 | `0x40252bdc` | 28 B | the POLY icon's `Bitmap` struct |
 | `0x40252bf8` | 8 B | the machine-picker bitmap selector table |
-| `0x40252c00` | 27 B | Chain Recording's two line formats, `YES: ARM %d/%d` and `ARMED %d/%d`, each ending in a NUL byte |
+| `0x40252c00` | 43 B | Chain Recording's three line formats, `YES: ARM %d/%d`, `ARMED %d/%d` and `YES: AUTO %d/%d`, each ending in a NUL byte |
 
 The `Bitmap` structs point at the `Bitmap` vtable (`0x401b7734`, the RTTI vtable `0x401b772c` + 8)
 and at stock masks: `0x4024de68` for the robin, a 17 × 17 all-ones mask (`ffff8000` seventeen

@@ -39,7 +39,7 @@ marker `0xC4A1`, which only this build writes
 | `0x439d1004` | 8 B | SLICE round robin: `prev[8]`, the last trig bit seen per track |
 | `0x439d1010` | 32 B | SLICE round robin: `counter[8]` (u32), indexed by pool source |
 | `0x439d1030` | 8 B | SLICE round robin: `slice[8]`, the latched slice per voice (`counter + 32`) |
-| `0x439d1038` | 4 B | Chain Recording: the chain word, marker `0xC4A1` in bits 31..16, the slot count N in bits 15..8, the slots done k in bits 7..0 |
+| `0x439d1038` | 4 B | Chain Recording: the chain word, marker `0xC4A1` in bits 31..16, the slot count N in bits 15..8 as a signed byte (negative for auto re-arm), the slots done k in bits 7..0 |
 | `0x439d103c` | 12 B | free |
 | `0x439d1048` | 8 B | owner latch: `ownerTrack[8]` (`groupSource − 8`) |
 | `0x439d1050` | 8 B | POLY voice pool: `groupSource[8]` |
