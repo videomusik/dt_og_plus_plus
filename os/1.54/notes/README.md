@@ -34,13 +34,20 @@ The same features as the OS 1.52A build, carried over to this image by the metho
 - **Tick-wipe fix.** A note released and re-triggered within one audio tick no longer hangs.
 - **Pad fill.** The fill bytes left in the cleared landing pads.
 
+New in this image, not in the OS 1.52A build:
+
+- **Chain Recording.** Encoder D on the recorder page sets a slot count; the recorder then fills a
+  sample chain one armed slot of RLEN steps at a time, for the SLICE machine's GRID.
+  ⚠️ Not yet run on a unit. [features/chain_record.md](features/chain_record.md).
+
 Where each feature's code sits in this image: [function_ledger.md](function_ledger.md) and
 [docs/patch_listing.md](../docs/patch_listing.md).
 
-✅ Read in the code by emulation: the seven pad harnesses in
+✅ Read in the code by emulation: the eight harnesses in
 [scripts/emu/README.md](../scripts/emu/README.md) pass on the reference build. They step the pad code
 of pool cursors, the MIDI Loopback private lane and display pads, the SLICE latch, the three POLY
-track aliases and the machine-list edit in Ghidra's p-code emulator, with stubbed callees.
+track aliases and the machine-list edit, and run the recorder engine with Chain Recording's hooks, in
+Ghidra's p-code emulator, with stubbed callees.
 
 ## Addresses
 
@@ -77,6 +84,8 @@ How it is made, and its reference numbers: [analysis_reference.md](analysis_refe
 - [analysis_reference.md](analysis_reference.md): the Ghidra project of this image and its reference
   numbers.
 - [compatibility.md](compatibility.md): projects moved between this build and stock OS 1.54.
+- [features/chain_record.md](features/chain_record.md): Chain Recording, and how the stock recorder
+  works.
 - [function_ledger.md](function_ledger.md): the per-function ledger.
 - [landing_pads.md](landing_pads.md): the pads that hold the new code, why each is dead here, and the
   `.rodata` space.

@@ -54,6 +54,36 @@ read in this image.
 | `FUN_40076258` (66 B) | The cursor's data source: the playing position as an 8.8 fraction, 0 when silent | ✅ objdump |
 | `FUN_400c1268` (208 B) | The vertical-line primitive the pool cursors draw with | ✅ objdump |
 
+## The recorder
+
+The engine state and how Chain Recording hooks it: [features/chain_record.md](features/chain_record.md).
+
+| Function | What it does | Evidence |
+|---|---|---|
+| `FUN_40076540` (32 B) | End of recording: state 3 at `0x4199f114`, then a message (`0x401f8ce0`) through `FUN_40001b7a`. **Chain Recording:** `stop_pad` continues here after the last slot, a slot cut short by the cap, and whenever chain mode is off | ✅ objdump |
+| `FUN_400765d8` (8 B) | Returns the recorder state | ✅ objdump |
+| `FUN_400765e0` (54 B) | Sets RLEN (`0x4199f0fc`) from an index: `1 << index`, or 0 (MAX) for an index above 7; only in states 0 and 4 | ✅ objdump |
+| `FUN_40076616` (58 B) | The recording length in samples from RLEN and the tempo (`FUN_400770c8`); 1,584,000 (33 s) at MAX. **Chain Recording:** its calls at `0x400767fc` and `0x40076900` go through `len_pad`, the one at `0x400a8e7c` through `mem_pad` | ✅ objdump |
+| `FUN_40076650` (550 B) | The recorder's per-block routine, called by the audio ISR for every 32-sample block: source copy into `0x800032c4`, level meter, threshold test (state 1), write (state 2: upper 16 bits at `0x4237ef90 + 2 × position`, bits 15..8 at `0x421fc410 + position`), stop at LEN or at the 1,584,000-sample cap, by a tail call of `FUN_40076540`. After a threshold hit at sample j it writes the first 32 − j samples of that block. **Chain Recording:** hooks at `0x400767fc` (threshold hit) and `0x4007687a` (stop) | ✅ objdump, decompile |
+| `FUN_40076898` (8 B) | Returns 1,584,000, the sample memory | ✅ objdump |
+| `FUN_400768a0` (46 B) | ARM: from state 0 or 4 to state 1, write position 0, with interrupts masked; returns 1 if it armed. **Chain Recording:** the position clear at `0x400768c2` goes through `arm_pad` | ✅ objdump |
+| `FUN_400768ce` (74 B) | REC: from state 0, 1 or 4 to state 2, write position 0, LEN = `FUN_40076616()`, with interrupts masked. **Chain Recording:** `0x400768fa` through `arm_pad`, `0x40076900` through `len_pad` | ✅ objdump |
+| `FUN_40076918` (36 B) | The STOP key: in state 2, `FUN_40076540` | ✅ objdump |
+| `FUN_4007693c` (82 B) | ABORT: from state 1, 2 or 4 to state 0, write position 0 | ✅ objdump |
+| `FUN_4007699e` (102 B) | The lowest and highest sample of a range of the recording | ✅ objdump |
+| `FUN_40076a04` (254 B) | The normaliser after state 3: pads the recording to at least 144 samples, finds its peak, returns to state 0 if it is silent, else scales the whole recording to full level and sets state 4 | ✅ objdump |
+| `FUN_40076b02` (32 B) | Returns the state and the write position together, with interrupts masked | ✅ objdump |
+| `SamplerView::vfunc_2` @`0x400a9784` (1,244 B) | The recorder page's keys: in state 0 YES arms and FUNC+YES records, both clearing the view's waveform cache; FUNC+NO aborts in state 1; YES stops in state 2; trim, save and preview in state 4; NO in state 0 closes the page | ✅ decompile |
+| `SamplerView::vfunc_4` @`0x400a8c94` (2,800 B) | The recorder page's draw. **Chain Recording:** the MEM line's length (`0x400a8e7c`), the YES prompt (`0x400a8f48`, cleanup `0x400a8f60`) and the ARMED line (`0x400a9026`, cleanup `0x400a9044`) | ✅ objdump, decompile |
+| `SamplerView::vfunc_11` @`0x400a7b68` (226 B) | The page's update: reads state and position (`FUN_40076b02`), extends the waveform cache (126 columns over 33 s) up to the position, invalidates the view | ✅ decompile |
+| `SamplerView::vfunc_17` @`0x400a7e38` (668 B) | The page's encoders: in states 0 and 1, E sets RLEN (`FUN_400a786c`), F THR, G the source, H MON, tested in that order; in state 4, A–D move the trim points. **Chain Recording:** the exit taken when the H test fails (`0x400a7f40`) goes through `enc_pad`, which handles encoder D | ✅ objdump, decompile |
+| `SamplerLedView::vfunc_2` @`0x40036548` (324 B) | Another key handler that calls the recorder's ARM, REC, STOP and ABORT by state | ✅ decompile |
+| `FUN_400c03e6` (40 B) | Encoder event test: true when the event's id (`event + 12`) is index + 1; index −3 accepts ids 1–8. Encoder D is id 4 | ✅ objdump |
+| `FUN_400c047e` (30 B) | An encoder event's step, `event + 16`, times its second argument, or its third when the fast flag `event + 20` is set | ✅ objdump |
+| `FUN_400c0816` (80 B) | The encoder step accumulator the page's setters use | ✅ objdump |
+| `FUN_400c9a3a` (34 B) | `View::invalidate`: sets the view's dirty byte (`+0x14`) unless `+0x17` is set, and passes the call to the parent (`+0x2c`) | ✅ objdump |
+| `FUN_400c27e8` (442 B) | Draws formatted text: (canvas, font, x, y, alignment, format, values…). The recorder page passes alignment 2 with the x of a column's centre | ✅ objdump of its callers; ⚠️ alignment 2 = centred, from the coordinates |
+
 ## MIDI
 
 | Function | What it does | Evidence |
@@ -66,3 +96,4 @@ read in this image.
 | Function | What it does | Evidence |
 |---|---|---|
 | `FUN_400c1338`, `FUN_400c1138`, `FUN_400c1034`, `0x400bf16c`, `0x40037a24`, `FUN_400bed3a`, `FUN_400bed9c`, `FUN_400bee02`, the spans at `0x40015558` and `0x400151ac`, `FUN_401770a6`, `FUN_40177136`, `FUN_40177176` | ✅ dead in this image by the raw scan, the listing scan and the controls ([landing_pads.md](landing_pads.md)); overwritten by this build | ✅ raw and listing scans |
+| `FUN_40124a6c` (88 B), `FUN_40124ac4` (110 B) | Test two single- (two double-) precision values for a NaN pattern and return 1 if either is one. ✅ Dead in this image by the full vetting recipe ([landing_pads.md](landing_pads.md#the-new-pad-fun_40124a6c--fun_40124ac4)); overwritten by Chain Recording. ⚠️ Unused soft-float helpers, by what they do; not yet fill-tested on a unit | ✅ objdump, raw and listing scans, switch tables |

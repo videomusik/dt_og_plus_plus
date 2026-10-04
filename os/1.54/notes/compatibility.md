@@ -14,7 +14,8 @@ no stored format and no data version. Nothing here has been tried on a unit runn
 | SLICE Select = RRBN (−1) or RRND (−2) | ⚠️ The track plays, with Select as NOTE | ⚠️ read from the code (below); not tested |
 | A track set to the POLY machine | ⚠️ Most likely loads as ONESHOT (machine 0): the stock kit loader clamps machine 4 to 0 | ⚠️ read from the code (below); not tested |
 | A MIDI track with CHAN = TRK1–TRK8 | ⚠️ The value is kept, and that MIDI track sends nothing | ⚠️ inferred; the emitters were not re-read in OS 1.54 |
-| Anything else | Unaffected: the other features change code, constants and RAM, not what a project stores | ⚠️ read from `os/1.54/build/patch.json` |
+| A recording made with Chain Recording | An ordinary sample: the chain is one recording, N slot lengths long | ✅ the stock end of recording saves it ([features/chain_record.md](features/chain_record.md)) |
+| Anything else | Unaffected: the other features change code, constants and RAM, not what a project stores. Chain Recording keeps its slot count in RAM only | ⚠️ read from `os/1.54/build/patch.json` |
 
 A project made on stock OS 1.54 loads unchanged on this build, because it contains none of the new
 values.

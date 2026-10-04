@@ -7,8 +7,9 @@ no Elektron firmware. You build DT OG++ yourself, on your own computer, from you
 Elektron's stock OS 1.54 update file, and the build refuses any other input. DT OG++ is not
 affiliated with or endorsed by Elektron.
 
-The features are the same as in the OS 1.52A build, carried over to OS 1.54. Everything else in
-OS 1.54, including its Outbox 8 support, is Elektron's and unchanged.
+The features are the same as in the OS 1.52A build, carried over to OS 1.54, plus Chain Recording,
+which records a sample chain for the Slice machine one hit at a time. Everything else in OS 1.54,
+including its Outbox 8 support, is Elektron's and unchanged.
 
 Other OS versions and the shared documentation: [README.md](../../README.md).
 
@@ -97,6 +98,34 @@ The notes are also sent from MIDI OUT and USB on audio track *n*'s channel, so a
 on that channel plays them too. With MIDI OUT cabled back to MIDI IN, or with a device that echoes
 MIDI back, every note arrives twice.
 
+### CHAIN RECORDING
+
+Chain Recording records a sample chain one slot at a time, so that the Slice machine can play it with
+one hit per slice. On the recorder page, data entry knob **D** sets the number of slots: OFF, 4, 8,
+16, 32 or 64. With a number of slots set and RLEN at a number of steps (not MAX), each recording is
+one slot of RLEN steps:
+
+1. Turn **D** to the number of slots, for example 8. The prompt reads `YES: ARM 1/8`.
+2. Press **[YES]** to arm (`ARMED 1/8`), and play the sound: the threshold starts the slot, as a stock
+   recording starts. **[FUNC] + [YES]** records the slot at once instead.
+3. After RLEN steps the recorder stops and waits, keeping what it has recorded. The prompt reads
+   `YES: ARM 2/8`. Arm and play again for each slot.
+4. After the last slot, the recording is normalised as a whole, and trimming and saving work as for
+   any recording.
+
+All slots have the same length, so on a Slice machine with GRID set to the number of slots, each
+slice is one of your hits. MEM shows the length of the whole chain; as on stock, `!!` beside it means
+that it does not fit in the sample memory.
+
+- **[YES]** while a slot records stops the chain there and goes to the save, with the slots so far.
+- **[FUNC] + [NO]** while armed aborts, as on stock: the whole chain is dropped.
+- Turning **D** between slots starts a new chain.
+- Keep RLEN and the tempo the same for all slots of a chain; otherwise the slots differ in length.
+- With RLEN at MAX, or the number of slots at OFF, the recorder works as on stock.
+- The number of slots is not saved with the project.
+
+Chain Recording has not yet been tested on a Digitakt.
+
 For how each feature works inside the firmware, see the feature list in
 [notes/README.md](notes/README.md#the-features-in-this-build).
 
@@ -181,6 +210,7 @@ you flash, in either direction.
 | SLICE set to RRBN or RRND | Most likely the track plays with SLICE at NOTE. |
 | A track with the Poly machine | The track most likely comes back with the Oneshot machine. |
 | A MIDI track with CHAN at TRK1–TRK8 | Most likely the value is kept, and that MIDI track sends nothing. |
+| A sample recorded with Chain Recording | An ordinary sample. |
 
 A project made on stock firmware loads unchanged on DT OG++. Details:
 [notes/compatibility.md](notes/compatibility.md).

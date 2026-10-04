@@ -33,3 +33,12 @@ Also possibly at startup:
 - ⚠️ **Project-load code**, since the Digitakt loads a project when it starts: the POLY pool-map build
   on kit load (`0x4007735a` → `0x400bf16c`), the pool-map refresh in the audio ISR's set-active-kit
   handler (`0x400776e6` → `0x40037a3c`) and the per-sound deserializer's machine bound at `0x4007a2d0`.
+
+Chain Recording ([features/chain_record.md](features/chain_record.md)):
+
+- ✅ None of its engine hooks runs at startup (objdump). The per-block routine `FUN_40076650` runs
+  for every audio block from the start, but the threshold hook (`0x400767fc`) is in its state-1
+  branch and the stop hook (`0x4007687a`) in its state-2 branch; start-up clears the state, which is
+  in `.bss`, to 0. ARM and REC (`0x400768c2`, `0x400768fa`, `0x40076900`) run only on a key press.
+- ⚠️ Its view hooks (`0x400a7f40`, `0x400a8e7c`, `0x400a8f48`, `0x400a9026`) run only while the
+  recorder page is shown, and so at the first paint only if the unit restores that page.

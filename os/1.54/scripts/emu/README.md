@@ -34,10 +34,20 @@ Run one with `./scripts/ghidra_emu.sh 1.54 <Harness> [argument]`.
 | `EmuReadAlias` | `poly_ui` | `0x400bed3a`, 58 B | none (the reference build's bytes are built in) | The in-place track rewrite at the tail of `MachineParameterPageView::vfunc_41`: pool remap for "current track", explicit tracks untouched with no calls, frame and SP intact. |
 | `EmuTrackAlias` | `poly_ui` | `0x400bee02` (38 B), `0x400bed74` (34 B) | none (bytes built in) | Both track-remap pads re-push the callee's argument and apply their out-of-range rules (−1, unchanged). |
 | `EmuMachineList` | `poly_engine` | edits at `0x40022f7e`, `0x40022fae`, `0x40022fe6` | none | The machine-list constructor adds 4 machines with the stock bytes and 5 with the edit. |
+| `EmuChainRecord` | `chain_record` | the recorder engine `0x40076540..0x40076b22` with its hooks, the encoder, prompt, ARMED and MEM hooks, and the pads at `0x40177104`, `0x40124a6c`, `0x400c1062`, `0x400bf1cc` | build MAIN OS, and `auto` for the auto re-arm build | Runs the engine as built (ARM, REC, the STOP key, ABORT and the per-block routine with its threshold, write and stop), stubbing only the slot length, the end of recording, `memcpy` and the threshold level. With no chain, at RLEN MAX and at N = 0 the recorder behaves as stock. In a chain each slot starts at k × slot and ends at exactly (k + 1) × slot, the buffer holds each slot from its own start, the recorder goes idle (or re-arms) between slots, and slot N goes to the stock end of recording at N × slot. REC, the STOP key, ABORT, the 33 s cap, a moved write position and a restart each end the chain. Encoder D steps N only while idle; the prompt, ARMED and MEM lines show k/N and N × slot, with SP where stock leaves it. |
 
 ## Results on the reference build
 
-On the reference build (section 3 `5a7eb2a4…`), every harness ends with its pass line
+On the reference build (section 3 `d90c19f6…`), every harness ends with its pass line
 (`=== ALL CASES PASS ... ===`, or for `EmuMachineList` "as-is added 4 machines, edited added 5").
 `EmuCursorCore` on an image whose marker stub reads the canvas from `%d3` fails both marker cases that
 draw a line, with the canvas `0x11111111`: the harness tells the two apart.
+
+`EmuChainRecord` also passes, with `auto`, on the auto re-arm build (section 3 `79a7fb1e…`). Its
+controls:
+
+- On the S4 stage image (section 3 `7988ef5f…`), where every Chain Recording hook leads to a pad that
+  only replays the stock code it displaced, the stock cases pass and every chain case fails.
+- On an earlier build whose in-progress test did not require LEN > 0, only the two restart cases fail.
+
+Stage images: [features/chain_record.md](../../notes/features/chain_record.md#testing-on-the-unit).
