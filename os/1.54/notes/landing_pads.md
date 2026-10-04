@@ -73,8 +73,7 @@ instructions (objdump):
 - `FUN_40124ac4` does the same for two double-precision arguments: exponent `0x7ff`.
 
 ⚠️ Very probably unused helpers from the soft-float support code (an inference from what they do and
-from where they sit). The two functions are identical in the image this build was first written for,
-at `0x401123b0` and `0x40112408`; there too the listing names no address inside them from outside.
+from where they sit).
 
 ✅ The vetting steps of [landing_pad_method.md](../../../notes/landing_pad_method.md#vetting-a-new-pad),
 read in this image:
