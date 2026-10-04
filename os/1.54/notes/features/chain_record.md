@@ -198,7 +198,8 @@ slot starts on it at once. In the reference build the user arms each slot.
 
 ## Testing on the unit
 
-No OS 1.54 image of this build has run on a unit yet. The port's stages come first:
+Chain Recording builds on the port's three stages, which have run on the test unit
+([README.md](../README.md#the-test-unit)):
 
 | Stage | Contents |
 |---|---|

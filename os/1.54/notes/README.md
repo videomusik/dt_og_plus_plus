@@ -12,8 +12,21 @@ Conventions, marks and method: [notes/README.md](../../../notes/README.md).
 ## The test unit
 
 In this folder, "the test unit" is one Digitakt (the original model) running OS 1.54 or a DT OG++
-build made from it. A ✅ unit result here holds for OS 1.54 only. ⚠️ There are no unit results in this
-folder yet: every ✅ here is read directly in the code, with its method.
+build made from it. A ✅ unit result here holds for OS 1.54 only. Every other ✅ here is read directly in
+the code, with its method.
+
+✅ On the test unit, one image at a time, each started and ran:
+
+1. the stock OS 1.54 update file;
+2. the stock MAIN OS repacked by the pinned tool (`.syx` `81d5a468…`);
+3. the nine landing pads filled with `clrl %d0 ; rts` and no feature code (`.syx` `5001c01f…`). Which
+   areas of the firmware were exercised on it was not recorded;
+4. the build with every feature of the OS 1.52A build (section 3 `5a7eb2a4…`, `.syx` `6dec6823…`). In a
+   quick check these work: RRBN, the POLY voice pools, mute by origin, voice allocation, the pool cursors,
+   the POLY picker icon and the robin, and MIDI tracks playing audio tracks through TRK values. No stuck
+   note was seen; the stuck-note test itself was not run.
+
+Chain Recording, which the build in this folder adds on top of that, has not yet run on a unit.
 
 ## The features in this build
 
@@ -39,6 +52,8 @@ New in this image, not in the OS 1.52A build:
 - **Chain Recording.** Encoder D on the recorder page sets a slot count; the recorder then fills a
   sample chain one armed slot of RLEN steps at a time, for the SLICE machine's GRID.
   ⚠️ Not yet run on a unit. [features/chain_record.md](features/chain_record.md).
+
+The other features have run on the test unit ([The test unit](#the-test-unit)).
 
 Where each feature's code sits in this image: [function_ledger.md](function_ledger.md) and
 [docs/patch_listing.md](../docs/patch_listing.md).

@@ -9,8 +9,11 @@ used for constant data. The method (where candidates come
 from, the vetting recipe, the rules for code in a pad, the `.rodata` survey) is in
 [landing_pad_method.md](../../../notes/landing_pad_method.md).
 
-⚠️ A pad is trusted only once it has run on a unit ([AGENTS.md](../../../AGENTS.md)). No pad in this
-note has yet run on a unit with OS 1.54, so every pad here is a vetted candidate, not a trusted pad.
+⚠️ A pad is trusted only once it has run on a unit ([AGENTS.md](../../../AGENTS.md)). ✅ The nine pads
+that held the code before Chain Recording have run on the test unit with OS 1.54: an image with all nine
+filled with `clrl %d0 ; rts` started and ran, and so did the build whose features live in them
+([README.md](README.md#the-test-unit)). The tenth, `FUN_40124a6c` + `FUN_40124ac4`, has not yet run on a
+unit; it is a vetted candidate until its fill test has.
 
 ## The pads
 

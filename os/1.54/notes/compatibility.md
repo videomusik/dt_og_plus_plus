@@ -5,7 +5,17 @@
 What happens to projects moved between this build and stock OS 1.54, in both directions, and the
 loader rules that decide it. The build stores the same new values as its features always have: a
 negative SLICE Select (RRBN, RRND), machine 4 (POLY) and negative CHAN values (TRK1–TRK8). It changes
-no stored format and no data version. Nothing here has been tried on a unit running OS 1.54.
+no stored format and no data version.
+
+One observation on the test unit, in the order it ran ([README.md](README.md#the-test-unit)):
+
+- A project with POLY tracks was active while stock OS 1.54 and the images with the stock MAIN OS ran.
+- On the DT OG++ build that followed, its first pattern did not play the POLY tracks.
+- Reloading the project from +Drive, where it had been saved by a DT OG++ build of another OS version,
+  brought them back.
+
+⚠️ This fits the stock loader dropping machine 4 from the active project (below). What stock put in
+its place was not recorded. Nothing else here has been tried on a unit.
 
 ## At a glance
 

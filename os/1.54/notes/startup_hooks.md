@@ -20,7 +20,8 @@ The STARTUP menu's own OS upgrade is section 2 code, which a build does not chan
 initialisers. It only stores the address of SLICE round robin's value formatter `0x400c1398`, which runs
 when a Slice Select value is drawn.
 
-⚠️ None of these has yet run on a unit with OS 1.54. The harnesses are in
+✅ These ran on the test unit with OS 1.54: the build that holds them (section 3 `5a7eb2a4…`) started
+and ran ([README.md](README.md#the-test-unit)). The harnesses are in
 [scripts/emu/README.md](../scripts/emu/README.md).
 
 Also possibly at startup:
