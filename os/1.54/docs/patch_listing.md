@@ -8,18 +8,18 @@ python3 os/1.54/build/make_listing.py
 
 Addresses are load addresses: section 3 (MAIN OS) loads at 0x40000400, so file offset = address - 0x40000400.
 
-- **Code** is disassembled as ColdFire (`m68k-elf-objdump -m m68k:cfv4e`) from a linear sweep of the patched section 3, so a run that starts or ends inside an instruction still shows the whole instruction. Where patched code jumps, branches, calls or points into patched bytes the sweep did not reach as an instruction start, the sweep is restarted there (0x400c1398). `+` marks an instruction whose bytes are all patched, `~` one that also contains unpatched bytes. Runs of one feature whose instructions touch are shown together.
+- **Code** is disassembled as ColdFire (`m68k-elf-objdump -m m68k:cfv4e`) from a linear sweep of the patched section 3, so a run that starts or ends inside an instruction still shows the whole instruction. Where patched code jumps, branches, calls or points into patched bytes the sweep did not reach as an instruction start, the sweep is restarted there (0x400c1062, 0x400c1398). `+` marks an instruction whose bytes are all patched, `~` one that also contains unpatched bytes. Runs of one feature whose instructions touch are shown together.
 - **Data** (icons, tables, strings) is shown as hex and ASCII, patched bytes only; `--` is an unpatched byte. Data runs of one feature less than 16 bytes apart share one dump.
 - The `+`/`~` marks count every patched byte, whichever feature it belongs to.
 
-Section 3: stock `5c58bf9e3949ef09977c5fc007a61e8d026931f67f1621238379dfb8ee4d31a2` -> patched `5a7eb2a4f84bea3a65cac570d9846c5250ae5ab14b0e415580043a079424c451`.
-Disassembler: GNU objdump (GNU Binutils for Debian) 2.40.
+Section 3: stock `5c58bf9e3949ef09977c5fc007a61e8d026931f67f1621238379dfb8ee4d31a2` -> patched `efc90606b8d0d1637f41d6eac9cc19652e2c78800178bb9b6bcac3524bdef29e`.
+Disassembler: GNU objdump (GNU Binutils) 2.47.20260726.
 
 | feature | runs | bytes | |
 |---|---:|---:|---|
 | [`slice_round_robin`](#slice-round-robin) | 39 | 253 | SLICE machine: round-robin slice select (RRBN) and the robin icon |
 | [`poly_engine`](#poly-engine) | 40 | 579 | POLY machine: engine |
-| [`pad_fill`](#pad-fill) | 12 | 171 | Landing pads: fill bytes left in the cleared unused functions |
+| [`pad_fill`](#pad-fill) | 12 | 60 | Landing pads: fill bytes left in the cleared unused functions |
 | [`poly_ui`](#poly-ui) | 12 | 138 | POLY machine: parameter pages show and edit the source track |
 | [`pool_cursors`](#pool-cursors) | 11 | 191 | POLY machine: one playhead cursor per voice on SRC page 2 |
 | [`midi_loopback`](#midi-loopback) | 23 | 519 | Virtual MIDI Loopback: a MIDI track with CHAN at TRK1-TRK8 plays an audio track without a cable, with the TRK number display |
@@ -28,7 +28,8 @@ Disassembler: GNU objdump (GNU Binutils for Debian) 2.40.
 | [`mute_by_origin`](#mute-by-origin) | 3 | 38 | POLY machine: mute follows the track a note came from |
 | [`owner_latch`](#owner-latch) | 4 | 14 | POLY machine: held notes release across a pattern switch |
 | [`tick_wipe_fix`](#tick-wipe-fix) | 2 | 23 | Fix: a note released and re-triggered in the same audio tick no longer hangs |
-| **total** | 173 | 2091 | |
+| [`chain_record`](#chain-record) | 32 | 614 | Chain Recording: the recorder fills a sample chain one slot at a time (encoder D sets the slot count, armed by the user or re-armed automatically) |
+| **total** | 205 | 2594 | |
 
 <a id="slice-round-robin"></a>
 
@@ -518,7 +519,7 @@ Runs: 0x400c11aa +11, 0x400c11b6 +36.
 
 ## pad_fill
 
-Landing pads: fill bytes left in the cleared unused functions. 12 runs, 171 bytes.
+Landing pads: fill bytes left in the cleared unused functions. 12 runs, 60 bytes.
 
 ### 0x400152c0-0x400152ce, 2 runs, 13 B (code)
 
@@ -570,92 +571,32 @@ Runs: 0x400152c0 +1, 0x400152c2 +12.
 + 400bee66:  4e75                 rts
 ```
 
-### 0x40177104-0x40177134, 2 runs, 47 B (code)
+### 0x40124b24-0x40124b30, 3 runs, 10 B (code)
 
-Runs: 0x40177104 +16, 0x40177115 +31.
-
-```
-+ 40177104:  4e75                 rts
-+ 40177106:  4280                 clrl %d0
-+ 40177108:  4e75                 rts
-+ 4017710a:  4280                 clrl %d0
-+ 4017710c:  4e75                 rts
-+ 4017710e:  4280                 clrl %d0
-+ 40177110:  4e75                 rts
-+ 40177112:  4280                 clrl %d0
-~ 40177114:  4e75                 rts
-+ 40177116:  4280                 clrl %d0
-+ 40177118:  4e75                 rts
-+ 4017711a:  4280                 clrl %d0
-+ 4017711c:  4e75                 rts
-+ 4017711e:  4280                 clrl %d0
-+ 40177120:  4e75                 rts
-+ 40177122:  4280                 clrl %d0
-+ 40177124:  4e75                 rts
-+ 40177126:  4280                 clrl %d0
-+ 40177128:  4e75                 rts
-+ 4017712a:  4280                 clrl %d0
-+ 4017712c:  4e75                 rts
-+ 4017712e:  4280                 clrl %d0
-+ 40177130:  4e75                 rts
-+ 40177132:  4280                 clrl %d0
-```
-
-### 0x40177136, 62 B (code)
+Runs: 0x40124b24 +8, 0x40124b2d +1, 0x40124b2f +1.
 
 ```
-+ 40177136:  4280                 clrl %d0
-+ 40177138:  4e75                 rts
-+ 4017713a:  4280                 clrl %d0
-+ 4017713c:  4e75                 rts
-+ 4017713e:  4280                 clrl %d0
-+ 40177140:  4e75                 rts
-+ 40177142:  4280                 clrl %d0
-+ 40177144:  4e75                 rts
-+ 40177146:  4280                 clrl %d0
-+ 40177148:  4e75                 rts
-+ 4017714a:  4280                 clrl %d0
-+ 4017714c:  4e75                 rts
-+ 4017714e:  4280                 clrl %d0
-+ 40177150:  4e75                 rts
-+ 40177152:  4280                 clrl %d0
-+ 40177154:  4e75                 rts
-+ 40177156:  4280                 clrl %d0
-+ 40177158:  4e75                 rts
-+ 4017715a:  4280                 clrl %d0
-+ 4017715c:  4e75                 rts
-+ 4017715e:  4280                 clrl %d0
-+ 40177160:  4e75                 rts
-+ 40177162:  4280                 clrl %d0
-+ 40177164:  4e75                 rts
-+ 40177166:  4280                 clrl %d0
-+ 40177168:  4e75                 rts
-+ 4017716a:  4280                 clrl %d0
-+ 4017716c:  4e75                 rts
-+ 4017716e:  4280                 clrl %d0
-+ 40177170:  4e75                 rts
-+ 40177172:  4280                 clrl %d0
++ 40124b24:  4280                 clrl %d0
++ 40124b26:  4e75                 rts
++ 40124b28:  4280                 clrl %d0
++ 40124b2a:  4e75                 rts
+~ 40124b2c:  4280                 clrl %d0
+~ 40124b2e:  4e75                 rts
 ```
 
-### 0x40177176-0x40177192, 2 runs, 27 B (code)
+### 0x401282ce-0x401282de, 2 runs, 15 B (code)
 
-Runs: 0x40177176 +26, 0x40177191 +1.
+Runs: 0x401282ce +2, 0x401282d1 +13.
 
 ```
-+ 40177176:  4280                 clrl %d0
-+ 40177178:  4e75                 rts
-+ 4017717a:  4280                 clrl %d0
-+ 4017717c:  4e75                 rts
-+ 4017717e:  4280                 clrl %d0
-+ 40177180:  4e75                 rts
-+ 40177182:  4280                 clrl %d0
-+ 40177184:  4e75                 rts
-+ 40177186:  4280                 clrl %d0
-+ 40177188:  4e75                 rts
-+ 4017718a:  4280                 clrl %d0
-+ 4017718c:  4e75                 rts
-+ 4017718e:  4280                 clrl %d0
-~ 40177190:  4e75                 rts
++ 401282ce:  4e75                 rts
+~ 401282d0:  4280                 clrl %d0
++ 401282d2:  4e75                 rts
++ 401282d4:  4280                 clrl %d0
++ 401282d6:  4e75                 rts
++ 401282d8:  4280                 clrl %d0
++ 401282da:  4e75                 rts
++ 401282dc:  4280                 clrl %d0
 ```
 
 <a id="poly-ui"></a>
@@ -1284,4 +1225,298 @@ Runs: 0x40077d72 +16, 0x40077d83 +7.
 + 40077d7e:  4280                 clrl %d0
 ~ 40077d80:  41f9 4399 eb54       lea 0x4399eb54,%a0
 + 40077d86:  43e8 012c            lea %a0@(300),%a1
+```
+
+<a id="chain-record"></a>
+
+## chain_record
+
+Chain Recording: the recorder fills a sample chain one slot at a time (encoder D sets the slot count, armed by the user or re-armed automatically). 32 runs, 614 bytes.
+
+### 0x400767fd, 9 B (code)
+
+```
+~ 400767fc:  4eb9 400b f1cc       jsr 0x400bf1cc
++ 40076802:  4e71                 nop
++ 40076804:  4e71                 nop
+```
+
+### 0x4007687a, 8 B (code)
+
+```
++ 4007687a:  4ef9 4017 714c       jmp 0x4017714c
++ 40076880:  4e71                 nop
+```
+
+### 0x400768c2-0x400768c7, 2 runs, 4 B (code)
+
+Runs: 0x400768c2 +1, 0x400768c4 +3.
+
+```
+~ 400768c2:  4eb9 4012 4b04       jsr 0x40124b04
+```
+
+### 0x400768fa-0x4007690a, 3 runs, 13 B (code)
+
+Runs: 0x400768fa +1, 0x400768fc +3, 0x40076901 +9.
+
+```
+~ 400768fa:  4eb9 4012 4b04       jsr 0x40124b04
+~ 40076900:  4eb9 400b f1cc       jsr 0x400bf1cc
++ 40076906:  4e71                 nop
++ 40076908:  4e71                 nop
+```
+
+### 0x400a7f40, 6 B (code)
+
+```
++ 400a7f40:  4ef9 4012 4a6c       jmp 0x40124a6c
+```
+
+### 0x400a8e7f, 3 B (code)
+
+```
+~ 400a8e7c:  4eb9 400c 1062       jsr 0x400c1062
+```
+
+### 0x400a8f48-0x400a8f52, 2 runs, 9 B (code)
+
+Runs: 0x400a8f48 +2, 0x400a8f4b +7.
+
+```
+~ 400a8f48:  4eb9 4012 8244       jsr 0x40128244
++ 400a8f4e:  4e71                 nop
++ 400a8f50:  4e71                 nop
+```
+
+### 0x400a8f63, 1 B (code)
+
+```
+~ 400a8f60:  4fef 0028            lea %sp@(40),%sp
+```
+
+### 0x400a9026-0x400a9030, 2 runs, 9 B (code)
+
+Runs: 0x400a9026 +2, 0x400a9029 +7.
+
+```
+~ 400a9026:  4eb9 4012 8260       jsr 0x40128260
++ 400a902c:  4e71                 nop
++ 400a902e:  4e71                 nop
+```
+
+### 0x400a9047, 1 B (code)
+
+```
+~ 400a9044:  4fef 0024            lea %sp@(36),%sp
+```
+
+### 0x400a9878, 8 B (code)
+
+```
++ 400a9878:  4ef9 4012 828c       jmp 0x4012828c
++ 400a987e:  4e71                 nop
+```
+
+### 0x400bf1cc, 20 B (code)
+
+```
++ 400bf1cc:  4eb9 4007 6616       jsr 0x40076616
++ 400bf1d2:  d0b9 4199 f104       addl 0x4199f104,%d0
++ 400bf1d8:  23c0 4199 f100       movel %d0,0x4199f100
++ 400bf1de:  4e75                 rts
+```
+
+### 0x400c1062, 28 B (code)
+
+```
++ 400c1062:  4eb9 4007 6616       jsr 0x40076616
++ 400c1068:  2240                 moveal %d0,%a1
++ 400c106a:  4eb9 4017 711e       jsr 0x4017711e
++ 400c1070:  4a80                 tstl %d0
++ 400c1072:  6602                 bnes 0x400c1076
++ 400c1074:  7001                 moveq #1,%d0
++ 400c1076:  2209                 movel %a1,%d1
++ 400c1078:  4c01 0800            mulsl %d1,%d0
++ 400c107c:  4e75                 rts
+```
+
+### 0x40124a6c-0x40124b24, 4 runs, 181 B (code)
+
+Runs: 0x40124a6c +124, 0x40124ae9 +31, 0x40124b09 +7, 0x40124b11 +19.
+
+```
++ 40124a6c:  4a00                 tstb %d0
++ 40124a6e:  6706                 beqs 0x40124a76
++ 40124a70:  4ef9 400a 7f46       jmp 0x400a7f46
++ 40124a76:  2242                 moveal %d2,%a1
++ 40124a78:  7004                 moveq #4,%d0
++ 40124a7a:  b0a9 000c            cmpl %a1@(12),%d0
++ 40124a7e:  667e                 bnes 0x40124afe
++ 40124a80:  4ab9 4199 f114       tstl 0x4199f114
++ 40124a86:  6676                 bnes 0x40124afe
++ 40124a88:  4879 4208 db80       pea 0x4208db80
++ 40124a8e:  2f02                 movel %d2,%sp@-
++ 40124a90:  486a 0094            pea %a2@(148)
++ 40124a94:  4eb9 400c 0816       jsr 0x400c0816
++ 40124a9a:  4fef 000c            lea %sp@(12),%sp
++ 40124a9e:  2600                 movel %d0,%d3
++ 40124aa0:  6a02                 bpls 0x40124aa4
++ 40124aa2:  4480                 negl %d0
++ 40124aa4:  e088                 lsrl #8,%d0
++ 40124aa6:  6756                 beqs 0x40124afe
++ 40124aa8:  4eb9 4017 7126       jsr 0x40177126
++ 40124aae:  4a39 439d 103a       tstb 0x439d103a
++ 40124ab4:  6a02                 bpls 0x40124ab8
++ 40124ab6:  4480                 negl %d0
++ 40124ab8:  4a83                 tstl %d3
++ 40124aba:  6a02                 bpls 0x40124abe
++ 40124abc:  4480                 negl %d0
++ 40124abe:  4a80                 tstl %d0
++ 40124ac0:  6604                 bnes 0x40124ac6
++ 40124ac2:  7004                 moveq #4,%d0
++ 40124ac4:  6018                 bras 0x40124ade
++ 40124ac6:  6b0c                 bmis 0x40124ad4
++ 40124ac8:  d080                 addl %d0,%d0
++ 40124aca:  7240                 moveq #64,%d1
++ 40124acc:  b081                 cmpl %d1,%d0
++ 40124ace:  6f0e                 bles 0x40124ade
++ 40124ad0:  2001                 movel %d1,%d0
++ 40124ad2:  600a                 bras 0x40124ade
++ 40124ad4:  e280                 asrl #1,%d0
++ 40124ad6:  72fc                 moveq #-4,%d1
++ 40124ad8:  b081                 cmpl %d1,%d0
++ 40124ada:  6f02                 bles 0x40124ade
++ 40124adc:  7000                 moveq #0,%d0
++ 40124ade:  4a83                 tstl %d3
++ 40124ae0:  6a02                 bpls 0x40124ae4
++ 40124ae2:  4480                 negl %d0
++ 40124ae4:  7180                 mvzb %d0,%d0
++ 40124ae6:  e188                 lsll #8,%d0
+~ 40124ae8:  0080 c4a1 0000       oril #-996081664,%d0
++ 40124aee:  23c0 439d 1038       movel %d0,0x439d1038
++ 40124af4:  2f0a                 movel %a2,%sp@-
++ 40124af6:  4eb9 400c 9a3a       jsr 0x400c9a3a
++ 40124afc:  588f                 addql #4,%sp
++ 40124afe:  4ef9 400a 80c8       jmp 0x400a80c8
++ 40124b04:  2f00                 movel %d0,%sp@-
++ 40124b06:  2f01                 movel %d1,%sp@-
+~ 40124b08:  4eb9 4017 7104       jsr 0x40177104
++ 40124b0e:  4a81                 tstl %d1
+~ 40124b10:  660c                 bnes 0x40124b1e
++ 40124b12:  42b9 4199 f104       clrl 0x4199f104
++ 40124b18:  4239 439d 103b       clrb 0x439d103b
++ 40124b1e:  221f                 movel %sp@+,%d1
++ 40124b20:  201f                 movel %sp@+,%d0
++ 40124b22:  4e75                 rts
+```
+
+### 0x40128244-0x401282ce, 4 runs, 135 B (code)
+
+Runs: 0x40128244 +52, 0x40128279 +33, 0x4012829b +11, 0x401282a7 +39.
+
+```
++ 40128244:  4879 4025 2c00       pea 0x40252c00
++ 4012824a:  4a39 439d 103a       tstb 0x439d103a
++ 40128250:  6a06                 bpls 0x40128258
++ 40128252:  2ebc 4025 2c1b       movel #1076177947,%sp@
++ 40128258:  4879 401d 0696       pea 0x401d0696
++ 4012825e:  600c                 bras 0x4012826c
++ 40128260:  4879 4025 2c0f       pea 0x40252c0f
++ 40128266:  4879 401d dbff       pea 0x401ddbff
++ 4012826c:  4eb9 4017 7104       jsr 0x40177104
++ 40128272:  205f                 moveal %sp@+,%a0
++ 40128274:  4a80                 tstl %d0
++ 40128276:  6702                 beqs 0x4012827a
+~ 40128278:  2057                 moveal %sp@,%a0
++ 4012827a:  588f                 addql #4,%sp
++ 4012827c:  225f                 moveal %sp@+,%a1
++ 4012827e:  2f00                 movel %d0,%sp@-
++ 40128280:  5281                 addql #1,%d1
++ 40128282:  2f01                 movel %d1,%sp@-
++ 40128284:  2f08                 movel %a0,%sp@-
++ 40128286:  4878 0002            pea 0x2
++ 4012828a:  4ed1                 jmp %a1@
++ 4012828c:  2042                 moveal %d2,%a0
++ 4012828e:  720b                 moveq #11,%d1
++ 40128290:  c2a8 0010            andl %a0@(16),%d1
++ 40128294:  7003                 moveq #3,%d0
++ 40128296:  b280                 cmpl %d0,%d1
++ 40128298:  6626                 bnes 0x401282c0
+~ 4012829a:  4eb9 4017 7104       jsr 0x40177104
++ 401282a0:  4a81                 tstl %d1
++ 401282a2:  671c                 beqs 0x401282c0
+~ 401282a4:  42b9 4199 f104       clrl 0x4199f104
++ 401282aa:  4239 439d 103b       clrb 0x439d103b
++ 401282b0:  2f0a                 movel %a2,%sp@-
++ 401282b2:  4eb9 400c 9a3a       jsr 0x400c9a3a
++ 401282b8:  588f                 addql #4,%sp
++ 401282ba:  4ef9 400a 984e       jmp 0x400a984e
++ 401282c0:  2f02                 movel %d2,%sp@-
++ 401282c2:  4eb9 400c 33cc       jsr 0x400c33cc
++ 401282c8:  4ef9 400a 9880       jmp 0x400a9880
+```
+
+### 0x40177104-0x40177192, 3 runs, 139 B (code)
+
+Runs: 0x40177104 +96, 0x40177165 +1, 0x40177168 +42.
+
+```
++ 40177104:  6118                 bsrs 0x4017711e
++ 40177106:  6714                 beqs 0x4017711c
++ 40177108:  2079 4199 f100       moveal 0x4199f100,%a0
++ 4017710e:  b1f9 4199 f104       cmpal 0x4199f104,%a0
++ 40177114:  6604                 bnes 0x4017711a
++ 40177116:  4a88                 tstl %a0
++ 40177118:  6e02                 bgts 0x4017711c
++ 4017711a:  7200                 moveq #0,%d1
++ 4017711c:  4e75                 rts
++ 4017711e:  4ab9 4199 f0fc       tstl 0x4199f0fc
++ 40177124:  6f20                 bles 0x40177146
++ 40177126:  2239 439d 1038       movel 0x439d1038,%d1
++ 4017712c:  2001                 movel %d1,%d0
++ 4017712e:  4240                 clrw %d0
++ 40177130:  0c80 c4a1 0000       cmpil #-996081664,%d0
++ 40177136:  660e                 bnes 0x40177146
++ 40177138:  2001                 movel %d1,%d0
++ 4017713a:  e088                 lsrl #8,%d0
++ 4017713c:  49c0                 extbl %d0
++ 4017713e:  6a02                 bpls 0x40177142
++ 40177140:  4480                 negl %d0
++ 40177142:  7381                 mvzb %d1,%d1
++ 40177144:  4e75                 rts
++ 40177146:  7000                 moveq #0,%d0
++ 40177148:  7200                 moveq #0,%d1
++ 4017714a:  4e75                 rts
++ 4017714c:  4fef 0010            lea %sp@(16),%sp
++ 40177150:  61cc                 bsrs 0x4017711e
++ 40177152:  4a80                 tstl %d0
++ 40177154:  6730                 beqs 0x40177186
++ 40177156:  41f9 4199 f100       lea 0x4199f100,%a0
++ 4017715c:  2250                 moveal %a0@,%a1
++ 4017715e:  b3e8 0004            cmpal %a0@(4),%a1
++ 40177162:  6e22                 bgts 0x40177186
+~ 40177164:  2149 0004            movel %a1,%a0@(4)
++ 40177168:  5281                 addql #1,%d1
++ 4017716a:  b280                 cmpl %d0,%d1
++ 4017716c:  6c18                 bges 0x40177186
++ 4017716e:  13c1 439d 103b       moveb %d1,0x439d103b
++ 40177174:  7000                 moveq #0,%d0
++ 40177176:  4a39 439d 103a       tstb 0x439d103a
++ 4017717c:  6a02                 bpls 0x40177180
++ 4017717e:  7001                 moveq #1,%d0
++ 40177180:  2140 0014            movel %d0,%a0@(20)
++ 40177184:  4e75                 rts
++ 40177186:  4239 439d 103b       clrb 0x439d103b
++ 4017718c:  4ef9 4007 6540       jmp 0x40076540
+```
+
+### 0x40252c00-0x40252c2a, 3 runs, 40 B (data)
+
+Runs: 0x40252c00 +14, 0x40252c0f +11, 0x40252c1b +15.
+
+```
+40252c00  59 45 53 3a 20 41 52 4d 20 25 64 2f 25 64 -- 41  |YES: ARM %d/%d A|
+40252c10  52 4d 45 44 20 25 64 2f 25 64 -- 59 45 53 3a 20  |RMED %d/%d YES: |
+40252c20  41 55 54 4f 20 25 64 2f 25 64 -- -- -- -- -- --  |AUTO %d/%d      |
 ```

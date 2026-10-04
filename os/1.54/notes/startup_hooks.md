@@ -20,7 +20,8 @@ The STARTUP menu's own OS upgrade is section 2 code, which a build does not chan
 initialisers. It only stores the address of SLICE round robin's value formatter `0x400c1398`, which runs
 when a Slice Select value is drawn.
 
-⚠️ None of these has yet run on a unit with OS 1.54. The harnesses are in
+✅ These ran on the test unit with OS 1.54: the build that holds them (section 3 `5a7eb2a4…`) started
+and ran ([README.md](README.md#the-test-unit)). The harnesses are in
 [scripts/emu/README.md](../scripts/emu/README.md).
 
 Also possibly at startup:
@@ -33,3 +34,13 @@ Also possibly at startup:
 - ⚠️ **Project-load code**, since the Digitakt loads a project when it starts: the POLY pool-map build
   on kit load (`0x4007735a` → `0x400bf16c`), the pool-map refresh in the audio ISR's set-active-kit
   handler (`0x400776e6` → `0x40037a3c`) and the per-sound deserializer's machine bound at `0x4007a2d0`.
+
+Chain Recording ([features/chain_record.md](features/chain_record.md)):
+
+- ✅ None of its engine hooks runs at startup (objdump). The per-block routine `FUN_40076650` runs
+  for every audio block from the start, but the threshold hook (`0x400767fc`) is in its state-1
+  branch and the stop hook (`0x4007687a`) in its state-2 branch; start-up clears the state, which is
+  in `.bss`, to 0. ARM and REC (`0x400768c2`, `0x400768fa`, `0x40076900`) run only on a key press.
+- ⚠️ Its view hooks (`0x400a7f40`, `0x400a8e7c`, `0x400a8f48`, `0x400a9026`) run only while the
+  recorder page is shown, and so at the first paint only if the unit restores that page. The NO-key
+  hook (`0x400a9878`) runs only on a key press on that page.

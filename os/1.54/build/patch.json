@@ -11,9 +11,9 @@
   "section3_size": 2479680
  },
  "result": {
-  "section3_sha256": "5a7eb2a4f84bea3a65cac570d9846c5250ae5ab14b0e415580043a079424c451",
-  "syx_sha256_reference": "6dec6823f61fbb208afd11928e14459d3847a5ec0e07d5f43729f92c560604bd",
-  "syx_size_reference": 1348640,
+  "section3_sha256": "efc90606b8d0d1637f41d6eac9cc19652e2c78800178bb9b6bcac3524bdef29e",
+  "syx_sha256_reference": "3fd4b0a39567330fcdf89e8fb9d7b877f63bbf3db2c6fb314197abba9ee866e3",
+  "syx_size_reference": 1348896,
   "syx_reference_note": "only with the pinned tool",
   "pinned_tool": "github.com/mischa85/elektron-firmware-tool 065d18f4195793e61891e387813488ee59f6d1ca + build/tool_patches/cap_window_1mb.patch"
  },
@@ -465,28 +465,28 @@
      "kind": "code"
     },
     {
-     "addr": "0x40177104",
-     "bytes": "4e7542804e7542804e7542804e754280",
+     "addr": "0x40124b24",
+     "bytes": "42804e7542804e75",
      "kind": "code"
     },
     {
-     "addr": "0x40177115",
-     "bytes": "7542804e7542804e7542804e7542804e7542804e7542804e7542804e754280",
+     "addr": "0x40124b2d",
+     "bytes": "80",
      "kind": "code"
     },
     {
-     "addr": "0x40177136",
-     "bytes": "42804e7542804e7542804e7542804e7542804e7542804e7542804e7542804e7542804e7542804e7542804e7542804e7542804e7542804e7542804e754280",
-     "kind": "code"
-    },
-    {
-     "addr": "0x40177176",
-     "bytes": "42804e7542804e7542804e7542804e7542804e7542804e754280",
-     "kind": "code"
-    },
-    {
-     "addr": "0x40177191",
+     "addr": "0x40124b2f",
      "bytes": "75",
+     "kind": "code"
+    },
+    {
+     "addr": "0x401282ce",
+     "bytes": "4e75",
+     "kind": "code"
+    },
+    {
+     "addr": "0x401282d1",
+     "bytes": "804e7542804e7542804e754280",
      "kind": "code"
     }
    ]
@@ -946,6 +946,172 @@
      "addr": "0x40077d83",
      "bytes": "99eb5443e8012c",
      "kind": "code"
+    }
+   ]
+  },
+  {
+   "id": "chain_record",
+   "title": "Chain Recording: the recorder fills a sample chain one slot at a time (encoder D sets the slot count, armed by the user or re-armed automatically)",
+   "runs": [
+    {
+     "addr": "0x400767fd",
+     "bytes": "b9400bf1cc4e714e71",
+     "kind": "code"
+    },
+    {
+     "addr": "0x4007687a",
+     "bytes": "4ef94017714c4e71",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400768c2",
+     "bytes": "4e",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400768c4",
+     "bytes": "40124b",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400768fa",
+     "bytes": "4e",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400768fc",
+     "bytes": "40124b",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40076901",
+     "bytes": "b9400bf1cc4e714e71",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400a7f40",
+     "bytes": "4ef940124a6c",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400a8e7f",
+     "bytes": "0c1062",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400a8f48",
+     "bytes": "4eb9",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400a8f4b",
+     "bytes": "1282444e714e71",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400a8f63",
+     "bytes": "28",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400a9026",
+     "bytes": "4eb9",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400a9029",
+     "bytes": "1282604e714e71",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400a9047",
+     "bytes": "24",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400a9878",
+     "bytes": "4ef94012828c4e71",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400bf1cc",
+     "bytes": "4eb940076616d0b94199f10423c04199f1004e75",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400c1062",
+     "bytes": "4eb94007661622404eb94017711e4a806602700122094c0108004e75",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40124a6c",
+     "bytes": "4a0067064ef9400a7f4622427004b0a9000c667e4ab94199f114667648794208db802f02486a00944eb9400c08164fef000c26006a024480e08867564eb9401771264a39439d103a6a0244804a836a0244804a806604700460186b0cd0807240b0816f0e2001600ae28072fcb0816f0270004a836a0244807180e188",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40124ae9",
+     "bytes": "80c4a1000023c0439d10382f0a4eb9400c9a3a588f4ef9400a80c82f002f01",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40124b09",
+     "bytes": "b9401771044a81",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40124b11",
+     "bytes": "0c42b94199f1044239439d103b221f201f4e75",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40128244",
+     "bytes": "487940252c004a39439d103a6a062ebc40252c1b4879401d0696600c487940252c0f4879401ddbff4eb940177104205f4a806702",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40128279",
+     "bytes": "57588f225f2f0052812f012f08487800024ed12042720bc2a800107003b2806626",
+     "kind": "code"
+    },
+    {
+     "addr": "0x4012829b",
+     "bytes": "b9401771044a81671c42b9",
+     "kind": "code"
+    },
+    {
+     "addr": "0x401282a7",
+     "bytes": "99f1044239439d103b2f0a4eb9400c9a3a588f4ef9400a984e2f024eb9400c33cc4ef9400a9880",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40177104",
+     "bytes": "6118671420794199f100b1f94199f10466044a886e0272004e754ab94199f0fc6f202239439d1038200142400c80c4a10000660e2001e08849c06a02448073814e75700072004e754fef001061cc4a80673041f94199f1002250b3e800046e22",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40177165",
+     "bytes": "49",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40177168",
+     "bytes": "5281b2806c1813c1439d103b70004a39439d103a6a027001214000144e754239439d103b4ef940076540",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40252c00",
+     "bytes": "5945533a2041524d2025642f2564",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252c0f",
+     "bytes": "41524d45442025642f2564",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252c1b",
+     "bytes": "5945533a204155544f2025642f2564",
+     "kind": "data"
     }
    ]
   }

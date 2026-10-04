@@ -30,22 +30,25 @@ the on-chip SRAM. Addresses are load addresses. The chip's address spaces are in
 
 All of it lies just above the `.bss` end `0x439d1000`, so none of it is initialised at boot. Every
 use is masked or written before it is read, so start-up garbage is harmless; a voice that has never
-been triggered is not playing.
+been triggered is not playing. Chain Recording's word is used only when its upper half holds the
+marker `0xC4A1`, which only this build writes
+([features/chain_record.md](features/chain_record.md#the-chain-word)).
 
 | Address | Size | Contents |
 |---|---|---|
 | `0x439d1004` | 8 B | SLICE round robin: `prev[8]`, the last trig bit seen per track |
 | `0x439d1010` | 32 B | SLICE round robin: `counter[8]` (u32), indexed by pool source |
 | `0x439d1030` | 8 B | SLICE round robin: `slice[8]`, the latched slice per voice (`counter + 32`) |
-| `0x439d1038` | 16 B | free |
+| `0x439d1038` | 4 B | Chain Recording: the chain word, marker `0xC4A1` in bits 31..16, the slot count N in bits 15..8 as a signed byte (negative for auto re-arm), the slots done k in bits 7..0 |
+| `0x439d103c` | 12 B | free |
 | `0x439d1048` | 8 B | owner latch: `ownerTrack[8]` (`groupSource − 8`) |
 | `0x439d1050` | 8 B | POLY voice pool: `groupSource[8]` |
 | `0x439d1058` | 8 B | POLY voice pool, voice allocation: `groupCursor[8]` |
 | `0x439d1060` | 128 B | MIDI Loopback: the byte ring, 32 slots × 4 B |
 | `0x439d10e0` | 1 B | MIDI Loopback: the ring index, masked to 0..31 |
 
-The code names `0x439d1004`, `0x439d1010`, `0x439d1050`, `0x439d1058`, `0x439d1060` and `0x439d10e0`
-directly ([docs/patch_listing.md](../docs/patch_listing.md)); `slice[]` and `ownerTrack[]` are reached
+The code names `0x439d1004`, `0x439d1010`, `0x439d1038`, `0x439d1050`, `0x439d1058`, `0x439d1060` and
+`0x439d10e0` directly ([docs/patch_listing.md](../docs/patch_listing.md)); `slice[]` and `ownerTrack[]` are reached
 by displacement from those base registers.
 
 ✅ Read directly in the image: a raw scan of the stock section, every byte offset read as a

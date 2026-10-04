@@ -50,6 +50,14 @@ MIDI track set to TRK*n* plays audio track *n* with no cable: its notes, chords 
 and note-offs included, reach audio track *n* as they would through a MIDI cable from MIDI OUT to
 MIDI IN. Details: [OS 1.52A](os/1.52A/README.md#virtual-midi-loopback)
 
+### CHAIN RECORDING
+
+OS 1.54 only. On the recorder page, data entry knob D sets a number of slots (4 to 64), armed by you
+for each slot or, turned the other way, automatically. Each slot records RLEN steps, until the chain
+is full and goes to the normal save. All slots have the same length, so the Slice machine with GRID
+set to the number of slots plays one hit per slice. Tested on a Digitakt.
+Details: [OS 1.54](os/1.54/README.md#chain-recording)
+
 For how each feature works inside the firmware, see the feature list in the OS folder's notes
 (OS 1.52A: [os/1.52A/notes/README.md](os/1.52A/notes/README.md#the-features-in-this-build)).
 

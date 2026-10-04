@@ -34,10 +34,24 @@ Run one with `./scripts/ghidra_emu.sh 1.54 <Harness> [argument]`.
 | `EmuReadAlias` | `poly_ui` | `0x400bed3a`, 58 B | none (the reference build's bytes are built in) | The in-place track rewrite at the tail of `MachineParameterPageView::vfunc_41`: pool remap for "current track", explicit tracks untouched with no calls, frame and SP intact. |
 | `EmuTrackAlias` | `poly_ui` | `0x400bee02` (38 B), `0x400bed74` (34 B) | none (bytes built in) | Both track-remap pads re-push the callee's argument and apply their out-of-range rules (−1, unchanged). |
 | `EmuMachineList` | `poly_engine` | edits at `0x40022f7e`, `0x40022fae`, `0x40022fe6` | none | The machine-list constructor adds 4 machines with the stock bytes and 5 with the edit. |
+| `EmuChainRecord` | `chain_record` | the recorder engine `0x40076540..0x40076b22` with its hooks, the encoder, prompt, ARMED, MEM and NO-key hooks, and the pads at `0x40177104`, `0x40124a6c`, `0x40128244`, `0x400c1062`, `0x400bf1cc` | build MAIN OS | Runs the engine as built (ARM, REC, the STOP key, ABORT and the per-block routine with its threshold, write and stop), stubbing only the slot length, the end of recording, `memcpy` and the threshold level. With no chain, at RLEN MAX and with the chain off the recorder behaves as stock. In a chain, with manual arming and with auto re-arm, each slot starts at k × slot and ends at exactly (k + 1) × slot, the buffer holds each slot from its own start, the recorder goes idle (manual) or re-arms (auto) between slots, and slot N goes to the stock end of recording at N × slot. REC, the STOP key, ABORT, the 33 s cap, a moved write position and a restart each end the chain. Encoder D, only while idle, calls the accumulator as encoder G does (stubbed) and steps the setting once per whole step through AUTO 64..4, off, 4..64; the prompt, ARMED and MEM lines show `YES: ARM k/N`, `YES: AUTO k/N`, `ARMED k/N` and N × slot, with SP where stock leaves it. A fresh FUNC+NO press while idle with a chain in progress drops it and leaves through the code after ARM; every other NO event takes the stock path. |
 
 ## Results on the reference build
 
-On the reference build (section 3 `5a7eb2a4…`), every harness ends with its pass line
+On the reference build (section 3 `efc90606…`), every harness ends with its pass line
 (`=== ALL CASES PASS ... ===`, or for `EmuMachineList` "as-is added 4 machines, edited added 5").
 `EmuCursorCore` on an image whose marker stub reads the canvas from `%d3` fails both marker cases that
 draw a line, with the canvas `0x11111111`: the harness tells the two apart.
+
+`EmuChainRecord`'s controls:
+
+- On the S7 stage image (section 3 `aaedd690…`), where every Chain Recording hook leads to a pad that
+  only replays the stock code it displaced, every stock case passes and every chain, encoder D,
+  prompt, ARMED, MEM and FUNC+NO drop case fails (49).
+- On a build whose `chain_any` branched on flags from `mvs.b`, the 15 cases that need auto re-arm
+  failed and the others passed (in the emulator a branch after `mvs.b` sees the flags of the
+  instruction before it).
+- On an earlier build whose in-progress test did not require LEN > 0, the harness as it was before
+  auto re-arm and the FUNC+NO cases were added failed only its two restart cases.
+
+Stage images: [features/chain_record.md](../../notes/features/chain_record.md#testing-on-the-unit).

@@ -107,9 +107,9 @@ build's runs would be refused.
    and after packing re-extracts the file and requires sections 2, 4, 5 and 8 to equal stock. The
    reference build passes all seven of its checks.
 2. **Call rule.** The disassembly of every patched code range in
-   [docs/patch_listing.md](../docs/patch_listing.md) (666 instructions, 106 distinct direct branch
-   and call targets) has no target in a protected range. Calls through a register (six) are outside
-   that check.
+   [docs/patch_listing.md](../docs/patch_listing.md) (795 instructions, 146 distinct direct branch
+   and call targets) has no target in a protected range. Calls and jumps through a register (seven)
+   are outside that check.
 
 Each landing pad of this build is checked against the ranges ([landing_pads.md](landing_pads.md)).
 
