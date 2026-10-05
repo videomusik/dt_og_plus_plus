@@ -273,13 +273,20 @@ those slots from the engine block.
 records whose name reads `Error` are track-level records with page and slot `-1` and their own data in
 `+0x18`, not spare rows. So the eight records have to come from somewhere else:
 
-- **Serve ids at or above 164 from a second table.** Eight records (416 B) in free constant space, and a
-  branch in each accessor that checks the bound. The cost is one hook per accessor; how many accessors
-  there are is ⏳ not yet counted.
-- **Rename only for this machine.** Point CFOO's layout record at ONESHOT's ids 108–115 and hook the
-  name accessors alone, returning this build's own names when the track's machine is 5. Fewer bytes, but
-  the hook has to resolve the current track's machine, as the POLY page aliasing already does.
-- ⛔ Relocating the whole table is out: it is 8,528 B and the constant-data budget is 2,268 B.
+- ⛔ **Serve ids at or above 164 from a second table.** Out: twenty accessors index from the same base
+  (`lea 0x401aa09c,%a0`, forty `id < 164` checks), so each would need its own branch.
+- ⛔ **Extend the table in place.** Out: it ends at `0x401ac1ec` and other data begins there.
+- ⛔ **Relocate the whole table.** Out: 8,528 B against a constant-data budget of 2,268 B.
+- ⭐ **Rename for this machine only.** Point CFOO's layout record at ONESHOT's ids 108–115 and give the
+  name readers this build's own strings when the track's machine is 5. The readers are few: `0x4000fea6`
+  reads the short label, `0x4000fec8` the long name, `0x40065de6` the page name, and `0x4002351c` and
+  `0x40060ba6` read the short label as well.
+
+  This build already renames a parameter exactly this way: MIDI Loopback turns CHAN into TRK and
+  "Channel" into "Track" through the same two readers, from pads reached at `0x40030daa` and
+  `0x40032d36` ([function_ledger.md](../function_ledger.md)). ⚠️ Those hooks sit at the call sites in the
+  parameter page, not in the readers, so which call sites a machine-5 page passes through is still to be
+  traced.
 
 ⚠️ What the page id at `+0x00` controls beyond the lookups above is not traced, so whether CFOO needs a
 page id of its own (and what the 19-record generic page table at `0x4197df88` would then need) is open.
