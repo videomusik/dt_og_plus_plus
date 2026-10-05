@@ -323,7 +323,13 @@ Control: with the jumps left as the build has them, only the machine-5 page fail
 PLAY / Play Mode.
 
 **Not yet:** the values. Their formatters belong to the descriptor, so FMSR still shows PLAY's
-play-mode names and the others show ONESHOT's numbers. Also not yet: the SAMP cell (CFOO does not use
+play-mode names and the others show ONESHOT's numbers. ✅ Read in the code: `FUN_400657ee(id, value)`
+formats a value through a per-id formatter object at `0x4197e30c + 0x54 × id` (`FUN_40151eea`; the
+objects are built at run time) into a shared buffer at `0x4197de98`, which it returns. It has five
+callers and is not given the page. A CFOO-only value text would therefore take the current track's
+machine from the project: `FUN_4001d24e` (the current track, from the project object `+0x30`), then
+`FUN_4000d7be(object, track)` (`object + 0x60 + 200 × track`, the track clamped to 0..7), then
+`FUN_4002200a` (the machine byte at `+0x7e` behind the handle). Not built. Also not yet: the SAMP cell (CFOO does not use
 it; hiding it needs CFOO's own layout record with id 0 there), and the page name (`+0x2c`, read at
 `0x40065de6`).
 
