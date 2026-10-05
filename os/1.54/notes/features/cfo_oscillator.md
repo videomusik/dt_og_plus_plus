@@ -113,12 +113,34 @@ call returns to the ISR.
    - FM = (OSC2 and/or OSC3, by PLAY) × `(step >> 13) × LEN`;
    - the mix is OSC1 × G1 + OSC2 × G2 + OSC3 × G3, the three gains summing to 256 and crossfaded by BR
      over the points (256, 0, 0), (128, 128, 0), (85, 85, 86), (0, 128, 128);
-   - the result is × (voice level >> 16) into `a18`.
+   - the result is × (level >> 16) into `a18`.
 
    Full scale is ±32,512 × 32,767, just under 2^30: a single oscillator at full level sits 6 dB below
    a full-scale sample.
 6. The three phases persist per track in this build's RAM at `0x439d1100` (96 B,
    [memory_map.md](../memory_map.md)). Their start-up contents do not matter.
+7. The level is computed, not read from the voice ([below](#the-level)).
+
+### The level
+
+The code calls the stock `FUN_40074c60(x, LEV)` itself, with the track's word at `0x80001f18` and its
+LEV, and applies the lanes' de-click: level 0 when the voice is on (`+0x28`) and the track's bit is set
+in the lanes' next-tick trig mask `0x8000122c`. That is what `FUN_400757fe` computes for a track every
+tick (`0x40076114..0x4007615c`, objdump), less one rule. With voice flag `+0x29` set and the play mode
+not a loop, the lanes store a quarter of the previous level instead, so a voice fades out within a few
+ticks. `+0x29` is set by the lanes' end-of-window test (`0x40075bbe..0x40075c30`), and "a loop" is
+PLAY 1 or 2: the lanes set their direction flag `+0x2a` for PLAY 0 and 1 and test PLAY − 1 < 2 for the
+loop, which makes the order FWD, FWD loop, REV loop, REV.
+
+A synth track has no sample, and a machine-5 track takes the lanes' empty window, so the voice may count
+as ended at once. ⚠️ Whether it does was not traced. CFOO uses the PLAY slot as FMSR, so reading the
+voice's level would have tied the synth's loudness to the FM source: values 0 and 3 could have faded to
+silence. Computing the level avoids the question. `FUN_40074c60` uses the EMAC in fractional mode,
+which laneA sets and leaves set (`%macsr` `0x20` from `0x400757ee`), and nothing changes it before the
+hook. It clobbers only `%d0`, `%d1` and `%acc0`.
+
+⚠️ Not replicated: the store loop's ramp from one tick's level to the next. The synth holds each tick's
+level for its 32 samples, so a level change is a step every 667 µs.
 
 **The wavetables** (`make_waves.py`): SIN, TRI, SAW, SQR, 256 signed bytes each, with one phase
 convention, so the morph blends shapes instead of cancelling them:
@@ -139,21 +161,31 @@ table and the wavetables from emulator memory. All cases pass:
 - tracks that are not synth tracks keep their buffers exactly;
 - OSC1 alone; TUNE ±; the three morphs; the four mix points;
 - FM from OSC2, OSC2+3 and OSC3; half and zero level; notes 0 and 127;
+- the level: each synth track calls `FUN_40074c60` once, with its own `x` and its LEV, and the voice's
+  own level, set to a wrong value throughout, is not used; the de-click gives level 0 only to a voice
+  that is on and has a trig next tick;
 - the phases carry over from tick to tick;
 - `FUN_40072478` is reached with the stack as found and `%d2-%d7/%a2-%a6` intact.
 
+The emulator's EMAC has no fractional mode ([notes/emulator.md](../../../../notes/emulator.md)), so the
+harness stubs `FUN_40074c60`: it checks the arguments and returns the case's level.
+
 A pure SIN at note 60 measures 261.47 Hz with a peak of 1,065,320,704. The worst tick, all eight tracks
-on the synth, takes 15,623 instructions. ⚠️ How that compares with the ISR's free time per 667 µs tick
-is not measured. The control: a variant with the pitch table one entry off and OSC3's mix gain swapped
-fails 17 of the 19 cases.
+on the synth, takes 15,724 instructions, plus about 17 per track inside the stubbed `FUN_40074c60`.
+⚠️ How that compares with the ISR's free time per 667 µs tick is not measured.
+
+Controls:
+- a variant with the pitch table one entry off and OSC3's mix gain swapped fails every case except the
+  two with no synth track and level 0;
+- the earlier code, which read the voice's level, makes no level call and fails all 20 synth cases.
 
 ## Code space
 
-The code is 626 B in seven routines: dispatcher 82, `track` 268, `pitch` 56, `wave` 32, `gains` 58,
+The code is 672 B in seven routines: dispatcher 82, `track` 314, `pitch` 56, `wave` 32, `gains` 58,
 `osc32` 38, `osc1_mix` 92. The pads in use have 112 B free, in blocks of at most 18 B
 ([landing_pads.md](../landing_pads.md)). The code goes into `FUN_400f77da`, route 2 below, under the
 vetting recipe's exception for an identified library function
-([landing_pad_method.md](../../../../notes/landing_pad_method.md#vetting-a-new-pad)); it uses 626 B of
+([landing_pad_method.md](../../../../notes/landing_pad_method.md#vetting-a-new-pad)); it uses 672 B of
 the pad's 2,372. The routes:
 
 1. **Small leaf pads.** Eight candidates are true leaves (no indirect calls), not in the I/O region, the
@@ -191,18 +223,19 @@ be flashed in order, S9 to S14:
 |---|---|---|---|
 | S9 | `9a75ccc7` | `af736dd4…` | the reference build + `FUN_400f77da` filled with `clrl %d0 ; rts` (the pad's fill test) |
 | S10 | `3af01e48` | `7328128f…` | S9 + the hook at `0x40077fc8`, its pad only jumping on to `FUN_40072478` |
-| S11 | `0e688a4d` | `ff134c73…` | S9 + the CFO oscillator prototype, playing on ONESHOT with SAMP OFF |
-| S12 | `4e4ea57e` | `814e74a9…` | S9 + the machine CFOO (machine 5, after POLY) with ONESHOT's SRC page, and the synth playing on it ([below](#cfoo-machine-5-in-s12)) |
-| S13 | `92a107b1` | `3f36ca60…` | S12 + CFOO's own parameter names on its SRC page ([below](#cfoos-own-parameter-names-in-s13)) |
-| S14 | `ebf7dc01` | `b56f1310…` | S13 + a placeholder picker icon for CFOO ([below](#cfoos-picker-icon-in-s14)) |
+| S11 | `2122f403` | `57fb1aaa…` | S9 + the CFO oscillator prototype, playing on ONESHOT with SAMP OFF |
+| S12 | `235a54ce` | `a22d0de9…` | S9 + the machine CFOO (machine 5, after POLY) with ONESHOT's SRC page, and the synth playing on it ([below](#cfoo-machine-5-in-s12)) |
+| S13 | `8baba164` | `8eae5616…` | S12 + CFOO's own parameter names on its SRC page ([below](#cfoos-own-parameter-names-in-s13)) |
+| S14 | `413bb231` | `412a760f…` | S13 + a placeholder picker icon for CFOO ([below](#cfoos-picker-icon-in-s14)) |
 
 Checked on the built images (S12's own checks are [below](#cfoo-machine-5-in-s12)):
 - the build's own checks;
 - the compressor window, whose largest back-reference is `0xffc6a`;
 - the hook, code and data read back out of S11 equal the assembled sections;
-- `EmuCfoOscillator` passes on S11's own bytes, and on S10's bytes (the inert control) it fails every
-  synth case and passes the untouched ones;
-- every other harness passes on S11.
+- `EmuCfoOscillator` passes on S11's own bytes, and on S10's bytes (the inert control) it fails all 20
+  synth cases and passes the untouched ones;
+- every other harness passes on S11;
+- S9 and S10 rebuild byte for byte whenever the synth code changes, since neither contains it.
 
 What to check:
 - **S9:** nothing changes anywhere. A live caller of the pad would now get 0 at once.
@@ -210,6 +243,8 @@ What to check:
 - **S11:** a ONESHOT track with SAMP OFF plays the synth: an 8-bit sine at the trig's note with STRT, LEN,
   LOOP, BR and PLAY at 0. Listen for:
   - whether a trig on such a track sounds at all (the amp envelope opening without a sample);
+  - whether a long note holds for as long as the amp envelope does, at every PLAY value. The synth
+    computes its own level ([above](#the-level)), so PLAY should change only the FM source;
   - the pitch against a sample at the same note;
   - the morph on STRT and LOOP, FM on LEN, the mix on BR, the FM source on PLAY;
   - the filter, the amp envelope and the effects acting on it.
@@ -227,7 +262,7 @@ What to check:
 - **S13:** a CFOO track's SRC page labels read TUNE, FMSR, MIX, SAMP, WAV1, FM, WAV2 and LEV, and the
   encoder popups read Tune, FM Source, Osc Mix, Sample Slot, OSC1 Wave, FM Amount, OSC2+3 Wave and Level.
   A ONESHOT track's page is unchanged, and so is a MIDI track's CHAN/TRK label. The values themselves
-  still show as ONESHOT shows them, for example PLAY's play-mode names on FMSR.
+  still show as ONESHOT shows them, for example PLAY's play-mode pictures on FMSR.
 - **S14:** the MACHINE menu shows CFOO's icon, two rising sawtooth ramps, left of its name, as POLY
   shows its keyboard. The other machines' icons are unchanged. The picture is a placeholder.
 
@@ -339,7 +374,7 @@ Control: with the jumps left as the build has them, only the machine-5 page fail
 PLAY / Play Mode.
 
 **Not yet:** the values. Their formatters belong to the descriptor, so FMSR still shows PLAY's
-play-mode names and the others show ONESHOT's numbers. ✅ Read in the code: `FUN_400657ee(id, value)`
+play-mode pictures and the others show ONESHOT's numbers. ✅ Read in the code: `FUN_400657ee(id, value)`
 formats a value through a per-id formatter object at `0x4197e30c + 0x54 × id` (`FUN_40151eea`; the
 objects are built at run time) into a shared buffer at `0x4197de98`, which it returns. It has five
 callers and is not given the page. A CFOO-only value text would therefore take the current track's

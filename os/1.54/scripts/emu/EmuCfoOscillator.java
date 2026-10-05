@@ -8,6 +8,11 @@
 //   - a synth track's 32 samples equal the model's, tick after tick (the phases persist);
 //   - FUN_40072478 is reached with the stack as cfo_pad found it, and %d2-%d7/%a2-%a6 intact.
 // And over a run of ticks: a pure SIN on OSC1 at note 60 has the expected period, and its peak level.
+// The level: each synth track calls the stock FUN_40074c60(x, LEV) once, with its own x (the word at
+// 0x80001f18 + 2 x track) and its LEV (engine +0x42); the call is stubbed and returns the case's level,
+// because the emulator's EMAC has no fractional mode. The voice's own level (+0x10) holds a wrong value
+// throughout, as after the lanes' fade at a sample's end, and must not be used. A voice that is on
+// (+0x28) with a trig next tick (bit in 0x8000122c) gets level 0, the lanes' de-click.
 //
 // The model reads the stock pitch table (0x4019b4c0) and the wavetables from the emulator's memory, so
 // a wrong table address shows as a wrong pitch or shape, not as agreement.
@@ -37,6 +42,10 @@ public class EmuCfoOscillator extends GhidraScript {
   static final long FILL = 0x40072478L, MACH = 0x4199f466L, NOTES = 0x80001f28L, VOICES = 0x8000edc4L;
   static final long PITCH = 0x4019b4c0L, PHASES = 0x439d1100L, WAVES = 0x40252724L, MIXPTS = 0x40252b24L;
   static final long A18 = 0x80001a18L, ENGINE = 0x80002760L, RET = 0x40001000L, SP0 = 0x40258600L;
+  // the level: the stock FUN_40074c60(x, LEV) is stubbed (the emulator's EMAC has no fractional mode),
+  // x per track at VELS, the voice-on flag at VOICES + 0x28, the lanes' next-tick trig mask at TRIGS
+  static final long LEVEL = 0x40074c60L, VELS = 0x80001f18L, TRIGS = 0x8000122cL;
+  static final int X0 = 0x6400, LEVW = 0x5a00, STALE = 0x01234567;
 
   List<long[]> secAddr = new ArrayList<>();
   List<byte[]> secData = new ArrayList<>();
@@ -100,6 +109,7 @@ public class EmuCfoOscillator extends GhidraScript {
   int[][] lastOut = new int[8][];
   boolean m5 = false, remap = true;
   int maxSteps = 0;
+  int activeMask = 0, trigMask = 0;	// voices on, and voices with a trig next tick
 
   void fresh() throws Exception {
     if (emu != null) emu.dispose();
@@ -123,18 +133,33 @@ public class EmuCfoOscillator extends GhidraScript {
       wr(e + 0x34, tune, 2); wr(e + 0x36, play << 8, 2); wr(e + 0x38, br << 8, 2); wr(e + 0x3a, slot[t] << 8, 2);
       wr(e + 0x3c, strt << 8, 2); wr(e + 0x3e, len << 8, 2); wr(e + 0x40, loop << 8, 2);
       wr(NOTES + 4 * t, (long) note[t] << 16, 4);
-      wr(VOICES + t * 0x5e + 0x10, level, 4);
+      wr(e + 0x42, LEVW, 2);
+      wr(VELS + 2 * t, X0 + t, 2);
+      wr(VOICES + t * 0x5e + 0x10, STALE, 4);	// a level the lanes faded: the synth must not read it
+      wr(VOICES + t * 0x5e + 0x28, (activeMask >> t) & 1, 1);
       for (int i = 0; i < 32; i++) wr(A18 + t * 0x80 + 4 * i, 0x11110000L + t * 0x100 + i, 4);
     }
+    wr(TRIGS, trigMask, 4);
     long sp = SP0;
     sp -= 4; wr(sp, ENGINE, 4); sp -= 4; wr(sp, A18, 4); sp -= 4; wr(sp, RET, 4);
     emu.writeRegister("SP", sp); emu.writeRegister("PC", sym.get("cfo_pad"));
     long[] sent = new long[KEEP.length];
     for (int i = 0; i < KEEP.length; i++) { sent[i] = 0x5a5a0000L + i; emu.writeRegister(KEEP[i], sent[i]); }
     boolean done = false;
+    int[] levelCalls = new int[8];
     for (int s = 0; s < 200000; s++) {
       long pc = emu.getExecutionAddress().getOffset();
       if (pc == FILL) { done = true; maxSteps = Math.max(maxSteps, s); break; }
+      if (pc == LEVEL) {	// the stub: check (x, LEV), return the case's level, clobber %d1 as the real one
+        long q = rd("SP");
+        int x = (int) rdn(q + 6, 2), lev = (int) rdn(q + 10, 2), t = x - X0;
+        if (t < 0 || t > 7) bad.append(String.format(" [level x 0x%04x is no track's]", x));
+        else levelCalls[t]++;
+        if (lev != LEVW) bad.append(String.format(" [level LEV 0x%04x, want 0x%04x]", lev, LEVW));
+        emu.writeRegister("D0", level & 0xffffffffL); emu.writeRegister("D1", 0xdead0001L);
+        emu.writeRegister("PC", rdn(q, 4)); emu.writeRegister("SP", q + 4);
+        continue;
+      }
       if (!emu.step(monitor)) { bad.append(" [FAULT at 0x" + Long.toHexString(pc) + ": " + emu.getLastError() + "]"); break; }
     }
     if (!done && bad.length() == 0) bad.append(" [never reached FUN_40072478]");
@@ -146,7 +171,10 @@ public class EmuCfoOscillator extends GhidraScript {
     }
     for (int t = 0; t < 8; t++) {
       boolean synth = m5 ? eff[t] == 5 : (machine[t] == 0 && slot[t] == 0);
-      int[] want = synth ? model(t, note[t], tune, play, br, strt, len, loop, level) : null;
+      if (done && levelCalls[t] != (synth ? 1 : 0))
+        bad.append(String.format(" [track %d: %d level calls, want %d]", t, levelCalls[t], synth ? 1 : 0));
+      int lv = ((activeMask & trigMask) >> t & 1) != 0 ? 0 : level;	// the de-click
+      int[] want = synth ? model(t, note[t], tune, play, br, strt, len, loop, lv) : null;
       for (int i = 0; i < 32; i++) {
         int got = rd32s(A18 + t * 0x80 + 4 * i);
         int exp = synth ? want[i] : (int) (0x11110000L + t * 0x100 + i);
@@ -347,6 +375,11 @@ public class EmuCfoOscillator extends GhidraScript {
     run("FM from OSC3 (PLAY 2), LEN 120", 40, zero, zero, notes, 0x4000, 2, 0, 0, 120, 0, MAX);
     run("level: half (velocity/LEV)", 10, zero, zero, notes, 0x4000, 3, 85, 60, 30, 60, 0x40000000);
     run("level 0", 5, zero, zero, notes, 0x4000, 3, 85, 60, 30, 60, 0);
+    activeMask = 0xff; trigMask = 0x0a;
+    run("de-click: voices on, tracks 1 and 3 trig next tick (level 0)", 5, zero, zero, notes, 0x4000, 3, 85, 60, 30, 60, MAX);
+    activeMask = 0x0f; trigMask = 0xf0;
+    run("no de-click for a voice that is off", 5, zero, zero, notes, 0x4000, 3, 85, 60, 30, 60, MAX);
+    activeMask = 0; trigMask = 0;
     if (names) nameCases();
     if (icon) iconCases();
     if (m5) {

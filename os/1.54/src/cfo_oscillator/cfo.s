@@ -18,7 +18,10 @@
 	.set	FILL,	0x40072478	| stock: the per-track level stage, (a18, engine), first after the lanes
 	.set	MACH,	0x4199f466	| stock: machine type per track, this tick (0 = ONESHOT)
 	.set	NOTES,	0x80001f28	| stock: note per track, MIDI note << 16
-	.set	VOICES,	0x8000edc4	| stock: per-voice render state, stride 0x5e; +0x10 = level, Q31
+	.set	VOICES,	0x8000edc4	| stock: per-voice render state, stride 0x5e; +0x28 = voice on
+	.set	LEVEL,	0x40074c60	| stock: (x, LEV) -> (LEV/127)^2 x (x/127), Q31, on the EMAC
+	.set	VELS,	0x80001f18	| stock: the level's x per track, word (very probably the velocity)
+	.set	TRIGS,	0x8000122c	| stock: the lanes' trig mask for the next tick, bit = track
 	.set	PITCH,	0x4019b4c0	| stock: pitch ratios, 2^(24 + n/12) at index (note sum) / 384
 	.set	PHASES,	0x439d1100	| this build: phase accumulators, 8 tracks x 3 oscillators (96 B)
 	.set	CFOO,	5		| the machine number of the CFO oscillator
@@ -123,11 +126,25 @@ track:
 	movel	%d1,%a6@(M3)
 	mvzb	%a5@(0x38),%d0		| the mix from BR
 	jsr	gains
-	movel	%a6@(TRK),%d0		| the level: the voice's Q31 level >> 16
-	mulu.w	#0x5e,%d0
-	lea	VOICES+0x10,%a0
-	movel	%a0@(0,%d0:l),%d0
-	clrw	%d0
+	mvzw	%a5@(0x42),%d0		| the level, Q31 >> 16: LEVEL(x, LEV), as the lanes compute it each
+	movel	%d0,%sp@-		| tick, but not read from the voice (+0x10): the lanes fade that once
+	movel	%a6@(TRK),%d0		| a voice's sample has ended, and a synth voice has none
+	lea	VELS,%a0
+	mvzw	%a0@(0,%d0:l:2),%d0
+	movel	%d0,%sp@-
+	jsr	LEVEL			| keeps %d2-%d7/%a0-%a6
+	addql	#8,%sp
+	movel	%a6@(TRK),%d1		| the lanes' de-click: no level on the tick before a voice's next trig
+	movel	%d1,%d2
+	mulu.w	#0x5e,%d1
+	lea	VOICES+0x28,%a0
+	tstb	%a0@(0,%d1:l)
+	beqs	1f
+	movel	TRIGS,%d1
+	btst	%d2,%d1
+	beqs	1f
+	clrl	%d0
+1:	clrw	%d0
 	swap	%d0
 	movel	%d0,%a6@(LVL)
 	movel	%a6@(NSUM),%d0		| OSC2: an octave below, wave LOOP
