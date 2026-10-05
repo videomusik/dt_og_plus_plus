@@ -55,6 +55,18 @@ The audio ISR `FUN_40077420` renders 32 samples per tick into eight per-track bu
 3. `FUN_4007269c` (SRR), then `FUN_400716c0`, `FUN_40073168`, `FUN_40073304`, `FUN_40072844` (filters,
    envelopes), `FUN_4007269c` again, and the mix `FUN_40071c20`.
 
+**A trig in the ISR.** The ISR acts on each trig event by its flags (decompile of `FUN_40077420`, read
+around the calls of the lanes and of `FUN_40073304`):
+- flag `0x80`: the track's level input `x` at `0x80001f18 + 2 × track` is set from the event (in one
+  branch with an offset added and clamped to `0..0x7f00`; ⚠️ very probably the velocity), and the
+  track's bit in the lanes' trig mask;
+- flag `0x200`: the track's bit in the mask `FUN_40073304`, the envelope generator, restarts on;
+- flag `0x10000`: the note at `0x80001f28 + 4 × track`.
+
+Nothing there tests the track's sample or machine. ⚠️ Whether the code that builds a trig event sets
+these flags for a track without a sample, or with machine 5, is not traced. That is what S11's first
+listening check finds out.
+
 `FUN_4007269c` is a sample-and-hold over the 32 samples. The hold length per track comes from a
 table at `0x4018f344`, indexed by the high byte at engine block `+0x5a` (slot 36): the sample-rate
 reduction. It is not a pitch resampler.
