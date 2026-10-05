@@ -5,7 +5,7 @@ SECTIONS
 {
   .hook_fill  0x40077fc8 : { *(.hook_fill) }
   .hook_layout 0x400657e6 : { *(.hook_layout) }
-  .cfo_code   0x400f77da : { *(.cfo_main) *(.cfo_track) *(.cfo_pitch) *(.cfo_wave) *(.cfo_gains) *(.cfo_osc) *(.cfo_mix) *(.cfo_layout) }
+  .cfo_code   0x400f77da : { *(.cfo_main) *(.cfo_track) *(.cfo_pitch) *(.cfo_wave) *(.cfo_gains) *(.cfo_osc) *(.cfo_mix) *(.cfo_layout) *(.cfo_rename) }
   .cfo_names  ALIGN(4) : { *(.cfo_names) }
   .cfo_data   0x40252724 : { *(.cfo_data) }
   /DISCARD/ : { *(.text) *(.data) *(.bss) }

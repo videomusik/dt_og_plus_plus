@@ -192,6 +192,7 @@ the pad's 2,372. The routes:
 | S10 | `3af01e48` | `7328128f…` | S9 + the hook at `0x40077fc8`, its pad only jumping on to `FUN_40072478` |
 | S11 | `0e688a4d` | `ff134c73…` | S9 + the CFO oscillator prototype, playing on ONESHOT with SAMP OFF |
 | S12 | `4e4ea57e` | `814e74a9…` | S9 + the machine CFOO (machine 5, after POLY) with ONESHOT's SRC page, and the synth playing on it ([below](#cfoo-machine-5-in-s12)) |
+| S13 | `92a107b1` | `3f36ca60…` | S12 + CFOO's own parameter names on its SRC page ([below](#cfoos-own-parameter-names-in-s13)) |
 
 Checked on the built images (S12's own checks are [below](#cfoo-machine-5-in-s12)):
 - the build's own checks;
@@ -221,6 +222,10 @@ What to check:
 
   Then save the project, reload it, and check that the track is still CFOO. A ONESHOT track with SAMP
   OFF is silent again, as stock.
+- **S13:** a CFOO track's SRC page labels read TUNE, FMSR, MIX, SAMP, WAV1, FM, WAV2 and LEV, and the
+  encoder popups read Tune, FM Source, Osc Mix, Sample Slot, OSC1 Wave, FM Amount, OSC2+3 Wave and Level.
+  A ONESHOT track's page is unchanged, and so is a MIDI track's CHAN/TRK label. The values themselves
+  still show as ONESHOT shows them, for example PLAY's play-mode names on FMSR.
 
 ## CFOO, machine 5, in S12
 
@@ -265,7 +270,62 @@ BR, SAMP, STRT, LEN, LOOP and LEV with ONESHOT's ranges. That is the first step 
 Controls: the ONESHOT build, run in machine-5 mode, fails every synth case and the layout case.
 
 **Not yet:** an icon (the group mapper gives machine 5 code 0: no icon, and the list draws a group
-separator above it), and the page's own names.
+separator above it).
+
+## CFOO's own parameter names, in S13
+
+Built with `--defsym NAMES=1` on top of `MACHINE5`. The descriptor table cannot grow (above), so the
+names are given per machine at the two places they are read:
+
+- the short label: `FUN_4000fe8a(set, id)`, the descriptor's `+0x30`;
+- the long name: `FUN_4000feac(set, id)`, the descriptor's `+0x28`.
+
+✅ Each accessor has exactly one caller (listing scan): `0x40030daa` in
+`MachineParameterPageView::vfunc_37`, the parameter cell, and `0x40032d36` in
+`ParameterPageView::vfunc_17`, the encoder popup. `SamplePageView`, the SRC page, does not override
+`vfunc_37` (its overrides are `vfunc_36` and `vfunc_39`), and eleven vtables share it. This build's
+MIDI Loopback pads already sit at both calls, and each ends in a jump to the stock accessor for every
+parameter that is not its own (`0x40015646`, `0x40015678`).
+
+S13 points those two jumps at two rename routines in the CFO pad. For ids 108–115, ONESHOT's SRC
+parameters, a routine asks the page for the machine it shows:
+- the page is in `%a4` at the label call, where `vfunc_37` keeps its `this`;
+- it is in `%a2` at the popup call, as the loopback pad already relies on;
+- the query is `FUN_4002b5d4(page)`, which already resolves a POLY follower to its source.
+
+On a machine-5 page the routine returns this build's string. Every other case goes on to the stock
+accessor with its arguments untouched. TUNE, SAMP and LEV keep the stock short labels; the other five
+are named for what the synth does with them:
+
+| Slot | Short | Long |
+|---|---|---|
+| 17 | TUNE | Tune |
+| 18 | FMSR | FM Source |
+| 19 | MIX | Osc Mix |
+| 20 | SAMP | Sample Slot |
+| 21 | WAV1 | OSC1 Wave |
+| 22 | FM | FM Amount |
+| 23 | WAV2 | OSC2+3 Wave |
+| 24 | LEV | Level |
+
+**Checked:**
+- `EmuCfoOscillator` in names mode calls both label pads, as built, for ids 100–120 on pages showing
+  machines 0, 3, 4 and 5, with the page's machine query stubbed:
+  - CFOO's names come back only for ids 108–115 on a machine-5 page, and the stock names everywhere
+    else, through the real stock accessors;
+  - the query receives the page;
+  - the stack and the callee-saved registers are kept;
+  - MIDI Loopback's TRK label still works.
+- `EmuChanLabel` passes on S13, following the fall-through through the rename routine to the stock
+  accessor without a machine query.
+
+Control: with the jumps left as the build has them, only the machine-5 page fails, with the stock
+PLAY / Play Mode.
+
+**Not yet:** the values. Their formatters belong to the descriptor, so FMSR still shows PLAY's
+play-mode names and the others show ONESHOT's numbers. Also not yet: the SAMP cell (CFOO does not use
+it; hiding it needs CFOO's own layout record with id 0 there), and the page name (`+0x2c`, read at
+`0x40065de6`).
 
 ### The SRC page: layout and names
 

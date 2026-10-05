@@ -16,7 +16,12 @@
 // lines (the code may sit anywhere the emulator can write), and 'machine5' for a build whose synth
 // plays on machine 5 (CFOO) instead of a ONESHOT track with SAMP OFF. In that mode each case's synth
 // tracks are set to machine 5, and one more case checks that ONESHOT with SAMP OFF is left alone.
-//   ./scripts/ghidra_emu.sh 1.54 EmuCfoOscillator <file.load> [machine5]
+// With 'names' as well (a load file from the NAMES variant, which carries the build's two label pads),
+// the label pads are called for parameter ids 100..120 on pages showing machines 0, 3, 4 and 5, with the
+// page's machine query (FUN_4002b5d4) stubbed: CFOO's names must come back only for ids 108..115 on a
+// machine-5 page, the stock names (through the real stock accessors) everywhere else, and MIDI
+// Loopback's TRK label must still work.
+//   ./scripts/ghidra_emu.sh 1.54 EmuCfoOscillator <file.load> [machine5 [names]]
 // Runs in Ghidra's emulator only; nothing touches a device. @category dt_og_plus_plus
 import ghidra.app.script.GhidraScript;
 import ghidra.app.emulator.EmulatorHelper;
@@ -155,6 +160,77 @@ public class EmuCfoOscillator extends GhidraScript {
     return bad.length() == 0;
   }
 
+  String cstr(long a) throws Exception {
+    StringBuilder b = new StringBuilder();
+    for (int i = 0; i < 40; i++) { int c = (int) rdn(a + i, 1); if (c == 0) break; b.append((char) c); }
+    return b.toString();
+  }
+
+  static final long PAGE = 0x439d3400L, QUERY = 0x4002b5d4L, SHORT_PAD = 0x4001562cL, LONG_PAD = 0x4001564cL;
+  static final long DESC = 0x401aa09cL;
+  static final String[] CFOO_SHORT = {"TUNE", "FMSR", "MIX", "SAMP", "WAV1", "FM", "WAV2", "LEV"};
+  static final String[] CFOO_LONG = {"Tune", "FM Source", "Osc Mix", "Sample Slot", "OSC1 Wave", "FM Amount", "OSC2+3 Wave", "Level"};
+
+  /** One label-pad call: returns the name it gives, or null on a fault; checks SP, registers, the query's argument. */
+  String label(boolean shortLabel, int id, int machine, long frame100, StringBuilder bad) throws Exception {
+    long sp = SP0;
+    sp -= 4; wr(sp, id, 4); sp -= 4; wr(sp, 0x12345678L, 4); sp -= 4; wr(sp, RET, 4);
+    wr(sp + 100, frame100, 4);                 // the caller's frame word the short pad tests for TRK
+    emu.writeRegister("SP", sp);
+    emu.writeRegister("PC", shortLabel ? SHORT_PAD : LONG_PAD);
+    long[] sent = new long[KEEP.length];
+    for (int i = 0; i < KEEP.length; i++) { sent[i] = 0x5a5a0000L + i; emu.writeRegister(KEEP[i], sent[i]); }
+    emu.writeRegister(shortLabel ? "A4" : "A2", PAGE);
+    if (!shortLabel) emu.writeRegister("D2", id);
+    for (int i = 0; i < 2000; i++) {
+      long pc = emu.getExecutionAddress().getOffset();
+      if (pc == RET) {
+        if (rd("SP") != sp + 4) bad.append(String.format(" [id %d: SP]", id));
+        for (int k = 0; k < KEEP.length; k++) {
+          long want = KEEP[k].equals(shortLabel ? "A4" : "A2") ? PAGE : KEEP[k].equals("D2") && !shortLabel ? id : sent[k];
+          if (rd(KEEP[k]) != want) bad.append(" [id " + id + ": " + KEEP[k] + " changed]");
+        }
+        return cstr(rd("D0"));
+      }
+      if (pc == QUERY) {                        // the page's machine, stubbed
+        long qsp = rd("SP");
+        if (rdn(qsp + 4, 4) != PAGE) bad.append(String.format(" [id %d: the query got 0x%08x, not the page]", id, rdn(qsp + 4, 4)));
+        emu.writeRegister("D0", machine);
+        emu.writeRegister("PC", rdn(qsp, 4)); emu.writeRegister("SP", qsp + 4);
+        continue;
+      }
+      if (!emu.step(monitor)) { bad.append(" [id " + id + ": FAULT " + emu.getLastError() + "]"); return null; }
+    }
+    bad.append(" [id " + id + ": no return]");
+    return null;
+  }
+
+  void nameCases() throws Exception {
+    fresh();
+    for (int machine : new int[] {0, 3, 4, 5}) {
+      StringBuilder bad = new StringBuilder();
+      for (int id = 100; id <= 120; id++) {
+        long rec = DESC + 0x34L * id;
+        boolean ours = machine == 5 && id >= 108 && id <= 115;
+        String ws = ours ? CFOO_SHORT[id - 108] : cstr(rdn(rec + 0x30, 4));
+        String wl = ours ? CFOO_LONG[id - 108] : cstr(rdn(rec + 0x28, 4));
+        String gs = label(true, id, machine, 1, bad), gl = label(false, id, machine, 1, bad);
+        if (gs != null && !gs.equals(ws)) bad.append(String.format(" [id %d short %s, want %s]", id, gs, ws));
+        if (gl != null && !gl.equals(wl)) bad.append(String.format(" [id %d long %s, want %s]", id, gl, wl));
+      }
+      println(String.format("  %-64s %s%s", "names on a machine-" + machine + " page, ids 100..120",
+                            bad.length() == 0 ? "OK" : "**FAIL**", bad));
+      if (bad.length() != 0) fails++;
+    }
+    StringBuilder bad = new StringBuilder();
+    String trk = label(true, 140, 5, -1, bad), chan = label(true, 140, 5, 1, bad);
+    String want = cstr(rdn(DESC + 0x34L * 140 + 0x30, 4));
+    if (trk == null || !trk.equals("TRK")) bad.append(" [CHAN below zero: " + trk + ", want TRK]");
+    if (chan == null || !chan.equals(want)) bad.append(" [CHAN at a channel: " + chan + ", want " + want + "]");
+    println(String.format("  %-64s %s%s", "MIDI Loopback's TRK label still works", bad.length() == 0 ? "OK" : "**FAIL**", bad));
+    if (bad.length() != 0) fails++;
+  }
+
   /** machine 5 mode: FUN_400657cc (with the layout hook from the load file) for machines 0..7. */
   void layoutCases() throws Exception {
     StringBuilder bad = new StringBuilder();
@@ -191,6 +267,7 @@ public class EmuCfoOscillator extends GhidraScript {
     String[] args = getScriptArgs();
     if (args.length < 1) { printerr("usage: EmuCfoOscillator.java <file.load> [machine5]"); return; }
     m5 = args.length > 1 && args[1].equals("machine5");
+    boolean names = m5 && args.length > 2 && args[2].equals("names");
     for (String line : Files.readAllLines(Paths.get(args[0]))) {
       String[] p = line.trim().split("\\s+");
       if (p.length == 3 && p[0].equals("sym")) sym.put(p[1], Long.parseLong(p[2], 16));
@@ -231,6 +308,7 @@ public class EmuCfoOscillator extends GhidraScript {
     run("FM from OSC3 (PLAY 2), LEN 120", 40, zero, zero, notes, 0x4000, 2, 0, 0, 120, 0, MAX);
     run("level: half (velocity/LEV)", 10, zero, zero, notes, 0x4000, 3, 85, 60, 30, 60, 0x40000000);
     run("level 0", 5, zero, zero, notes, 0x4000, 3, 85, 60, 30, 60, 0);
+    if (names) nameCases();
     if (m5) {
       layoutCases();
       remap = false;

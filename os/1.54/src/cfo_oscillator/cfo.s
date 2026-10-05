@@ -314,6 +314,70 @@ layout_hi:
 	rts
 .endif
 
+| ---- CFOO's own parameter names (--defsym NAMES=1, with MACHINE5). MIDI Loopback's two label pads end
+| in a jump to the stock accessor for every parameter that is not theirs: the short label (pad at
+| 0x4001562c, reached from MachineParameterPageView::vfunc_37, the page in %a4) and the popup's long
+| name (pad at 0x4001564c, reached from ParameterPageView::vfunc_17, the page in %a2). Those two jumps
+| come here instead. For ONESHOT's SRC parameter ids 108..115 on a page that shows machine 5, the name
+| comes from this build's tables; anything else goes on to the stock accessor, its arguments untouched.
+
+.ifdef NAMES
+	.section .cfo_rename,"ax"
+cfo_short:
+	movel	%sp@(8),%d0		| the parameter id
+	subil	#108,%d0
+	moveq	#7,%d1
+	cmpl	%d0,%d1
+	bcss	1f			| not one of ONESHOT's SRC parameters
+	movel	%d0,%sp@-
+	movel	%a4,%sp@-		| the page
+	jsr	0x4002b5d4		| the machine it shows (POLY followers: their source's)
+	addql	#4,%sp
+	movel	%sp@+,%d1
+	subql	#CFOO,%d0
+	bnes	1f
+	lea	cfoo_short_names,%a0
+	movel	%a0@(0,%d1:l:4),%d0
+	rts
+1:	jmp	0x4000fe8a		| the stock short-label accessor
+
+cfo_long:
+	movel	%sp@(8),%d0
+	subil	#108,%d0
+	moveq	#7,%d1
+	cmpl	%d0,%d1
+	bcss	1f
+	movel	%d0,%sp@-
+	movel	%a2,%sp@-		| the page
+	jsr	0x4002b5d4
+	addql	#4,%sp
+	movel	%sp@+,%d1
+	subql	#CFOO,%d0
+	bnes	1f
+	lea	cfoo_long_names,%a0
+	movel	%a0@(0,%d1:l:4),%d0
+	rts
+1:	jmp	0x4000feac		| the stock long-name accessor
+
+	.section .cfo_names,"a"
+cfoo_short_names:			| ids 108..115: TUNE PLAY BR SAMP STRT LEN LOOP LEV
+	.long	0x401d9fff, n_fmsr, n_mix, 0x401c6f07, n_wav1, n_fm, n_wav2, 0x401cca34
+cfoo_long_names:
+	.long	0x401cce1e, n_fm_source, n_osc_mix, 0x401cce3e, n_osc1_wave, n_fm_amount, n_osc23_wave, n_level
+n_fmsr:	.asciz	"FMSR"
+n_mix:	.asciz	"MIX"
+n_wav1:	.asciz	"WAV1"
+n_fm:	.asciz	"FM"
+n_wav2:	.asciz	"WAV2"
+n_fm_source:	.asciz	"FM Source"
+n_osc_mix:	.asciz	"Osc Mix"
+n_osc1_wave:	.asciz	"OSC1 Wave"
+n_fm_amount:	.asciz	"FM Amount"
+n_osc23_wave:	.asciz	"OSC2+3 Wave"
+n_level:	.asciz	"Level"
+	.balign	4
+.endif
+
 | ---- the machine name table: (long, short) per machine, 8 B each, as the stock table at 0x401a9d40.
 | The two readers 0x4007910c (long) and 0x4007912c (short) are pointed here and their bound raised.
 

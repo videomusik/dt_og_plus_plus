@@ -22,6 +22,7 @@ Stages, written to out/1.54/stages/ (only with --stages):
   S10  S9 + the hook, its pad only replaying the stock call (jmp FUN_40072478)
   S11  S9 + the CFO oscillator prototype, playing on ONESHOT with SAMP OFF
   S12  S9 + the machine CFOO (machine 5, after POLY) and the synth playing on it
+  S13  S12 + CFOO's own parameter names on its SRC page
 patch.json is not changed: the feature is a prototype."""
 import json, os, shutil, subprocess, sys, tempfile
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -53,6 +54,10 @@ EDITS = [
     (0x4007a2d1, "06", "07", "a stored machine 5 survives a project reload"),
 ]
 NAME_PTRS = [(0x4007911a, "400c1034", 0), (0x4007913a, "400c1038", 4)]
+# CFOO's own parameter names (S13): MIDI Loopback's two label pads end in a jump to the stock accessor;
+# the jump operands are pointed at the rename routines. Expected bytes: the build's.
+RENAME_JMPS = [(0x40015648, "4000fe8a", "cfo_short"), (0x4001567a, "4000feac", "cfo_long")]
+LABEL_PADS = (0x4001562c, 0x4001567e)          # the build's two label pads, for the harness
 
 
 def fill(lo, hi):
@@ -67,10 +72,10 @@ def run(*cmd):
     return r.stdout
 
 
-def assemble(ld, tmp, inert=False, machine5=False):
+def assemble(ld, tmp, inert=False, machine5=False, names=False):
     run(sys.executable, os.path.join(HERE, "make_waves.py"), os.path.join(tmp, "waves.inc"))
     src = os.path.join(HERE, "cfo.s")
-    defs = ["--defsym", "MACHINE5=1"] if machine5 else []
+    defs = (["--defsym", "MACHINE5=1"] if machine5 else []) + (["--defsym", "NAMES=1"] if names else [])
     if inert:
         src = os.path.join(tmp, "inert.s")
         with open(src, "w") as f:
@@ -109,6 +114,16 @@ def apply_edits(img, syms):
     return img
 
 
+def apply_renames(img, syms):
+    """S13: the label pads' fall-through jumps point at the rename routines."""
+    for addr, want, sym in RENAME_JMPS:
+        off = addr - BASE
+        got = img[off:off + 4].hex()
+        assert got == want, "0x%08x holds %s, expected %s (a label pad's fall-through)" % (addr, got, want)
+        img[off:off + 4] = syms[sym].to_bytes(4, "big")
+    return img
+
+
 def main():
     if len(sys.argv) < 2:
         sys.exit(__doc__)
@@ -127,10 +142,12 @@ def main():
     try:
         secs, syms = assemble(ld, tmp)
         secs5, syms5 = assemble(ld, tmp, machine5=True)
+        secs5n, syms5n = assemble(ld, tmp, machine5=True, names=True)
         used = []
-        for name, (vma, data) in sorted(list(secs.items()) + [("m5" + k, v) for k, v in secs5.items()],
-                                        key=lambda x: x[1][0]):
-            name = name[2:] if name.startswith("m5") else name
+        allsecs = list(secs.items()) + [("m5" + k, v) for k, v in secs5.items()] + \
+            [("mn" + k, v) for k, v in secs5n.items()]
+        for name, (vma, data) in sorted(allsecs, key=lambda x: x[1][0]):
+            name = name[2:] if name[:2] in ("m5", "mn") else name
             end = vma + len(data)
             if name in HOOKS:
                 a, disp = HOOKS[name]
@@ -151,7 +168,10 @@ def main():
         os.makedirs(out, exist_ok=True)
         stem = os.path.splitext(os.path.basename(ld))[0]
         load = os.path.join(out, stem + ".load")
-        for path, (ss, sy) in ((load, (secs, syms)), (os.path.join(out, stem + "_m5.load"), (secs5, syms5))):
+        im13 = apply_renames(bytearray(img), syms5n)
+        pads13 = {".label_pads": (LABEL_PADS[0], bytes(im13[LABEL_PADS[0] - BASE:LABEL_PADS[1] - BASE]))}
+        for path, (ss, sy) in ((load, (secs, syms)), (os.path.join(out, stem + "_m5.load"), (secs5, syms5)),
+                               (os.path.join(out, stem + "_m5n.load"), (dict(secs5n, **pads13), syms5n))):
             with open(path, "w") as f:
                 for name, (vma, data) in ss.items():
                     f.write("%08x %s\n" % (vma, data.hex()))
@@ -176,10 +196,14 @@ def main():
         for _n, (vma, data) in secs5.items():
             im[vma - BASE:vma - BASE + len(data)] = data
         built["S12"] = bytes(apply_edits(im, syms5))
+        im = bytearray(img1)
+        for _n, (vma, data) in secs5n.items():
+            im[vma - BASE:vma - BASE + len(data)] = data
+        built["S13"] = bytes(apply_renames(apply_edits(im, syms5n), syms5n))
         dest = os.path.join(ROOT, "out", "1.54", "stages")
         os.makedirs(dest, exist_ok=True)
         syx, tool = build.DEFAULT_SYX, build.DEFAULT_TOOL
-        for name in ("S9", "S10", "S11", "S12"):
+        for name in ("S9", "S10", "S11", "S12", "S13"):
             p3 = built[name]
             sel, i = [], 0
             while i < len(stock):
