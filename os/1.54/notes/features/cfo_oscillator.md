@@ -255,6 +255,18 @@ checking that the site holds the build's POLY edit (`EDITS` in `make_cfo.py`):
 In the render, a machine-5 track takes the lanes' "no window" branch, and `cfo_pad` overwrites whatever
 they wrote: with `MACHINE5` it tests for machine 5 in place of ONESHOT with SAMP OFF.
 
+✅ A machine 5 reaches the render as 5, and nothing there takes it for another machine (objdump):
+- `FUN_4007725a(sound, track)` copies the sound's machine byte `+0x7e` to `0x800018bc + track` without a
+  clamp, and the ISR copies that to the per-tick byte `0x4199f466 + track` (`0x40077eb6..0x40077ed8`).
+- `FUN_400ece8e`, which the ISR also hands that array, tests it only for 1 (WERP, at `0x400eced4`).
+- The build's POLY source map (`0x400bf17c`) makes a track a follower only when its machine is exactly
+  4 (`cmpib #4` at `0x400bf1a0`), so a CFOO track is its own source and never a POLY voice.
+
+⚠️ The other way round is not covered: a POLY track right after a CFOO track takes the CFOO track as its
+source (the map copies the source of the track before it). Its machine byte stays 4, so `cfo_pad`
+leaves it alone, and it would play what the lanes make of its sample settings, not the synth. A
+polyphonic CFOO would need `cfo_pad` to run for such followers too. Not traced further.
+
 **The SRC page.** For machines above 3, `FUN_400657cc` falls back to SLICE's layout record. S12 hooks
 that fallback (8 B at `0x400657e6`, where the machine is still in `%d0`): machine 5 gets ONESHOT's record
 and every other machine above 3 still gets SLICE's. A CFOO track's SRC page therefore shows TUNE, PLAY,
