@@ -20,7 +20,8 @@ The load file (work/dt_1.54-cfo/<placement>.load) is the input of the EmuCfoOsci
 Stages, written to out/1.54/stages/ (only with --stages):
   S9   the build + the pads filled with 'clrl %d0 ; rts' (their fill test)
   S10  S9 + the hook, its pad only replaying the stock call (jmp FUN_40072478)
-  S11  S9 + the CFO oscillator prototype
+  S11  S9 + the CFO oscillator prototype, playing on ONESHOT with SAMP OFF
+  S12  S9 + the machine CFOO (machine 5, after POLY) and the synth playing on it
 patch.json is not changed: the feature is a prototype."""
 import json, os, shutil, subprocess, sys, tempfile
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -31,12 +32,27 @@ PFX = os.environ.get("M68K_PREFIX", "m68k-elf-")
 BASE = 0x40000400
 PATCH = os.path.join(ROOT, "os", "1.54", "build", "patch.json")
 STOCK3 = os.path.join(ROOT, "work", "dt_1.54", "section_3_MAIN_OS.bin")
-HOOK = (0x40077fc8, "4eb940072478")             # jsr 0x40072478, after the two render lanes
+HOOKS = {
+    ".hook_fill": (0x40077fc8, "4eb940072478"),          # jsr 0x40072478, after the two render lanes
+    ".hook_layout": (0x400657e6, "203c4197df5c4e75"),    # FUN_400657cc's fallback: SLICE's record
+}
 # Candidate pads: extent and member functions (for the fill). Only pads named here may hold code.
 PADS = {
     "lz4_stream": [(0x400f77da, 0x400f811e)],    # FUN_400f77da, LZ4's streaming compressor (not a leaf)
 }
 RODATA = (0x40252724, 0x40252b50)               # the free .rodata padding below the icons
+# Registering machine 5 (CFOO). Every site already carries the POLY build's edit, so the expected bytes
+# are the build's, not stock. The two name-table pointers are filled in once the table is placed.
+EDITS = [
+    (0x400225f1, "04", "05", "the machine setter accepts machine 5"),
+    (0x40022f81, "14", "18", "the machine-list vector holds 6 ints"),
+    (0x40022fb3, "14", "18", "its end moves with it"),
+    (0x40022fe7, "05", "06", "the builder pushes 6 machine numbers"),
+    (0x4007910d, "04", "05", "the long-name reader accepts machine 5"),
+    (0x4007912d, "04", "05", "the short-name reader accepts machine 5"),
+    (0x4007a2d1, "06", "07", "a stored machine 5 survives a project reload"),
+]
+NAME_PTRS = [(0x4007911a, "400c1034", 0), (0x4007913a, "400c1038", 4)]
 
 
 def fill(lo, hi):
@@ -51,16 +67,17 @@ def run(*cmd):
     return r.stdout
 
 
-def assemble(ld, tmp, inert=False):
+def assemble(ld, tmp, inert=False, machine5=False):
     run(sys.executable, os.path.join(HERE, "make_waves.py"), os.path.join(tmp, "waves.inc"))
     src = os.path.join(HERE, "cfo.s")
+    defs = ["--defsym", "MACHINE5=1"] if machine5 else []
     if inert:
         src = os.path.join(tmp, "inert.s")
         with open(src, "w") as f:
             f.write("\t.section .hook_fill,\"ax\"\n\tjsr\tcfo_pad\n\t.section .cfo_main,\"ax\"\n"
                     "cfo_pad:\n\tjmp\t0x40072478\n")
     o, e = os.path.join(tmp, "cfo.o"), os.path.join(tmp, "cfo.elf")
-    run(PFX + "as", "-mcpu=5475", "-I", tmp, "-o", o, src)
+    run(PFX + "as", "-mcpu=5475", "-I", tmp, *defs, "-o", o, src)
     run(PFX + "ld", "-T", ld, "-o", e, o)
     secs = {}
     for line in run(PFX + "objdump", "-h", e).splitlines():
@@ -72,9 +89,24 @@ def assemble(ld, tmp, inert=False):
     syms = {}
     for line in run(PFX + "nm", e).splitlines():
         a, t, n = line.split()
-        if t in "tT":
+        if t not in "Uw":
             syms[n] = int(a, 16)
     return secs, syms
+
+
+def apply_edits(img, syms):
+    """The machine-5 registration, checked byte for byte against the build before it is applied."""
+    for addr, want, new, what in EDITS:
+        off = addr - BASE
+        got = img[off:off + len(want) // 2].hex()
+        assert got == want, "0x%08x holds %s, expected %s (%s)" % (addr, got, want, what)
+        img[off:off + len(new) // 2] = bytes.fromhex(new)
+    for addr, want, delta in NAME_PTRS:
+        off = addr - BASE
+        got = img[off:off + 4].hex()
+        assert got == want, "0x%08x holds %s, expected %s (the name table pointer)" % (addr, got, want)
+        img[off:off + 4] = (syms["machnames"] + delta).to_bytes(4, "big")
+    return img
 
 
 def main():
@@ -94,13 +126,17 @@ def main():
     tmp = tempfile.mkdtemp(prefix="cfo-")
     try:
         secs, syms = assemble(ld, tmp)
+        secs5, syms5 = assemble(ld, tmp, machine5=True)
         used = []
-        for name, (vma, data) in sorted(secs.items(), key=lambda x: x[1][0]):
+        for name, (vma, data) in sorted(list(secs.items()) + [("m5" + k, v) for k, v in secs5.items()],
+                                        key=lambda x: x[1][0]):
+            name = name[2:] if name.startswith("m5") else name
             end = vma + len(data)
-            if name == ".hook_fill":
-                assert vma == HOOK[0] and len(data) == 6, "the hook is not 6 B at 0x40077fc8"
-                assert stock[vma - BASE:end - BASE] == bytes.fromhex(HOOK[1]), "the hook site is not stock"
-                assert not any(a in owner for a in range(vma, end)), "another feature patches the hook site"
+            if name in HOOKS:
+                a, disp = HOOKS[name]
+                assert vma == a and len(data) == len(disp) // 2, "%s is not %d B at 0x%08x" % (name, len(disp) // 2, a)
+                assert stock[vma - BASE:end - BASE] == bytes.fromhex(disp), "%s: the site is not stock" % name
+                assert not any(x in owner for x in range(vma, end)), "another feature patches %s" % name
             elif name.startswith(".cfo_data"):
                 assert RODATA[0] <= vma and end <= RODATA[1], "data outside the .rodata padding"
                 assert stock[vma - BASE:end - BASE] == bytes(len(data)), ".rodata padding not zero in stock"
@@ -113,12 +149,14 @@ def main():
             print("%-12s 0x%08x +%d" % (name, vma, len(data)))
         out = os.path.join(ROOT, "work", "dt_1.54-cfo")
         os.makedirs(out, exist_ok=True)
-        load = os.path.join(out, os.path.splitext(os.path.basename(ld))[0] + ".load")
-        with open(load, "w") as f:
-            for name, (vma, data) in secs.items():
-                f.write("%08x %s\n" % (vma, data.hex()))
-            for n, a in syms.items():
-                f.write("sym %s %08x\n" % (n, a))
+        stem = os.path.splitext(os.path.basename(ld))[0]
+        load = os.path.join(out, stem + ".load")
+        for path, (ss, sy) in ((load, (secs, syms)), (os.path.join(out, stem + "_m5.load"), (secs5, syms5))):
+            with open(path, "w") as f:
+                for name, (vma, data) in ss.items():
+                    f.write("%08x %s\n" % (vma, data.hex()))
+                for n, a in sy.items():
+                    f.write("sym %s %08x\n" % (n, a))
         print("pads used:", sorted(set(used)), "; load file:", load)
         if not stages:
             print("no stage images built (--stages)")
@@ -134,10 +172,14 @@ def main():
             for _n, (vma, data) in s2.items():
                 im[vma - BASE:vma - BASE + len(data)] = data
             built[name] = bytes(im)
+        im = bytearray(img1)
+        for _n, (vma, data) in secs5.items():
+            im[vma - BASE:vma - BASE + len(data)] = data
+        built["S12"] = bytes(apply_edits(im, syms5))
         dest = os.path.join(ROOT, "out", "1.54", "stages")
         os.makedirs(dest, exist_ok=True)
         syx, tool = build.DEFAULT_SYX, build.DEFAULT_TOOL
-        for name in ("S9", "S10", "S11"):
+        for name in ("S9", "S10", "S11", "S12"):
             p3 = built[name]
             sel, i = [], 0
             while i < len(stock):

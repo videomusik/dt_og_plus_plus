@@ -12,9 +12,11 @@
 // The model reads the stock pitch table (0x4019b4c0) and the wavetables from the emulator's memory, so
 // a wrong table address shows as a wrong pitch or shape, not as agreement.
 //
-// Argument: a load file, one line per section ('<hex addr> <hex bytes>') and 'sym <name> <hex addr>'
-// lines; the code may sit anywhere the emulator can write.
-//   ./scripts/ghidra_emu.sh 1.54 EmuCfoOscillator <file.load>
+// Arguments: a load file, one line per section ('<hex addr> <hex bytes>') and 'sym <name> <hex addr>'
+// lines (the code may sit anywhere the emulator can write), and 'machine5' for a build whose synth
+// plays on machine 5 (CFOO) instead of a ONESHOT track with SAMP OFF. In that mode each case's synth
+// tracks are set to machine 5, and one more case checks that ONESHOT with SAMP OFF is left alone.
+//   ./scripts/ghidra_emu.sh 1.54 EmuCfoOscillator <file.load> [machine5]
 // Runs in Ghidra's emulator only; nothing touches a device. @category dt_og_plus_plus
 import ghidra.app.script.GhidraScript;
 import ghidra.app.emulator.EmulatorHelper;
@@ -87,6 +89,7 @@ public class EmuCfoOscillator extends GhidraScript {
   static final String[] KEEP = {"D2","D3","D4","D5","D6","D7","A2","A3","A4","A5","A6"};
 
   int[][] lastOut = new int[8][];
+  boolean m5 = false, remap = true;
   int maxSteps = 0;
 
   void fresh() throws Exception {
@@ -103,8 +106,10 @@ public class EmuCfoOscillator extends GhidraScript {
   boolean tick(String label, int[] machine, int[] slot, int[] note, int tune, int play, int br, int strt,
                int len, int loop, int level, boolean report) throws Exception {
     StringBuilder bad = new StringBuilder();
+    int[] eff = new int[8];
+    for (int t = 0; t < 8; t++) eff[t] = (m5 && remap && machine[t] == 0 && slot[t] == 0) ? 5 : machine[t];
     for (int t = 0; t < 8; t++) {
-      wr(MACH + t, machine[t], 1);
+      wr(MACH + t, eff[t], 1);
       long e = ENGINE + t * 0x6a;
       wr(e + 0x34, tune, 2); wr(e + 0x36, play << 8, 2); wr(e + 0x38, br << 8, 2); wr(e + 0x3a, slot[t] << 8, 2);
       wr(e + 0x3c, strt << 8, 2); wr(e + 0x3e, len << 8, 2); wr(e + 0x40, loop << 8, 2);
@@ -131,7 +136,7 @@ public class EmuCfoOscillator extends GhidraScript {
         if (rd(KEEP[i]) != sent[i]) bad.append(" [" + KEEP[i] + " not restored]");
     }
     for (int t = 0; t < 8; t++) {
-      boolean synth = machine[t] == 0 && slot[t] == 0;
+      boolean synth = m5 ? eff[t] == 5 : (machine[t] == 0 && slot[t] == 0);
       int[] want = synth ? model(t, note[t], tune, play, br, strt, len, loop, level) : null;
       for (int i = 0; i < 32; i++) {
         int got = rd32s(A18 + t * 0x80 + 4 * i);
@@ -150,6 +155,30 @@ public class EmuCfoOscillator extends GhidraScript {
     return bad.length() == 0;
   }
 
+  /** machine 5 mode: FUN_400657cc (with the layout hook from the load file) for machines 0..7. */
+  void layoutCases() throws Exception {
+    StringBuilder bad = new StringBuilder();
+    fresh();
+    long base = 0x4197ded8L, slice = 0x4197df5cL;
+    for (int m = 0; m < 8; m++) {
+      long sp = SP0;
+      sp -= 4; wr(sp, m, 4); sp -= 4; wr(sp, RET, 4);
+      emu.writeRegister("SP", sp); emu.writeRegister("PC", 0x400657ccL);
+      boolean done = false;
+      for (int i = 0; i < 200; i++) {
+        if (emu.getExecutionAddress().getOffset() == RET) { done = true; break; }
+        if (!emu.step(monitor)) { bad.append(" [FAULT]"); break; }
+      }
+      long want = m < 4 ? base + 0x2cL * m : m == 5 ? base : slice;
+      long got = rd("D0");
+      if (!done) bad.append(" [machine " + m + ": no return]");
+      else if (got != want) bad.append(String.format(" [machine %d: 0x%08x, want 0x%08x]", m, got, want));
+      if (done && rd("SP") != sp + 4) bad.append(" [machine " + m + ": SP]");
+    }
+    println(String.format("  %-64s %s%s", "layout: 0-3 stock, 4/6/7 SLICE's record, 5 ONESHOT's", bad.length() == 0 ? "OK" : "**FAIL**", bad));
+    if (bad.length() != 0) fails++;
+  }
+
   void run(String label, int ticks, int[] machine, int[] slot, int[] note, int tune, int play, int br,
            int strt, int len, int loop, int level) throws Exception {
     fresh();
@@ -160,7 +189,8 @@ public class EmuCfoOscillator extends GhidraScript {
 
   public void run() throws Exception {
     String[] args = getScriptArgs();
-    if (args.length < 1) { printerr("usage: EmuCfoOscillator.java <file.load>"); return; }
+    if (args.length < 1) { printerr("usage: EmuCfoOscillator.java <file.load> [machine5]"); return; }
+    m5 = args.length > 1 && args[1].equals("machine5");
     for (String line : Files.readAllLines(Paths.get(args[0]))) {
       String[] p = line.trim().split("\\s+");
       if (p.length == 3 && p[0].equals("sym")) sym.put(p[1], Long.parseLong(p[2], 16));
@@ -175,7 +205,7 @@ public class EmuCfoOscillator extends GhidraScript {
     emu.readMemory(toAddr(WAVES), 1024);
     waves = emu.readMemory(toAddr(WAVES), 1024);
     for (int i = 0; i < 12; i++) mix[i] = (short) rdn(MIXPTS + 2L * i, 2);
-    println("=== cfo_oscillator: the oscillator code against the model ===");
+    println("=== cfo_oscillator: the oscillator code against the model" + (m5 ? ", synth on machine 5" : "") + " ===");
     if (pitchTab[10752] != 0x20000000) { println("  pitch table at 0x4019b4c0 is not 2^29 at note 60: **FAIL**"); fails++; }
 
     int[] none = {1, 2, 3, 1, 2, 3, 1, 2}, noSlot = {5, 5, 5, 5, 5, 5, 5, 5};
@@ -201,6 +231,12 @@ public class EmuCfoOscillator extends GhidraScript {
     run("FM from OSC3 (PLAY 2), LEN 120", 40, zero, zero, notes, 0x4000, 2, 0, 0, 120, 0, MAX);
     run("level: half (velocity/LEV)", 10, zero, zero, notes, 0x4000, 3, 85, 60, 30, 60, 0x40000000);
     run("level 0", 5, zero, zero, notes, 0x4000, 3, 85, 60, 30, 60, 0);
+    if (m5) {
+      layoutCases();
+      remap = false;
+      run("machine 5: ONESHOT with SAMP OFF is left alone", 3, zero, zero, c4, 0x4000, 3, 0, 0, 0, 0, MAX);
+      remap = true;
+    }
     run("extreme pitch: note 0 and 127 clamp", 10, zero, zero, new int[] {0, 127, 0, 127, 0, 127, 0, 127}, 0x4000, 1, 100, 120, 120, 120, MAX);
 
     // absolute pitch and level: OSC1 SIN, note 60, track 0, 200 ticks

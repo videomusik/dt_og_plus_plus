@@ -4,7 +4,8 @@
 | unchanged on it.
 |
 | PROTOTYPE STAGE: the synth plays on any ONESHOT track whose SAMP is OFF (sample slot 0), and reads
-| its controls from that track's SRC page:
+| its controls from that track's SRC page. With --defsym MACHINE5=1 it plays on a track set to machine 5
+| (CFOO) instead, and the controls are the same eight SRC parameters:
 |   TUNE   pitch, as for a sample            PLAY   FM source: 0 OSC2, 1 OSC2+3, 2 OSC3, 3 none
 |   BR     oscillator mix: OSC1, 1+2, 1+2+3, 2+3 (crossfaded)
 |   STRT   OSC1 wave       LEN    FM amount       LOOP   OSC2 and OSC3 wave
@@ -20,6 +21,7 @@
 	.set	VOICES,	0x8000edc4	| stock: per-voice render state, stride 0x5e; +0x10 = level, Q31
 	.set	PITCH,	0x4019b4c0	| stock: pitch ratios, 2^(24 + n/12) at index (note sum) / 384
 	.set	PHASES,	0x439d1100	| this build: phase accumulators, 8 tracks x 3 oscillators (96 B)
+	.set	CFOO,	5		| the machine number of the CFO oscillator
 
 | The frame cfo_pad builds; every routine reaches it through %a6.
 	.set	S2,	0		| 32 words: OSC2's samples
@@ -54,6 +56,14 @@ cfo_pad:
 	clrl	%a6@(TRK)
 1:	movel	%a6@(TRK),%d0
 	lea	MACH,%a0
+.ifdef MACHINE5
+	mvzb	%a0@(0,%d0:l),%d1	| the machine this track plays this tick
+	subql	#CFOO,%d1
+	bnes	2f
+	movea.l	%a6@(ENG),%a5
+	mulu.w	#0x6a,%d0
+	adda.l	%d0,%a5			| this track's engine block
+.else
 	tstb	%a0@(0,%d0:l)		| ONESHOT
 	bnes	2f
 	movea.l	%a6@(ENG),%a5
@@ -61,6 +71,7 @@ cfo_pad:
 	adda.l	%d0,%a5			| this track's engine block
 	tstb	%a5@(0x3a)		| SAMP: no sample
 	bnes	2f
+.endif
 	jsr	track
 2:	addql	#1,%a6@(TRK)
 	moveq	#8,%d0
@@ -281,6 +292,47 @@ osc1_mix:
 	bpls	1b
 	movel	%d4,%a2@
 	rts
+
+| ---- the SRC page layout for machine 5. FUN_400657cc(machine) returns 0x4197ded8 + 44 x machine for
+| machines 0..3 and, past that, SLICE's record (0x4197df5c). Its fallback (8 B at 0x400657e6, reached
+| with the machine still in %d0) jumps here instead: CFOO gets ONESHOT's record, so its SRC page shows
+| ONESHOT's eight parameters and their ranges; every other machine above 3 still gets SLICE's.
+
+.ifdef MACHINE5
+	.section .hook_layout,"ax"	| 0x400657e6: movel #0x4197df5c,%d0 ; rts
+	jmp	layout_hi
+	nop
+
+	.section .cfo_layout,"ax"
+layout_hi:
+	moveq	#CFOO,%d1
+	cmpl	%d0,%d1
+	bnes	1f
+	movel	#0x4197ded8,%d0		| ONESHOT's record
+	rts
+1:	movel	#0x4197df5c,%d0		| SLICE's record, as stock
+	rts
+.endif
+
+| ---- the machine name table: (long, short) per machine, 8 B each, as the stock table at 0x401a9d40.
+| The two readers 0x4007910c (long) and 0x4007912c (short) are pointed here and their bound raised.
+
+.ifdef MACHINE5
+	.section .cfo_names,"a"
+machnames:
+	.long	0x401cc9f2, 0x401c6f07	| 0 ONESHOT / SAMP      (stock strings)
+	.long	0x401c6975, 0x401c6975	| 1 WERP / WERP
+	.long	0x401c6f0c, 0x401cc9fa	| 2 REPITCH / PTCH
+	.long	0x401cc9ff, 0x401c6f1f	| 3 SLICE / SLIC
+	.long	poly_name, poly_name	| 4 POLY / POLY
+	.long	cfoo_long, cfoo_short	| 5 CFO OSCILLATOR / CFOO
+poly_name:
+	.asciz	"POLY"
+cfoo_long:
+	.asciz	"CFO OSCILLATOR"
+cfoo_short:
+	.asciz	"CFOO"
+.endif
 
 | ---- constant data
 

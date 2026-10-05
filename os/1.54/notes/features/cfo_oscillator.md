@@ -190,9 +190,10 @@ the pad's 2,372. The routes:
 |---|---|---|---|
 | S9 | `9a75ccc7` | `af736dd4…` | the reference build + `FUN_400f77da` filled with `clrl %d0 ; rts` (the pad's fill test) |
 | S10 | `3af01e48` | `7328128f…` | S9 + the hook at `0x40077fc8`, its pad only jumping on to `FUN_40072478` |
-| S11 | `0e688a4d` | `ff134c73…` | S9 + the CFO oscillator prototype |
+| S11 | `0e688a4d` | `ff134c73…` | S9 + the CFO oscillator prototype, playing on ONESHOT with SAMP OFF |
+| S12 | `4e4ea57e` | `814e74a9…` | S9 + the machine CFOO (machine 5, after POLY) with ONESHOT's SRC page, and the synth playing on it ([below](#cfoo-machine-5-in-s12)) |
 
-Checked on the built images:
+Checked on the built images (S12's own checks are [below](#cfoo-machine-5-in-s12)):
 - the build's own checks;
 - the compressor window, whose largest back-reference is `0xffc6a`;
 - the hook, code and data read back out of S11 equal the assembled sections;
@@ -212,28 +213,59 @@ What to check:
 
   Also check that the other tracks and the rest of the firmware are unchanged, and that eight synth
   tracks at once neither click nor stall.
+- **S12:** the MACHINE menu ([FUNC] + [SRC]) lists CFOO after POLY, with no icon and a separator line
+  above it (see below). Assigning it to a track:
+  - shows CFO OSCILLATOR in the confirmation;
+  - gives the SRC page ONESHOT's eight parameters with ONESHOT's ranges;
+  - makes the track play the synth with the same controls as S11. SAMP no longer matters.
 
-## Towards a machine of its own
+  Then save the project, reload it, and check that the track is still CFOO. A ONESHOT track with SAMP
+  OFF is silent again, as stock.
 
-The prototype's trigger (ONESHOT with SAMP OFF) and its borrowed controls stand in for a machine of its
-own, **CFOO / "CFO OSCILLATOR"**, as machine 5, after POLY in the MACHINE menu. At list position 5 the
-menu's "list position = machine number" assumption still holds, so no mapping is needed.
+## CFOO, machine 5, in S12
+
+The machine of its own is **CFOO / "CFO OSCILLATOR"**, machine 5, after POLY in the MACHINE menu. At list
+position 5 the menu's "list position = machine number" assumption still holds, so no mapping is needed.
+S12 builds it with `cfo.s` assembled with `--defsym MACHINE5=1`; S11's ONESHOT variant is unchanged byte
+for byte.
 
 ### The sites a sixth machine extends
 
 Each already carries an edit for POLY, machine 4
-([docs/patch_listing.md](../../docs/patch_listing.md#poly-engine)); machine 5 raises each bound once more:
+([docs/patch_listing.md](../../docs/patch_listing.md#poly-engine)); S12 raises each bound once more, after
+checking that the site holds the build's POLY edit (`EDITS` in `make_cfo.py`):
 
 | Site | What bounds it |
 |---|---|
 | `0x400225f0` | the machine setter rejects a machine above the bound |
 | `0x40022f7e`, `0x40022fae`, `0x40022fe6` | the machine-list builder's capacity, end and count |
-| `0x4007910c`, `0x4007912c` | the long-name and short-name readers, and the name table they index |
+| `0x4007910c`, `0x4007912c` | the long-name and short-name readers, and the name table they index. S12 points both at a new table in the pad, the build's five pairs plus `CFO OSCILLATOR` / `CFOO` |
 | `0x4007a2d0` | the per-sound deserializer, so a stored machine 5 survives a reload |
 | `FUN_40029e80` | the group mapper: machine + 1 for 0..4, else 0. A machine above it gets no picker icon (blank, safe) and the list draws a group separator before it |
 
-In the render, a machine-5 track takes the lanes' "no window" branch and stays silent, so `cfo_pad` can
-test for machine 5 in place of ONESHOT with SAMP OFF.
+In the render, a machine-5 track takes the lanes' "no window" branch, and `cfo_pad` overwrites whatever
+they wrote: with `MACHINE5` it tests for machine 5 in place of ONESHOT with SAMP OFF.
+
+**The SRC page.** For machines above 3, `FUN_400657cc` falls back to SLICE's layout record. S12 hooks
+that fallback (8 B at `0x400657e6`, where the machine is still in `%d0`): machine 5 gets ONESHOT's record
+and every other machine above 3 still gets SLICE's. A CFOO track's SRC page therefore shows TUNE, PLAY,
+BR, SAMP, STRT, LEN, LOOP and LEV with ONESHOT's ranges. That is the first step towards its own names
+(below). With SLICE's page instead, LOOP would be GRID, limited to 0–4.
+
+**Checked:**
+- the build's own checks and the compressor window;
+- every edited byte and both table pointers read back out of S12, and the six name pairs decoded through
+  them;
+- every assembled section equal to S12's bytes;
+- `EmuCfoOscillator` in machine-5 mode on S12's own bytes passes every case, including the layout lookup
+  for machines 0–7 and a ONESHOT track with SAMP OFF left alone;
+- `EmuMachineList` running S12's list builder adds six machines, 0–5 in order;
+- every other harness passes.
+
+Controls: the ONESHOT build, run in machine-5 mode, fails every synth case and the layout case.
+
+**Not yet:** an icon (the group mapper gives machine 5 code 0: no icon, and the list draws a group
+separator above it), and the page's own names.
 
 ### The SRC page: layout and names
 
