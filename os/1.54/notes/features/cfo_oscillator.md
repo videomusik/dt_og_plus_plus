@@ -67,7 +67,7 @@ reduction. It is not a pitch resampler.
 | a track's engine block | `0x80002760 + 0x6a × track` (the lanes' first argument) | the sound's 53-slot value array from `+0x12`, 8.8 fixed |
 | the SRC page's slots 17–24 | engine block `+0x34`: TUNE, `+0x36` PLAY, `+0x38` BR, `+0x3a` SAMP, `+0x3c` STRT, `+0x3e` LEN, `+0x40` LOOP, `+0x42` LEV | 8.8; the sample slot in the high byte |
 | the note | `0x80001f28 + 4 × track` | MIDI note × 65536 |
-| the voice level | `0x8000edc4 + 0x5e × track + 0x10`, written by `FUN_400757fe` every tick from `FUN_40074c60(x, LEV)`, `x` from the per-track word array at `0x80001f18` | Q31: the square of LEV × `x`, each scaled so that 127 is 1.0. ⚠️ `x` is very probably the trig velocity |
+| the voice level | `0x8000edc4 + 0x5e × track + 0x10`, set from `FUN_40074c60(x, LEV)` at a trig: the track's bit in the lanes' trig mask, which `FUN_40075184` keeps one tick at `0x80001228`. Track 0 is set by `FUN_40075184` (`0x4007521a`), tracks 1–7 by `FUN_400757fe` (`0x4007595c`), both before they branch on the machine, so a machine-5 track gets its level too. `x` comes from the per-track word array at `0x80001f18` | Q31: the square of LEV × `x`, each scaled so that 127 is 1.0. ⚠️ `x` is very probably the trig velocity; whether anything else writes the level between trigs is not checked |
 | the pitch table | `0x4019b4c0`, 14,849 longs | entry `i` = `2^(24 + (i − 512) / 170.67 / 12)`; note 60 → `2^29`, note 72 → `2^30`, saturating at `0x7fffffff` from note 84 |
 
 The stock pitch path, `FUN_40075184`'s loop over the tracks (`0x40075690..0x400757d0`):
@@ -252,8 +252,9 @@ checking that the site holds the build's POLY edit (`EDITS` in `make_cfo.py`):
 | `0x4007a2d0` | the per-sound deserializer, so a stored machine 5 survives a reload |
 | `FUN_40029e80` | the group mapper: machine + 1 for 0..4, else 0. A machine above the bound gets code 0 and no picker icon (blank, safe). S12 leaves it; S14 raises it ([below](#cfoos-picker-icon-in-s14)) |
 
-In the render, a machine-5 track takes the lanes' "no window" branch, and `cfo_pad` overwrites whatever
-they wrote: with `MACHINE5` it tests for machine 5 in place of ONESHOT with SAMP OFF.
+In the render, a machine-5 track takes the lanes' "no window" branch (in `FUN_400757fe`, a machine other
+than 0–3 goes to `0x40075a8a`, which zeroes the window bounds), and `cfo_pad` overwrites whatever they
+wrote: with `MACHINE5` it tests for machine 5 in place of ONESHOT with SAMP OFF.
 
 ✅ A machine 5 reaches the render as 5, and nothing there takes it for another machine (objdump):
 - `FUN_4007725a(sound, track)` copies the sound's machine byte `+0x7e` to `0x800018bc + track` without a
