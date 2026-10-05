@@ -305,6 +305,37 @@ public class EmuCfoOscillator extends GhidraScript {
     if (bad.length() != 0) fails++;
   }
 
+  /** machine 5 mode: a POLY voice track given a CFOO sound. A grouped trig carries its source's sound,
+   *  and the ISR applies a trig's sound to the voice track with the stock FUN_40077282(sound, track):
+   *  the track must end up with machine 5 (0x800018bc + track), CFOO's 106 B of values
+   *  (0x80001502 + 106 x track) and that sound as its current one (0x800019b4 + 4 x track). */
+  static final long APPLY = 0x40077282L, APPLY_TAIL = 0x400749ccL, SOUND = 0x439d3800L;
+  void polyVoiceCase() throws Exception {
+    fresh();
+    StringBuilder bad = new StringBuilder();
+    int t = 3;
+    for (int i = 0; i < 106; i++) wr(SOUND + 20 + i, 0x40 + i, 1);	// values at +20, the machine at +0x7e
+    wr(SOUND + 0x7e, 5, 1);
+    wr(0x800018bcL + t, 4, 1);						// the track's own machine: POLY
+    long sp = SP0;
+    sp -= 4; wr(sp, t, 4); sp -= 4; wr(sp, SOUND, 4); sp -= 4; wr(sp, RET, 4);
+    emu.writeRegister("SP", sp); emu.writeRegister("PC", APPLY);
+    boolean done = false;
+    for (int s = 0; s < 20000; s++) {
+      long pc = emu.getExecutionAddress().getOffset();
+      if (pc == APPLY_TAIL) { done = true; break; }		// the rest of the voice setup is not needed
+      if (pc == RET) break;
+      if (!emu.step(monitor)) { bad.append(" [FAULT " + emu.getLastError() + "]"); break; }
+    }
+    if (!done && bad.length() == 0) bad.append(" [never reached FUN_400749cc]");
+    if (rdn(0x800018bcL + t, 1) != 5) bad.append(String.format(" [machine %d, want 5]", rdn(0x800018bcL + t, 1)));
+    for (int i = 0; i < 106; i++)
+      if (rdn(0x80001502L + 106 * t + i, 1) != 0x40 + i) { bad.append(" [value byte " + i + " not copied]"); break; }
+    if (rdn(0x800019b4L + 4 * t, 4) != SOUND) bad.append(" [current sound not recorded]");
+    println(String.format("  %-64s %s%s", "a POLY voice given a CFOO sound: machine 5, CFOO's values", bad.length() == 0 ? "OK" : "**FAIL**", bad));
+    if (bad.length() != 0) fails++;
+  }
+
   /** machine 5 mode: FUN_400657cc (with the layout hook from the load file) for machines 0..7. */
   void layoutCases() throws Exception {
     StringBuilder bad = new StringBuilder();
@@ -408,6 +439,7 @@ public class EmuCfoOscillator extends GhidraScript {
     if (icon) iconCases();
     if (m5) {
       layoutCases();
+      polyVoiceCase();
       remap = false;
       run("machine 5: ONESHOT with SAMP OFF is left alone", 3, zero, zero, c4, 0x4000, 3, 0, 0, 0, 0, MAX);
       remap = true;

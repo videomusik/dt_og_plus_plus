@@ -278,6 +278,10 @@ What to check:
 
   Then save the project, reload it, and check that the track is still CFOO. A ONESHOT track with SAMP
   OFF is silent again, as stock.
+
+  Polyphony: set the track after the CFOO track to POLY and play overlapping notes on the CFOO track
+  (or chords from a keyboard). Each note should take its own voice and every voice should be the synth,
+  following the CFOO track's knobs ([above](#cfoo-machine-5-in-s12)).
 - **S13:** a CFOO track's SRC page labels read TUNE, FMSR, MIX, SAMP, WAV1, FM, WAV2 and LEV, and the
   encoder popups read Tune, FM Source, Osc Mix, Sample Slot, OSC1 Wave, FM Amount, OSC2+3 Wave and Level.
   A ONESHOT track's page is unchanged, and so is a MIDI track's CHAN/TRK label. The values themselves
@@ -317,10 +321,24 @@ wrote: with `MACHINE5` it tests for machine 5 in place of ONESHOT with SAMP OFF.
 - The build's POLY source map (`0x400bf17c`) makes a track a follower only when its machine is exactly
   4 (`cmpib #4` at `0x400bf1a0`), so a CFOO track is its own source and never a POLY voice.
 
-⚠️ The other way round is not covered: a POLY track right after a CFOO track takes the CFOO track as its
-source (the map copies the source of the track before it). Its machine byte stays 4, so `cfo_pad`
-leaves it alone, and it would play what the lanes make of its sample settings, not the synth. A
-polyphonic CFOO would need `cfo_pad` to run for such followers too. Not traced further.
+**A polyphonic CFOO.** A POLY track right after a CFOO track takes the CFOO track as its source (the
+map copies the source of the track before it), and its voices play the synth with no further code.
+✅ Read in the code (objdump, decompile of `FUN_40077420`):
+1. The build's voice allocation (`0x40037a4e`) puts the source's sound (`[0x800019ac] + 20 + 162 ×
+   source`) into a grouped trig event (`+0x28`) before it picks the voice track.
+2. The ISR applies an event's sound to the voice track when it differs from the track's current one:
+   `FUN_40077282(sound, track)` records it (`0x800019b4 + 4 × track`), copies its 106 B of values to
+   `0x80001502 + 106 × track` and its machine byte to `0x800018bc + track` (`FUN_4007725a`).
+3. The same trig sets the track's bit in the lanes' trig mask, and the ISR refreshes the per-tick
+   machine byte `0x4199f466 + track` for exactly those tracks.
+
+So a voice track that takes a CFOO note has machine 5 and CFOO's values from that tick on, and
+`cfo_pad` renders it with its own note, `x`, phases and level ramp. The build's POLY pad at
+`0x400bed9c` repeats every later parameter write to the source on each track of its group, so the
+voices follow the knobs. This is the same path that lets a POLY voice play a sample machine's sound.
+`EmuCfoOscillator` runs the real `FUN_40077282` with a machine-5 sound on a track whose own machine is
+4: the track gets machine 5, the 106 B of values and the sound as its current one. ⚠️ Not yet on the
+unit.
 
 **The SRC page.** For machines above 3, `FUN_400657cc` falls back to SLICE's layout record. S12 hooks
 that fallback (8 B at `0x400657e6`, where the machine is still in `%d0`): machine 5 gets ONESHOT's record
@@ -334,7 +352,7 @@ BR, SAMP, STRT, LEN, LOOP and LEV with ONESHOT's ranges. That is the first step 
   them;
 - every assembled section equal to S12's bytes;
 - `EmuCfoOscillator` in machine-5 mode on S12's own bytes passes every case, including the layout lookup
-  for machines 0–7 and a ONESHOT track with SAMP OFF left alone;
+  for machines 0–7, a ONESHOT track with SAMP OFF left alone, and a POLY voice given a CFOO sound;
 - `EmuMachineList` running S12's list builder adds six machines, 0–5 in order;
 - every other harness passes.
 
