@@ -215,18 +215,74 @@ What to check:
 
 ## Towards a machine of its own
 
-The prototype's trigger (ONESHOT with SAMP OFF) and its borrowed controls stand in for a machine
-index 5 ("CFO"). The sites a sixth machine extends are those this build already changes for POLY,
-machine 4 ([docs/patch_listing.md](../../docs/patch_listing.md#poly-engine)):
-- the machine-list builder;
-- the per-sound deserializer's bound at `0x4007a2d0`;
-- the MACHINE menu's navigation;
-- the machine-name table and the picker icons;
-- the machine-type query at `0x4002b68e`.
+The prototype's trigger (ONESHOT with SAMP OFF) and its borrowed controls stand in for a machine of its
+own, **CFOO / "CFO OSCILLATOR"**, as machine 5, after POLY in the MACHINE menu. At list position 5 the
+menu's "list position = machine number" assumption still holds, so no mapping is needed.
 
-In the render, a machine-5 track takes the lanes' "no window" branch (silent), and `cfo_pad` would test
-for machine 5 instead of ONESHOT with SAMP OFF. ⚠️ Not traced in this image: how the SRC page's layout
-and parameter descriptors are chosen per machine, and so what a machine-5 track's SRC page would show.
+### The sites a sixth machine extends
+
+Each already carries an edit for POLY, machine 4
+([docs/patch_listing.md](../../docs/patch_listing.md#poly-engine)); machine 5 raises each bound once more:
+
+| Site | What bounds it |
+|---|---|
+| `0x400225f0` | the machine setter rejects a machine above the bound |
+| `0x40022f7e`, `0x40022fae`, `0x40022fe6` | the machine-list builder's capacity, end and count |
+| `0x4007910c`, `0x4007912c` | the long-name and short-name readers, and the name table they index |
+| `0x4007a2d0` | the per-sound deserializer, so a stored machine 5 survives a reload |
+| `FUN_40029e80` | the group mapper: machine + 1 for 0..4, else 0. A machine above it gets no picker icon (blank, safe) and the list draws a group separator before it |
+
+In the render, a machine-5 track takes the lanes' "no window" branch and stays silent, so `cfo_pad` can
+test for machine 5 in place of ONESHOT with SAMP OFF.
+
+### The SRC page: layout and names
+
+✅ Read in the code and the image data.
+
+**The layout record.** `FUN_400657cc(machine)` returns `0x4197ded8 + 0x2c × machine` for machine < 4 and
+`0x4197df5c` otherwise, which is SLICE's own record: that is why a POLY track shows SLICE's page. A
+record is 44 B: `+0x00` and `+0x04` the page's long and short name, `+0x08..+0x2c` nine parameter ids,
+where 0 means "no parameter". The four records are built at run time by a static initialiser around
+`0x40156df0..0x40156f60`, in a stretch Ghidra made no function of (nothing in
+`0x40155000..0x40157000`). ⛔ There is no slack: `0x4197ded8 + 4 × 0x2c` is exactly where the next
+table starts, the one built from `0x40156558`.
+
+**The name fields hold one pointer each.** `FUN_4017af20(dst, cstr, alloc)` measures the C string
+(`0x4012ad00`), builds the string through `FUN_4017aa72` and stores the single result word at `dst`:
+a string object that is just a pointer to its character data. ⇒ a CFOO record does not need a forged
+static object. The build can keep a 44 B record in its own RAM, fill it on the first call to the lookup,
+and call `0x4017af20` twice with its own literals.
+
+**The parameter descriptors.** A table of **164 records of 0x34 B**; the accessors check `id < 164` and
+index from `0x401aa09c` (for example at `0x400790c8` and `0x400790ea`). Per record:
+
+| Offset from `0x401aa09c` | Contents |
+|---|---|
+| `+0x00` | page id; `0..3` are the four machines' SRC pages, `0xc..0xe` the MIDI pages, `0xf`/`0x10` the LFOs; `-1` for the track-level records |
+| `+0x04` | the value-array slot, `0x11..0x18` for an SRC page |
+| `+0x28` | the parameter's long name, for example `Tune` |
+| `+0x2c` | the page's name, for example `Sample`, `Werp`, `Repitch`, `Slice` |
+| `+0x30` | the parameter's short label, for example `CHAN`, `VAL1` |
+
+⭐ **Every machine already has its own eight records**, with its own names, all pointing at the same
+value-array slots `0x11..0x18`: ONESHOT 108–115, WERP 116–123, REPITCH 124–131, SLICE 132–139. So CFOO's
+own names are eight more records of the same shape, and the synth code needs no change: it already reads
+those slots from the engine block.
+
+⛔ The table has no free rows. Ids up to 163 are in use (the MIDI track's pages end the table), and the
+records whose name reads `Error` are track-level records with page and slot `-1` and their own data in
+`+0x18`, not spare rows. So the eight records have to come from somewhere else:
+
+- **Serve ids at or above 164 from a second table.** Eight records (416 B) in free constant space, and a
+  branch in each accessor that checks the bound. The cost is one hook per accessor; how many accessors
+  there are is ⏳ not yet counted.
+- **Rename only for this machine.** Point CFOO's layout record at ONESHOT's ids 108–115 and hook the
+  name accessors alone, returning this build's own names when the track's machine is 5. Fewer bytes, but
+  the hook has to resolve the current track's machine, as the POLY page aliasing already does.
+- ⛔ Relocating the whole table is out: it is 8,528 B and the constant-data budget is 2,268 B.
+
+⚠️ What the page id at `+0x00` controls beyond the lookups above is not traced, so whether CFOO needs a
+page id of its own (and what the 19-record generic page table at `0x4197df88` would then need) is open.
 
 ## Related notes
 
