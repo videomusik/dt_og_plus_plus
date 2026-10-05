@@ -264,6 +264,11 @@ Results on the unit, OS 1.54, each stage flashed on the one before from S8:
   tracks playing recorded chains, the synth on T3 with T4–T6 as POLY voices playing four-note chords from
   a MIDI Loopback track, a third recorded chain and another POLY track), sweeping the synth's parameters gave
   no stutter and no audible dropped notes, and all four notes of each chord sound like the synth.
+- ✅ **S12, S13, S14:** work as described under "What to check" below. One fault: right after CFOO is
+  assigned to a track, the track stays silent, both for trigs and for incoming MIDI, until SAMP is moved;
+  then it plays. ⚠️ Not traced. A likely cause: the per-tick machine byte comes from the voice's copy of
+  the sound's machine (`0x800018bc`), which is refreshed only when a sound is applied to the voice
+  (`FUN_40077282`), and moving SAMP very probably applies it.
 
 What to check:
 - **S9:** nothing changes anywhere. A live caller of the pad would now get 0 at once.
