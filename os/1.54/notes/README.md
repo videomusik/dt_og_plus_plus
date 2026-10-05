@@ -69,6 +69,12 @@ New in this image, not in the OS 1.52A build:
   machine's GRID. ✅ Run on the test unit; ⚠️ one display glitch open.
   [features/chain_record.md](features/chain_record.md).
 
+In progress, not in the build:
+
+- **CFO oscillator.** A 3-oscillator 8-bit wavetable synth with FM, written into a track's audio
+  buffer where the sampler's samples go. The code is checked in the emulator; it is waiting for a
+  landing pad. [features/cfo_oscillator.md](features/cfo_oscillator.md).
+
 The other features have run on the test unit ([The test unit](#the-test-unit)).
 
 Where each feature's code sits in this image: [function_ledger.md](function_ledger.md) and
@@ -115,6 +121,8 @@ How it is made, and its reference numbers: [analysis_reference.md](analysis_refe
 - [analysis_reference.md](analysis_reference.md): the Ghidra project of this image and its reference
   numbers.
 - [compatibility.md](compatibility.md): projects moved between this build and stock OS 1.54.
+- [features/cfo_oscillator.md](features/cfo_oscillator.md): the CFO oscillator, not in the build yet,
+  and where a track's samples come from.
 - [features/chain_record.md](features/chain_record.md): Chain Recording, and how the stock recorder
   works.
 - [function_ledger.md](function_ledger.md): the per-function ledger.

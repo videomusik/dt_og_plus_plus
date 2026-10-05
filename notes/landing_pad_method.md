@@ -54,6 +54,17 @@ Only a pad that has passed a fill test or run feature code on a device is truste
 ## Vetting a new pad
 
 1. **Candidate.** A row of that list with `leafPad=PAD`, `ghRefs=0`, `ptrWord=-`, `opLit=-`.
+   One exception admits a row that is not a leaf (`ghRefs=0`, `ptrWord=-`, `opLit=-`, callees > 0).
+   All four conditions must hold:
+   - it is a function of a library linked whole into the image, identified by its own constants
+     (for example a library's documented limits and its state struct's offsets);
+   - its callees are that library's own routines or the C runtime's;
+   - nothing in the image takes its address (steps 3–5 find nothing);
+   - it passes every later step, the fill test included.
+
+   The library explanation is what makes "unreferenced" plausible for code with callees: an
+   object file linked whole brings in API functions the firmware never calls. The OS folder's
+   `landing_pads.md` names the library and the constants.
 2. **objdump it.** Reject it if it shows peripheral literals (`0xec…`, `0xfc…`) or EMAC/MAC
    instructions (`msac`, `mac.l`): that is a live render lane. Derive the extent from its `rts`.
 3. **Raw pointer scan** of the whole section: every 4-byte big-endian word that points into the range

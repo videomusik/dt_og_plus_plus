@@ -35,6 +35,12 @@ occupants are the same code as in the patch listing ([docs/patch_listing.md](../
 | `FUN_40124a6c` + `FUN_40124ac4` | `0x40124a6c..0x40124b32` | 198 B | Chain Recording: `enc_pad` and `arm_pad`, `0x40124a6c..0x40124b24`; the rest keeps its fill. Vetted below |
 | `FUN_40128244` + `FUN_40128288` | `0x40128244..0x401282e0` | 156 B | Chain Recording: `fmt_arm`/`fmt_armed` and `no_pad`, `0x40128244..0x401282ce`; the rest keeps its fill. Vetted below |
 
+In the CFO oscillator's test images only (not in `patch.json`):
+
+| Pad | Extent | Size | Occupied by |
+|---|---|---:|---|
+| `FUN_400f77da` | `0x400f77da..0x400f811e` | 2,372 B | the CFO oscillator prototype, `0x400f77da..0x400f7a4c`; the rest keeps its fill. LZ4's streaming compressor, admitted by the recipe's library exception (the candidate list below); its fill test is the stage image S9 |
+
 Free code space: 112 B in twelve blocks, none larger than 18 B: 18 B at `0x401282ce` (fill), 16 B
 at `0x400152c0`, 16 B at `0x400bedf2`, 14 B at `0x40124b24` (fill), 10 B at `0x400156da`, 8 B at
 `0x400bf1e0`, 8 B at `0x40037ad6`, 6 B at `0x400c1392`, 6 B at `0x400bed96`, 6 B at `0x400bee64`,
@@ -173,9 +179,15 @@ Spans of adjacent leaf candidates of 120 B or more, other than the pads in use:
 | `0x4001df4e..0x4001dfd6` | 136 B | calls through a vtable |
 | `0x40013a9e..0x40013b24` | 134 B | not examined |
 | `0x400214e8..0x4002156c` | 132 B | not examined |
+| `0x400f77da..0x400f811e` | 2,372 B | `FUN_400f77da`, LZ4's streaming compressor. Not a leaf (two LZ4 helpers and `memcpy`), so step 1 does not admit it; steps 2–8 pass: raw words 2 (one straddles a FlexBus access at `0x400e2170`, one is the odd value `0x400f7fe1` in a word table at `0x40198c6e`), listing 0, the only switch table within ±32 KB (`0x400fae42`, 15 entries) does not reach it, `rts` before and a fresh prologue after. The CFO oscillator's candidate ([features/cfo_oscillator.md](features/cfo_oscillator.md#code-space)) |
 | `0x40071a16..0x40071b30` | 282 B | in the audio code |
 | `0x4007b2e8..0x4007b56a` | 642 B | in the audio code |
 | `0x4024f5be..0x4024f686`, `0x4024f7f0..0x4024f86c` | 200 B, 124 B | in the second code window; the first reads the peripheral registers `0xffff8010..0xffff8013` and data at `0x800xxx`, in SRAM. Not taken as a pad: I/O code |
+
+Most of the smaller leaf candidates call through a vtable (`jsr %a0@`) and are not leaves in fact. Those
+with no indirect call, outside the I/O region, the audio code and the second code window, are
+`0x400ee05e` (122 B), `0x400e6d1c` (108 B), `0x400e8544` (86 B), `0x40178f20` (86 B), `0x40178e02`
+(66 B), `0x400d266e` (60 B), `0x400c2242` (54 B) and `0x401778a4` (52 B): 634 B, not yet vetted.
 
 ⛔ A row here is a candidate, never a budget ([landing_pad_method.md](../../../notes/landing_pad_method.md#where-candidates-come-from)).
 
