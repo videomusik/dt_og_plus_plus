@@ -21,7 +21,11 @@
 // page's machine query (FUN_4002b5d4) stubbed: CFOO's names must come back only for ids 108..115 on a
 // machine-5 page, the stock names (through the real stock accessors) everywhere else, and MIDI
 // Loopback's TRK label must still work.
-//   ./scripts/ghidra_emu.sh 1.54 EmuCfoOscillator <file.load> [machine5 [names]]
+// With 'icon' as well (a load file from the ICON variant, which carries the build's group mapper, the
+// stock icon routine and the icon pad as that stage has them), the MACHINE menu's icon routine
+// (0x40029e9c) runs for machines 0..6 with the list item's machine stubbed: the draw must get SLICE's
+// icon for 3, POLY's for 4, CFOO's for 5, a stock icon for 0..2, and no draw for 6.
+//   ./scripts/ghidra_emu.sh 1.54 EmuCfoOscillator <file.load> [machine5 [names [icon]]]
 // Runs in Ghidra's emulator only; nothing touches a device. @category dt_og_plus_plus
 import ghidra.app.script.GhidraScript;
 import ghidra.app.emulator.EmulatorHelper;
@@ -231,6 +235,40 @@ public class EmuCfoOscillator extends GhidraScript {
     if (bad.length() != 0) fails++;
   }
 
+  static final long ICON_FN = 0x40029e9cL, ITEM_MACHINE = 0x400c41e0L, DRAW = 0x400c2b88L;
+
+  void iconCases() throws Exception {
+    fresh();
+    StringBuilder bad = new StringBuilder();
+    StringBuilder seen = new StringBuilder();
+    for (int m = 0; m <= 6; m++) {
+      long sp = SP0;
+      for (int k = 5; k >= 1; k--) { sp -= 4; wr(sp, 0x11110000L + k, 4); }
+      sp -= 4; wr(sp, RET, 4);
+      emu.writeRegister("SP", sp); emu.writeRegister("PC", ICON_FN);
+      long bitmap = -1; boolean returned = false;
+      for (int i = 0; i < 400; i++) {
+        long pc = emu.getExecutionAddress().getOffset();
+        if (pc == ITEM_MACHINE) {
+          long q = rd("SP");
+          emu.writeRegister("D0", m); emu.writeRegister("PC", rdn(q, 4)); emu.writeRegister("SP", q + 4);
+          continue;
+        }
+        if (pc == DRAW) { bitmap = rdn(rd("SP") + 8, 4); break; }
+        if (pc == RET) { returned = true; break; }
+        if (!emu.step(monitor)) { bad.append(" [machine " + m + ": FAULT " + emu.getLastError() + "]"); break; }
+      }
+      seen.append(String.format(" %d:%s", m, bitmap < 0 ? (returned ? "none" : "?") : String.format("0x%08x", bitmap)));
+      long want = m == 3 ? 0x421fa35cL : m == 4 ? 0x40252bdcL : m == 5 ? sym.get("cfoo_icon") : -2;
+      if (want >= 0 && bitmap != want) bad.append(String.format(" [machine %d: 0x%08x, want 0x%08x]", m, bitmap, want));
+      if (m <= 2 && (bitmap < 0 || bitmap == sym.get("cfoo_icon"))) bad.append(" [machine " + m + ": no stock icon]");
+      if (m == 6 && !returned) bad.append(" [machine 6: drew something]");
+    }
+    println(String.format("  %-64s %s%s", "icon: SLICE 3, POLY 4, CFOO 5, stock 0-2, none for 6", bad.length() == 0 ? "OK" : "**FAIL**", bad));
+    println("    bitmaps:" + seen);
+    if (bad.length() != 0) fails++;
+  }
+
   /** machine 5 mode: FUN_400657cc (with the layout hook from the load file) for machines 0..7. */
   void layoutCases() throws Exception {
     StringBuilder bad = new StringBuilder();
@@ -268,6 +306,7 @@ public class EmuCfoOscillator extends GhidraScript {
     if (args.length < 1) { printerr("usage: EmuCfoOscillator.java <file.load> [machine5]"); return; }
     m5 = args.length > 1 && args[1].equals("machine5");
     boolean names = m5 && args.length > 2 && args[2].equals("names");
+    boolean icon = names && args.length > 3 && args[3].equals("icon");
     for (String line : Files.readAllLines(Paths.get(args[0]))) {
       String[] p = line.trim().split("\\s+");
       if (p.length == 3 && p[0].equals("sym")) sym.put(p[1], Long.parseLong(p[2], 16));
@@ -309,6 +348,7 @@ public class EmuCfoOscillator extends GhidraScript {
     run("level: half (velocity/LEV)", 10, zero, zero, notes, 0x4000, 3, 85, 60, 30, 60, 0x40000000);
     run("level 0", 5, zero, zero, notes, 0x4000, 3, 85, 60, 30, 60, 0);
     if (names) nameCases();
+    if (icon) iconCases();
     if (m5) {
       layoutCases();
       remap = false;

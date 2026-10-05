@@ -3,15 +3,16 @@
 ## What this is
 
 DT OG++ draws two new 1-bit images: a robin for the SLICE values RRBN and RRND, and a small
-keyboard for POLY in the machine menu. They are the project's own artwork and do not depend on the
-OS version. This note gives both pixel grids, the house style they follow, and how to check an
-encoding of them.
+keyboard for POLY in the machine menu. The CFO oscillator's test images add a third, a placeholder
+for the machine CFOO. They are the project's own artwork and do not depend on the OS version. This
+note gives the pixel grids, the house style they follow, and how to check an encoding of them.
 
 Each grid has a 1-bit master image in [assets/icons/](../assets/icons/), generated from the grid at
 its native size. Each is a greyscale PNG with one bit per pixel, where a white pixel is a `#` in the
-grid: [assets/icons/robin_17x17.png](../assets/icons/robin_17x17.png) and
-[assets/icons/poly_keyboard_11x7.png](../assets/icons/poly_keyboard_11x7.png). The grids remain the
-source of truth, and each master decodes back to its grid pixel for pixel. Both images are opaque
+grid: [assets/icons/robin_17x17.png](../assets/icons/robin_17x17.png),
+[assets/icons/poly_keyboard_11x7.png](../assets/icons/poly_keyboard_11x7.png) and
+[assets/icons/cfoo_saw_11x7.png](../assets/icons/cfoo_saw_11x7.png). The grids remain the
+source of truth, and each master decodes back to its grid pixel for pixel. The images are opaque
 tiles, as the house style asks: every pixel is drawn, ink or not, so the master is the whole image.
 
 How they are encoded and placed in an OS image: that OS folder's note
@@ -68,6 +69,27 @@ row  0  ##...#...##
 Master image: [assets/icons/poly_keyboard_11x7.png](../assets/icons/poly_keyboard_11x7.png)
 (11 × 7, 1-bit).
 
+## The CFOO placeholder
+
+A stand-in for CFOO, the CFO oscillator machine, until it has its own artwork. It is 11 × 7 and 1-bit,
+with 52 ink pixels: two filled sawtooth ramps, the waveform of an oscillator, rising to the right. It
+is asymmetric both ways, so a flip would show. Its single-pixel tips at the top fall short of the
+house style's "no 1-pixel detail".
+
+```
+    col 0         1
+        01234567890
+row  0  ....#.....#
+     1  ...##....##
+     2  ..###...###
+     3  .####..####
+     4  #####.#####
+     5  ###########
+     6  ###########
+```
+
+Master image: [assets/icons/cfoo_saw_11x7.png](../assets/icons/cfoo_saw_11x7.png) (11 × 7, 1-bit).
+
 ## House style
 
 The stock NOTE tile, a picture the OS draws in a parameter's cell, is the style reference. In OS 1.52A it
@@ -87,7 +109,7 @@ The bit order of rows is easy to get upside down, and a picture alone rarely sho
 - ⚠️ **Encode each new asset from its grid, then decode the bytes back and compare.** Encode the grid
   under the format's row-order rule, decode the bytes with the same rule, and compare the result with
   the grid pixel for pixel. Decode the master PNG too and compare it with the grid. The ink counts
-  (97 for the robin, 47 for the keyboard) are a quick cross-check.
+  (97 for the robin, 47 for the keyboard, 52 for the CFOO placeholder) are a quick cross-check.
 - ⚠️ **Text is the reliable orientation control.** A picture exposes a flip only if you have pinned
   beforehand which way up it must be; a bird or a keyboard looks plausible either way. A vertically
   symmetric image cannot reveal a flip at all; the keyboard is deliberately asymmetric for this

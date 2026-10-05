@@ -39,7 +39,7 @@ In the CFO oscillator's test images only (not in `patch.json`):
 
 | Pad | Extent | Size | Occupied by |
 |---|---|---:|---|
-| `FUN_400f77da` | `0x400f77da..0x400f811e` | 2,372 B | the CFO oscillator: in S11 `0x400f77da..0x400f7a4c`; in S12 the code to `0x400f7a5e` and the machine name table with its strings `0x400f7a60..0x400f7aa9`; in S13 the code to `0x400f7ac6` and the name tables `0x400f7ac8..0x400f7ba1`; the rest keeps its fill. LZ4's streaming compressor, admitted by the recipe's library exception (the candidate list below); its fill test is the stage image S9 |
+| `FUN_400f77da` | `0x400f77da..0x400f811e` | 2,372 B | the CFO oscillator: in S11 `0x400f77da..0x400f7a4c`; in S12 the code to `0x400f7a5e` and the machine name table with its strings `0x400f7a60..0x400f7aa9`; in S13 and S14 the code to `0x400f7ac6` and the name tables `0x400f7ac8..0x400f7ba1`; the rest keeps its fill. LZ4's streaming compressor, admitted by the recipe's library exception (the candidate list below); its fill test is the stage image S9 |
 
 Free code space: 112 B in twelve blocks, none larger than 18 B: 18 B at `0x401282ce` (fill), 16 B
 at `0x400152c0`, 16 B at `0x400bedf2`, 14 B at `0x40124b24` (fill), 10 B at `0x400156da`, 8 B at
@@ -224,6 +224,19 @@ This build puts its icons and strings there:
 The `Bitmap` structs point at the `Bitmap` vtable (`0x401b7734`, the RTTI vtable `0x401b772c` + 8)
 and at stock masks: `0x4024de68` for the robin, a 17 × 17 all-ones mask (`ffff8000` seventeen
 times; hexdump), and `0x4023e0a0` for the POLY icon.
+
+In the CFO oscillator's test images only (not in `patch.json`;
+[features/cfo_oscillator.md](features/cfo_oscillator.md)):
+
+| Address | Size | Contents |
+|---|---|---|
+| `0x40252724` | 1,048 B | the four wavetables (1,024 B) and the mix points (24 B); S11 to S14 |
+| `0x40252c2c` | 12 B | the machine-picker selector table with CFOO's entry, replacing the one at `0x40252bf8`; S14 |
+| `0x40252c38` | 28 B | CFOO's icon `Bitmap` struct, with POLY's mask `0x4023e0a0`; S14 |
+| `0x40252c54` | 44 B | CFOO's icon colour plane; S14 |
+
+That leaves `0x40252b3c..0x40252b50` (20 B), the byte at `0x40252c2b` and `0x40252c80..0x40253000`
+(896 B) free in S14. The build's own selector table at `0x40252bf8` stays in place, unused.
 
 ## Related notes
 

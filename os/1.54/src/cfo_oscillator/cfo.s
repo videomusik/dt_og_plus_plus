@@ -378,6 +378,39 @@ n_level:	.asciz	"Level"
 	.balign	4
 .endif
 
+| ---- CFOO's picker icon (--defsym ICON=1, with MACHINE5). The build's group mapper gives machine m the
+| code m + 1 up to its bound; codes 4 and 5 jump to the build's icon pad (0x400bee44), which takes the
+| bitmap from a selector table (code - 4) and continues into the stock bitmap draw. S14 raises the
+| mapper's bound and the icon range by one and points the pad at a three-entry table here: SLICE's stock
+| icon, POLY's, CFOO's. The icon is a PLACEHOLDER: two filled sawtooth ramps, 11 x 7, 1-bit. In a
+| column word the top bit is the icon's BOTTOM row (pinned on POLY's icon in this image).
+|    col 0         1
+|        01234567890
+| row 0  ....#.....#
+|     1  ...##....##
+|     2  ..###...###
+|     3  .####..####
+|     4  #####.#####
+|     5  ###########
+|     6  ###########
+
+.ifdef ICON
+	.section .cfo_icon,"a"
+icon_table:
+	.long	0x421fa35c		| code 4: SLICE's stock icon (a run-time bitmap object)
+	.long	0x40252bdc		| code 5: POLY's bitmap object
+	.long	cfoo_icon		| code 6: CFOO
+cfoo_icon:				| a Bitmap object, as POLY's at 0x40252bdc
+	.long	0x401b7734		| the Bitmap vtable
+	.long	11, 7, 1
+	.long	cfoo_plane
+	.long	0x4023e0a0		| the stock mask POLY's icon uses
+	.long	0
+cfoo_plane:
+	.long	0xe0000000, 0xf0000000, 0xf8000000, 0xfc000000, 0xfe000000, 0xc0000000
+	.long	0xe0000000, 0xf0000000, 0xf8000000, 0xfc000000, 0xfe000000
+.endif
+
 | ---- the machine name table: (long, short) per machine, 8 B each, as the stock table at 0x401a9d40.
 | The two readers 0x4007910c (long) and 0x4007912c (short) are pointed here and their bound raised.
 

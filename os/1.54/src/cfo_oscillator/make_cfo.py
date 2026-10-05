@@ -23,6 +23,7 @@ Stages, written to out/1.54/stages/ (only with --stages):
   S11  S9 + the CFO oscillator prototype, playing on ONESHOT with SAMP OFF
   S12  S9 + the machine CFOO (machine 5, after POLY) and the synth playing on it
   S13  S12 + CFOO's own parameter names on its SRC page
+  S14  S13 + a placeholder picker icon for CFOO
 patch.json is not changed: the feature is a prototype."""
 import json, os, shutil, subprocess, sys, tempfile
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -42,6 +43,14 @@ PADS = {
     "lz4_stream": [(0x400f77da, 0x400f811e)],    # FUN_400f77da, LZ4's streaming compressor (not a leaf)
 }
 RODATA = (0x40252724, 0x40252b50)               # the free .rodata padding below the icons
+RODATA2 = (0x40252c2c, 0x40253000)              # the free .rodata padding after Chain Recording's strings
+# S14: CFOO's icon. Expected bytes: the build's (the POLY edits of the mapper bound and the icon range,
+# and the pad's selector-table pointer).
+ICON_EDITS = [
+    (0x40029e81, "04", "05", "the group mapper codes machine 5 as 6"),
+    (0x40029ef9, "01", "02", "codes 4..6 take the icon pad"),
+]
+ICON_PTR = (0x400bee46, "40252bf8", "icon_table")
 # Registering machine 5 (CFOO). Every site already carries the POLY build's edit, so the expected bytes
 # are the build's, not stock. The two name-table pointers are filled in once the table is placed.
 EDITS = [
@@ -58,6 +67,7 @@ NAME_PTRS = [(0x4007911a, "400c1034", 0), (0x4007913a, "400c1038", 4)]
 # the jump operands are pointed at the rename routines. Expected bytes: the build's.
 RENAME_JMPS = [(0x40015648, "4000fe8a", "cfo_short"), (0x4001567a, "4000feac", "cfo_long")]
 LABEL_PADS = (0x4001562c, 0x4001567e)          # the build's two label pads, for the harness
+ICON_CODE = [(0x40029e80, 0x40029f6a), (0x400bee44, 0x400bee54)]   # the mapper, the icon routine, the pad
 
 
 def fill(lo, hi):
@@ -72,10 +82,11 @@ def run(*cmd):
     return r.stdout
 
 
-def assemble(ld, tmp, inert=False, machine5=False, names=False):
+def assemble(ld, tmp, inert=False, machine5=False, names=False, icon=False):
     run(sys.executable, os.path.join(HERE, "make_waves.py"), os.path.join(tmp, "waves.inc"))
     src = os.path.join(HERE, "cfo.s")
-    defs = (["--defsym", "MACHINE5=1"] if machine5 else []) + (["--defsym", "NAMES=1"] if names else [])
+    defs = (["--defsym", "MACHINE5=1"] if machine5 else []) + (["--defsym", "NAMES=1"] if names else []) + \
+        (["--defsym", "ICON=1"] if icon else [])
     if inert:
         src = os.path.join(tmp, "inert.s")
         with open(src, "w") as f:
@@ -124,6 +135,20 @@ def apply_renames(img, syms):
     return img
 
 
+def apply_icon(img, syms):
+    """S14: the mapper bound, the icon range, and the pad's selector table."""
+    for addr, want, new, what in ICON_EDITS:
+        off = addr - BASE
+        got = img[off:off + 1].hex()
+        assert got == want, "0x%08x holds %s, expected %s (%s)" % (addr, got, want, what)
+        img[off:off + 1] = bytes.fromhex(new)
+    addr, want, sym = ICON_PTR
+    off = addr - BASE
+    assert img[off:off + 4].hex() == want, "0x%08x is not the icon pad's table pointer" % addr
+    img[off:off + 4] = syms[sym].to_bytes(4, "big")
+    return img
+
+
 def main():
     if len(sys.argv) < 2:
         sys.exit(__doc__)
@@ -143,19 +168,21 @@ def main():
         secs, syms = assemble(ld, tmp)
         secs5, syms5 = assemble(ld, tmp, machine5=True)
         secs5n, syms5n = assemble(ld, tmp, machine5=True, names=True)
+        secs5i, syms5i = assemble(ld, tmp, machine5=True, names=True, icon=True)
         used = []
         allsecs = list(secs.items()) + [("m5" + k, v) for k, v in secs5.items()] + \
-            [("mn" + k, v) for k, v in secs5n.items()]
+            [("mn" + k, v) for k, v in secs5n.items()] + [("mi" + k, v) for k, v in secs5i.items()]
         for name, (vma, data) in sorted(allsecs, key=lambda x: x[1][0]):
-            name = name[2:] if name[:2] in ("m5", "mn") else name
+            name = name[2:] if name[:2] in ("m5", "mn", "mi") else name
             end = vma + len(data)
             if name in HOOKS:
                 a, disp = HOOKS[name]
                 assert vma == a and len(data) == len(disp) // 2, "%s is not %d B at 0x%08x" % (name, len(disp) // 2, a)
                 assert stock[vma - BASE:end - BASE] == bytes.fromhex(disp), "%s: the site is not stock" % name
                 assert not any(x in owner for x in range(vma, end)), "another feature patches %s" % name
-            elif name.startswith(".cfo_data"):
-                assert RODATA[0] <= vma and end <= RODATA[1], "data outside the .rodata padding"
+            elif name.startswith(".cfo_data") or name == ".cfo_icon":
+                rng = RODATA if name.startswith(".cfo_data") else RODATA2
+                assert rng[0] <= vma and end <= rng[1], "%s outside the .rodata padding" % name
                 assert stock[vma - BASE:end - BASE] == bytes(len(data)), ".rodata padding not zero in stock"
                 assert not any(a in owner for a in range(vma, end)), "another feature's data is there"
             else:
@@ -170,8 +197,13 @@ def main():
         load = os.path.join(out, stem + ".load")
         im13 = apply_renames(bytearray(img), syms5n)
         pads13 = {".label_pads": (LABEL_PADS[0], bytes(im13[LABEL_PADS[0] - BASE:LABEL_PADS[1] - BASE]))}
+        im14 = apply_icon(apply_renames(bytearray(img), syms5i), syms5i)
+        pads14 = dict(pads13)
+        for k, (lo, hi) in enumerate(ICON_CODE):
+            pads14[".icon_code%d" % k] = (lo, bytes(im14[lo - BASE:hi - BASE]))
         for path, (ss, sy) in ((load, (secs, syms)), (os.path.join(out, stem + "_m5.load"), (secs5, syms5)),
-                               (os.path.join(out, stem + "_m5n.load"), (dict(secs5n, **pads13), syms5n))):
+                               (os.path.join(out, stem + "_m5n.load"), (dict(secs5n, **pads13), syms5n)),
+                               (os.path.join(out, stem + "_m5i.load"), (dict(secs5i, **pads14), syms5i))):
             with open(path, "w") as f:
                 for name, (vma, data) in ss.items():
                     f.write("%08x %s\n" % (vma, data.hex()))
@@ -200,10 +232,14 @@ def main():
         for _n, (vma, data) in secs5n.items():
             im[vma - BASE:vma - BASE + len(data)] = data
         built["S13"] = bytes(apply_renames(apply_edits(im, syms5n), syms5n))
+        im = bytearray(img1)
+        for _n, (vma, data) in secs5i.items():
+            im[vma - BASE:vma - BASE + len(data)] = data
+        built["S14"] = bytes(apply_icon(apply_renames(apply_edits(im, syms5i), syms5i), syms5i))
         dest = os.path.join(ROOT, "out", "1.54", "stages")
         os.makedirs(dest, exist_ok=True)
         syx, tool = build.DEFAULT_SYX, build.DEFAULT_TOOL
-        for name in ("S9", "S10", "S11", "S12", "S13"):
+        for name in ("S9", "S10", "S11", "S12", "S13", "S14"):
             p3 = built[name]
             sel, i = [], 0
             while i < len(stock):

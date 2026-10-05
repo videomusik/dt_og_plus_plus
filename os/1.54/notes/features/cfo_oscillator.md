@@ -183,8 +183,9 @@ the pad's 2,372. The routes:
 
 ## Testing on the unit
 
-`make_cfo.py lz4_stream.ld --stages` builds three images on top of the reference build (section 3
-`efc90606…`, `.syx` `3fd4b0a3`), each adding one step:
+`make_cfo.py lz4_stream.ld --stages` builds six images on top of the reference build (section 3
+`efc90606…`, `.syx` `3fd4b0a3`), each adding one step to the stage named in its row. They are meant to
+be flashed in order, S9 to S14:
 
 | Stage | `.syx` | Section 3 | Contents |
 |---|---|---|---|
@@ -193,6 +194,7 @@ the pad's 2,372. The routes:
 | S11 | `0e688a4d` | `ff134c73…` | S9 + the CFO oscillator prototype, playing on ONESHOT with SAMP OFF |
 | S12 | `4e4ea57e` | `814e74a9…` | S9 + the machine CFOO (machine 5, after POLY) with ONESHOT's SRC page, and the synth playing on it ([below](#cfoo-machine-5-in-s12)) |
 | S13 | `92a107b1` | `3f36ca60…` | S12 + CFOO's own parameter names on its SRC page ([below](#cfoos-own-parameter-names-in-s13)) |
+| S14 | `ebf7dc01` | `b56f1310…` | S13 + a placeholder picker icon for CFOO ([below](#cfoos-picker-icon-in-s14)) |
 
 Checked on the built images (S12's own checks are [below](#cfoo-machine-5-in-s12)):
 - the build's own checks;
@@ -214,8 +216,8 @@ What to check:
 
   Also check that the other tracks and the rest of the firmware are unchanged, and that eight synth
   tracks at once neither click nor stall.
-- **S12:** the MACHINE menu ([FUNC] + [SRC]) lists CFOO after POLY, with no icon and a separator line
-  above it (see below). Assigning it to a track:
+- **S12:** the MACHINE menu ([FUNC] + [SRC]) lists CFOO after POLY, with no icon (see below). Assigning
+  it to a track:
   - shows CFO OSCILLATOR in the confirmation;
   - gives the SRC page ONESHOT's eight parameters with ONESHOT's ranges;
   - makes the track play the synth with the same controls as S11. SAMP no longer matters.
@@ -226,6 +228,8 @@ What to check:
   encoder popups read Tune, FM Source, Osc Mix, Sample Slot, OSC1 Wave, FM Amount, OSC2+3 Wave and Level.
   A ONESHOT track's page is unchanged, and so is a MIDI track's CHAN/TRK label. The values themselves
   still show as ONESHOT shows them, for example PLAY's play-mode names on FMSR.
+- **S14:** the MACHINE menu shows CFOO's icon, two rising sawtooth ramps, left of its name, as POLY
+  shows its keyboard. The other machines' icons are unchanged. The picture is a placeholder.
 
 ## CFOO, machine 5, in S12
 
@@ -246,7 +250,7 @@ checking that the site holds the build's POLY edit (`EDITS` in `make_cfo.py`):
 | `0x40022f7e`, `0x40022fae`, `0x40022fe6` | the machine-list builder's capacity, end and count |
 | `0x4007910c`, `0x4007912c` | the long-name and short-name readers, and the name table they index. S12 points both at a new table in the pad, the build's five pairs plus `CFO OSCILLATOR` / `CFOO` |
 | `0x4007a2d0` | the per-sound deserializer, so a stored machine 5 survives a reload |
-| `FUN_40029e80` | the group mapper: machine + 1 for 0..4, else 0. A machine above it gets no picker icon (blank, safe) and the list draws a group separator before it |
+| `FUN_40029e80` | the group mapper: machine + 1 for 0..4, else 0. A machine above the bound gets code 0 and no picker icon (blank, safe). S12 leaves it; S14 raises it ([below](#cfoos-picker-icon-in-s14)) |
 
 In the render, a machine-5 track takes the lanes' "no window" branch, and `cfo_pad` overwrites whatever
 they wrote: with `MACHINE5` it tests for machine 5 in place of ONESHOT with SAMP OFF.
@@ -269,8 +273,7 @@ BR, SAMP, STRT, LEN, LOOP and LEV with ONESHOT's ranges. That is the first step 
 
 Controls: the ONESHOT build, run in machine-5 mode, fails every synth case and the layout case.
 
-**Not yet:** an icon (the group mapper gives machine 5 code 0: no icon, and the list draws a group
-separator above it).
+**Not yet:** an icon. The group mapper gives machine 5 code 0, which has no icon. S14 adds one.
 
 ## CFOO's own parameter names, in S13
 
@@ -377,17 +380,74 @@ records whose name reads `Error` are track-level records with page and slot `-1`
 - ⛔ **Relocate the whole table.** Out: 8,528 B against a constant-data budget of 2,268 B.
 - ⭐ **Rename for this machine only.** Point CFOO's layout record at ONESHOT's ids 108–115 and give the
   name readers this build's own strings when the track's machine is 5. The readers are few: `0x4000fea6`
-  reads the short label, `0x4000fec8` the long name, `0x40065de6` the page name, and `0x4002351c` and
-  `0x40060ba6` read the short label as well.
+  reads the short label, `0x4000fec8` the long name and `0x40065de6` the page name; `0x40060ba6` reads
+  the short label as well, but never of an SRC parameter (below).
 
   This build already renames a parameter exactly this way: MIDI Loopback turns CHAN into TRK and
   "Channel" into "Track" through the same two readers, from pads reached at `0x40030daa` and
-  `0x40032d36` ([function_ledger.md](../function_ledger.md)). ⚠️ Those hooks sit at the call sites in the
-  parameter page, not in the readers, so which call sites a machine-5 page passes through is still to be
-  traced.
+  `0x40032d36` ([function_ledger.md](../function_ledger.md)). Those hooks sit at the call sites in the
+  parameter page, not in the readers; each accessor has only that one caller, so a machine-5 page passes
+  through them too ([above](#cfoos-own-parameter-names-in-s13)).
+
+  ✅ The two other sites a scan for `+0x30` turned up (objdump):
+  - `0x4002351c` is not a descriptor read: it is `object + 0x30 + 200 × index` on a per-track object.
+  - `0x40060ba6` (in a routine starting at `0x40060b80`) draws the short label of the id that
+    `FUN_40078f8c(slot)` gives. That id comes from the table `0x4199f81c`, which the descriptor sorter
+    at `0x40078b20` fills from descriptors with page ids 7–10 only, so it never names an SRC parameter.
+
+  ✅ The same sorter puts the SRC pages' ids (page ids 0–3) into `0x4199f9c4`, eight per machine, and
+  `FUN_40078f44(slot, machine)` reads them: for an SRC slot it returns `0x4199f9c4[8 × machine + slot −
+  17]` for machines 0–3 and id 0 for any machine above 3. The build leaves that bound at 3, so POLY's
+  and CFOO's SRC slots both map to id 0 there. ⚠️ What its four callers (`FUN_40084ef6`,
+  `FUN_40015e00`, `FUN_400220fc`, `SoundParameterSet::vfunc_20`) do with that is not traced; CFOO
+  inherits whatever POLY already shows.
 
 ⚠️ What the page id at `+0x00` controls beyond the lookups above is not traced, so whether CFOO needs a
 page id of its own (and what the 19-record generic page table at `0x4197df88` would then need) is open.
+
+## CFOO's picker icon, in S14
+
+Built with `--defsym ICON=1` on top of `MACHINE5` and `NAMES`. The MACHINE menu finds a row's icon in
+two steps:
+- the group mapper `FUN_40029e80` turns the machine into a code;
+- the icon lookup at `0x40029ef0` sends codes 4 and up to this build's POLY icon pad `0x400bee44`, which
+  loads a `Bitmap` object from a selector table indexed by code − 4.
+
+Stock codes are 1–4 for machines 0–3 (the byte table at `0x401c318c`, read in the stock image); the
+build's mapper gives machine + 1 for machines 0–4. S14 changes three things, each after checking that
+the site holds the build's bytes (`ICON_EDITS` and `ICON_PTR` in `make_cfo.py`):
+
+| Site | Build | S14 |
+|---|---|---|
+| `0x40029e81` | the mapper's bound 4 | 5: machine 5 gets code 6 |
+| `0x40029ef9` | the pad's range 1 (codes 4–5) | 2: codes 4–6 |
+| `0x400bee46` | the pad's table `0x40252bf8`: SLICE's icon, POLY's | `0x40252c2c`: SLICE's icon, POLY's, CFOO's |
+
+The new table and CFOO's `Bitmap` object go into the `.rodata` padding at `0x40252c2c..0x40252c80`
+([landing_pads.md](../landing_pads.md#rodata-the-constant-data-budget)). The object has POLY's shape:
+the `Bitmap` vtable `0x401b7734`, 11 × 7, one plane, the plane pointer, POLY's stock mask `0x4023e0a0`
+and a zero word. The plane is 11 words, one per column. Row r, counted from the top, is bit
+31 − (6 − r), so the bottom row is bit 31. ✅ This is the rule the build's own POLY plane at
+`0x40252bb0` follows: it decodes to the keyboard grid in
+[icon_artwork.md](../../../../notes/icon_artwork.md#the-keyboard) under that rule, and upside down
+under the other.
+
+The picture is a placeholder: two rising sawtooth ramps, 52 ink pixels
+([icon_artwork.md](../../../../notes/icon_artwork.md#the-cfoo-placeholder)).
+
+**Checked:**
+- the build's own checks and the compressor window;
+- every assembled section equal to S14's bytes, and the three sites above read back;
+- `EmuCfoOscillator` in icon mode runs the icon lookup from `0x40029e9c` for machines 0–6 and reads the
+  `Bitmap` the draw call receives: CFOO's object for machine 5, POLY's for 4, SLICE's for 3, the stock
+  icons for 0–2 and none for 6;
+- the plane read back out of S14 decodes to the placeholder grid under the rule above and not under the
+  flipped one, and so does POLY's plane to the keyboard; the master PNG decodes to the same grid;
+- `EmuMachineList` running S14's list builder still adds machines 0–5, and every other harness passes.
+
+Control: S13's own bytes over the same regions, with the build's icon data and old selector table, run
+in icon mode. Machines 0–4 get the same icons as on S14, and machine 5 gets none, so only machine 5
+fails.
 
 ## Related notes
 

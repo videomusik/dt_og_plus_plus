@@ -8,5 +8,6 @@ SECTIONS
   .cfo_code   0x400f77da : { *(.cfo_main) *(.cfo_track) *(.cfo_pitch) *(.cfo_wave) *(.cfo_gains) *(.cfo_osc) *(.cfo_mix) *(.cfo_layout) *(.cfo_rename) }
   .cfo_names  ALIGN(4) : { *(.cfo_names) }
   .cfo_data   0x40252724 : { *(.cfo_data) }
+  .cfo_icon   0x40252c2c : { *(.cfo_icon) }
   /DISCARD/ : { *(.text) *(.data) *(.bss) }
 }
