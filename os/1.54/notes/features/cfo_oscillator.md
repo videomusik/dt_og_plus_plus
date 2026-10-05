@@ -398,9 +398,18 @@ records whose name reads `Error` are track-level records with page and slot `-1`
   ✅ The same sorter puts the SRC pages' ids (page ids 0–3) into `0x4199f9c4`, eight per machine, and
   `FUN_40078f44(slot, machine)` reads them: for an SRC slot it returns `0x4199f9c4[8 × machine + slot −
   17]` for machines 0–3 and id 0 for any machine above 3. The build leaves that bound at 3, so POLY's
-  and CFOO's SRC slots both map to id 0 there. ⚠️ What its four callers (`FUN_40084ef6`,
-  `FUN_40015e00`, `FUN_400220fc`, `SoundParameterSet::vfunc_20`) do with that is not traced; CFOO
-  inherits whatever POLY already shows.
+  and CFOO's SRC slots both map to id 0 there: a track-level record named `Error` / `ERR` whose fields
+  `+0x08..+0x24` are all 0 or −1. Its callers (objdump):
+  - `SoundParameterSet::vfunc_20(slot)` takes the machine from the sound's byte `+0x7e` and returns
+    `FUN_40078f44(slot, machine)`: the descriptor id of a slot in a given sound.
+  - `FUN_40015e00`, for one kind of event, takes the track's machine (`FUN_4000d7be`, `FUN_4002200a`),
+    maps the slot, and passes the id to `FUN_4006cc38`. That routine sends a 6-byte message, tag
+    `0x30`, made of the track, the descriptor's word at `+0x20` (`0x6e..0x75` for ONESHOT's SRC
+    parameters, `0xc7..0xce` for SLICE's, 0 for id 0) and the value.
+  - `FUN_400220fc` and `FUN_40084ef6` load its address into `%a4`; not read.
+
+  ⚠️ What the message drives, and what the other callers show for an SRC slot on a machine above 3,
+  is not traced. CFOO inherits whatever POLY already does there.
 
 ⚠️ What the page id at `+0x00` controls beyond the lookups above is not traced, so whether CFOO needs a
 page id of its own (and what the 19-record generic page table at `0x4197df88` would then need) is open.
