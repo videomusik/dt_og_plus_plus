@@ -344,7 +344,25 @@ objects are built at run time) into a shared buffer at `0x4197de98`, which it re
 callers and is not given the page. A CFOO-only value text would therefore take the current track's
 machine from the project: `FUN_4001d24e` (the current track, from the project object `+0x30`), then
 `FUN_4000d7be(object, track)` (`object + 0x60 + 200 × track`, the track clamped to 0..7), then
-`FUN_4002200a` (the machine byte at `+0x7e` behind the handle). Not built. Also not yet: the SAMP cell (CFOO does not use
+`FUN_4002200a` (the machine byte at `+0x7e` behind the handle). Not built.
+
+✅ The SRC cell draws its value from the same per-id objects (objdump of
+`MachineParameterPageView::vfunc_37` from `0x40030c0c`, and of `ParameterSet::vfunc_22` and
+`vfunc_23`):
+- `FUN_40065794(id)` returns the id's display object, `0x4197e2f8 + 0x54 × id`; the popup's
+  formatter at `0x4197e30c + 0x54 × id` is that object's `+0x14`;
+- the cell asks the page for the parameter set that owns the id (`vfunc` at `+0xa4`), and
+  `FUN_4000fece(id)` returns the object's word `+0x00`;
+- the cell then has the set draw a picture (`ParameterSet::vfunc_23` `0x4000f2bc`, through the
+  callable at `+0x24..+0x30`, which does nothing when `+0x2c` is 0) and write text
+  (`ParameterSet::vfunc_22` `0x4000f324`, through the formatter at `+0x14..+0x20`), which it draws with
+  `%s`. Which of the two show depends on bits 1 and 2 of the word `+0x00` and on the page's state.
+
+So two hooks would give CFOO its own value displays: `FUN_40065794`, which returns a CFOO object for
+ids 108–115 when the current track is CFOO, and `FUN_400657ee` for the popup. The CFOO objects would
+need callables that the stock calling code accepts: the formatter's manager word at `+0x1c` must not be
+0, or `vfunc_22` calls `0x4017803e` instead (very probably `std::__throw_bad_function_call`). What each
+value should show depends on CFOO's final parameters (open). Also not yet: the SAMP cell (CFOO does not use
 it; hiding it needs CFOO's own layout record with id 0 there), and the page name (`+0x2c`, read at
 `0x40065de6`).
 
