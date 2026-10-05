@@ -256,6 +256,15 @@ Checked on the built images (S12's own checks are [below](#cfoo-machine-5-in-s12
 - every other harness passes on S11;
 - S9 and S10 rebuild byte for byte whenever the synth code changes, since neither contains it.
 
+Results on the unit, OS 1.54, each stage flashed on the one before from S8:
+- ✅ **S9, S10:** ran; nothing found different.
+- ✅ **S11:** a ONESHOT track with SAMP OFF plays the synth: a sine at the trig's note. With an infinite
+  amp decay a note keeps sounding for minutes at every PLAY value, with no fade or click. With LEN up,
+  PLAY changes the FM source as described, and PLAY 3 gives the plain sine. In a full pattern (two SLICE
+  tracks playing recorded chains, the synth on T3 with T4–T6 as POLY voices playing four-note chords from
+  a MIDI Loopback track, a third recorded chain and another POLY track), sweeping the synth's parameters gave
+  no stutter and no audible dropped notes, and all four notes of each chord sound like the synth.
+
 What to check:
 - **S9:** nothing changes anywhere. A live caller of the pad would now get 0 at once.
 - **S10:** nothing changes. Every audio tick now passes through the hook.
