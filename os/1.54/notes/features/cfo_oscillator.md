@@ -151,8 +151,12 @@ silence. Computing the level avoids the question. `FUN_40074c60` uses the EMAC i
 which laneA sets and leaves set (`%macsr` `0x20` from `0x400757ee`), and nothing changes it before the
 hook. It clobbers only `%d0`, `%d1` and `%acc0`.
 
-⚠️ Not replicated: the store loop's ramp from one tick's level to the next. The synth holds each tick's
-level for its 32 samples, so a level change is a step every 667 µs.
+Like the lanes' store loop, the synth ramps the level across a tick's 32 samples, from the level the
+track ended its last tick on to the new one, in steps of 1/32 of the difference (5 fraction bits), so it
+ends exactly on the new level. Without the ramp, the de-click would cut a sounding voice to silence
+within one sample. The last level per track is kept in this build's RAM at `0x439d1160`
+([memory_map.md](../memory_map.md)). A stored value above `0x7fff` cannot be a level: it is what the
+RAM held at boot, and the track then starts at the new level with no ramp.
 
 **The wavetables** (`make_waves.py`): SIN, TRI, SAW, SQR, 256 signed bytes each, with one phase
 convention, so the morph blends shapes instead of cancelling them:
@@ -175,7 +179,8 @@ table and the wavetables from emulator memory. All cases pass:
 - FM from OSC2, OSC2+3 and OSC3; half and zero level; notes 0 and 127;
 - the level: each synth track calls `FUN_40074c60` once, with its own `x` and its LEV, and the voice's
   own level, set to a wrong value throughout, is not used; the de-click gives level 0 only to a voice
-  that is on and has a trig next tick;
+  that is on and has a trig next tick; the level ramps across each tick from the last one, through a
+  run of level changes, and a start-up value in the level RAM gives no ramp;
 - the phases carry over from tick to tick;
 - `FUN_40072478` is reached with the stack as found and `%d2-%d7/%a2-%a6` intact.
 
@@ -183,21 +188,23 @@ The emulator's EMAC has no fractional mode ([notes/emulator.md](../../../../note
 harness stubs `FUN_40074c60`: it checks the arguments and returns the case's level.
 
 A pure SIN at note 60 measures 261.47 Hz with a peak of 1,065,320,704. The worst tick, all eight tracks
-on the synth, takes 15,724 instructions, plus about 17 per track inside the stubbed `FUN_40074c60`.
+on the synth, takes 16,836 instructions, plus about 17 per track inside the stubbed `FUN_40074c60`.
 ⚠️ How that compares with the ISR's free time per 667 µs tick is not measured.
 
 Controls:
 - a variant with the pitch table one entry off and OSC3's mix gain swapped fails every case except the
   two with no synth track and level 0;
-- the earlier code, which read the voice's level, makes no level call and fails all 20 synth cases.
+- code that reads the voice's level makes no level call and fails every synth case;
+- code that holds each tick's level without the ramp fails every synth case except level 0 and the
+  start-up case, where the two agree.
 
 ## Code space
 
-The code is 672 B in seven routines: dispatcher 82, `track` 314, `pitch` 56, `wave` 32, `gains` 58,
-`osc32` 38, `osc1_mix` 92. The pads in use have 112 B free, in blocks of at most 18 B
+The code is 722 B in seven routines: dispatcher 82, `track` 352, `pitch` 56, `wave` 32, `gains` 58,
+`osc32` 38, `osc1_mix` 104. The pads in use have 112 B free, in blocks of at most 18 B
 ([landing_pads.md](../landing_pads.md)). The code goes into `FUN_400f77da`, route 2 below, under the
 vetting recipe's exception for an identified library function
-([landing_pad_method.md](../../../../notes/landing_pad_method.md#vetting-a-new-pad)); it uses 672 B of
+([landing_pad_method.md](../../../../notes/landing_pad_method.md#vetting-a-new-pad)); it uses 722 B of
 the pad's 2,372. The routes:
 
 1. **Small leaf pads.** Eight candidates are true leaves (no indirect calls), not in the I/O region, the
@@ -235,17 +242,17 @@ be flashed in order, S9 to S14:
 |---|---|---|---|
 | S9 | `9a75ccc7` | `af736dd4…` | the reference build + `FUN_400f77da` filled with `clrl %d0 ; rts` (the pad's fill test) |
 | S10 | `3af01e48` | `7328128f…` | S9 + the hook at `0x40077fc8`, its pad only jumping on to `FUN_40072478` |
-| S11 | `2122f403` | `57fb1aaa…` | S9 + the CFO oscillator prototype, playing on ONESHOT with SAMP OFF |
-| S12 | `235a54ce` | `a22d0de9…` | S9 + the machine CFOO (machine 5, after POLY) with ONESHOT's SRC page, and the synth playing on it ([below](#cfoo-machine-5-in-s12)) |
-| S13 | `8baba164` | `8eae5616…` | S12 + CFOO's own parameter names on its SRC page ([below](#cfoos-own-parameter-names-in-s13)) |
-| S14 | `413bb231` | `412a760f…` | S13 + a placeholder picker icon for CFOO ([below](#cfoos-picker-icon-in-s14)) |
+| S11 | `f6f7dd0d` | `b77f2c24…` | S9 + the CFO oscillator prototype, playing on ONESHOT with SAMP OFF |
+| S12 | `3d258e52` | `a1637da2…` | S9 + the machine CFOO (machine 5, after POLY) with ONESHOT's SRC page, and the synth playing on it ([below](#cfoo-machine-5-in-s12)) |
+| S13 | `b29c5ea7` | `49c9b6c2…` | S12 + CFOO's own parameter names on its SRC page ([below](#cfoos-own-parameter-names-in-s13)) |
+| S14 | `2d8fc5fa` | `49f7fd62…` | S13 + a placeholder picker icon for CFOO ([below](#cfoos-picker-icon-in-s14)) |
 
 Checked on the built images (S12's own checks are [below](#cfoo-machine-5-in-s12)):
 - the build's own checks;
 - the compressor window, whose largest back-reference is `0xffc6a`;
 - the hook, code and data read back out of S11 equal the assembled sections;
-- `EmuCfoOscillator` passes on S11's own bytes, and on S10's bytes (the inert control) it fails all 20
-  synth cases and passes the untouched ones;
+- `EmuCfoOscillator` passes on S11's own bytes, and on S10's bytes (the inert control) it fails every
+  synth case and passes the untouched ones;
 - every other harness passes on S11;
 - S9 and S10 rebuild byte for byte whenever the synth code changes, since neither contains it.
 

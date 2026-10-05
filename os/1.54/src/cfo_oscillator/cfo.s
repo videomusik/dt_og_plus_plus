@@ -24,6 +24,7 @@
 	.set	TRIGS,	0x8000122c	| stock: the lanes' trig mask for the next tick, bit = track
 	.set	PITCH,	0x4019b4c0	| stock: pitch ratios, 2^(24 + n/12) at index (note sum) / 384
 	.set	PHASES,	0x439d1100	| this build: phase accumulators, 8 tracks x 3 oscillators (96 B)
+	.set	LEVELS,	0x439d1160	| this build: the level each track ended its last tick on (8 longs)
 	.set	CFOO,	5		| the machine number of the CFO oscillator
 
 | The frame cfo_pad builds; every routine reaches it through %a6.
@@ -35,12 +36,13 @@
 	.set	M2,	136		| long: FM mask for OSC2 (0 or -1)
 	.set	M3,	140		| long: FM mask for OSC3
 	.set	FMS,	144		| long: FM scale, OSC1's step / 8192 x LEN
-	.set	LVL,	148		| long: the voice level, Q31 >> 16
+	.set	LCUR,	148		| long: the level, Q31 >> 16, << 5, ramping over the tick
 	.set	TRK,	152		| long: the track
 	.set	NSUM,	156		| long: OSC1's note sum (note << 16, TUNE, the table offset)
 	.set	STEP1,	160		| long: OSC1's phase step
-	.set	REGS,	164		| saved %d2-%d7/%a2-%a6, 44 B
-	.set	FRAME,	208
+	.set	LSTEP,	164		| long: LCUR's step per sample
+	.set	REGS,	168		| saved %d2-%d7/%a2-%a6, 44 B
+	.set	FRAME,	212
 	.set	A18,	FRAME+4		| the stock call's arguments: the audio buffers
 	.set	ENG,	FRAME+8		| and the engine object
 
@@ -145,8 +147,20 @@ track:
 	beqs	1f
 	clrl	%d0
 1:	clrw	%d0
-	swap	%d0
-	movel	%d0,%a6@(LVL)
+	swap	%d0			| this tick's level, 0..0x7fff
+	movel	%a6@(TRK),%d1		| ramp to it from the last tick's, as the lanes' store loop does
+	lea	LEVELS,%a0
+	lea	%a0@(0,%d1:l:4),%a0
+	movel	%a0@,%d1
+	movel	%d0,%a0@
+	cmpil	#0x7fff,%d1		| not a level (the RAM is not set at boot): no ramp
+	blss	2f
+	movel	%d0,%d1
+2:	movel	%d0,%d2
+	subl	%d1,%d2
+	movel	%d2,%a6@(LSTEP)		| 32 steps of (new - last) / 32 end exactly on the new level
+	lsll	#5,%d1
+	movel	%d1,%a6@(LCUR)
 	movel	%a6@(NSUM),%d0		| OSC2: an octave below, wave LOOP
 	subil	#0xc0000,%d0
 	jsr	pitch
@@ -303,7 +317,11 @@ osc1_mix:
 	addl	%d3,%d2
 	mulsw	%a6@(G1),%d2
 	addl	%d2,%d0			| the mix
-	mulsl	%a6@(LVL),%d0		| x the level
+	movel	%a6@(LCUR),%d1		| x the level, one ramp step on
+	addl	%a6@(LSTEP),%d1
+	movel	%d1,%a6@(LCUR)
+	asrl	#5,%d1
+	mulsl	%d1,%d0
 	movel	%d0,%a3@+
 	subql	#1,%d7
 	bpls	1b

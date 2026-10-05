@@ -46,6 +46,7 @@ public class EmuCfoOscillator extends GhidraScript {
   // x per track at VELS, the voice-on flag at VOICES + 0x28, the lanes' next-tick trig mask at TRIGS
   static final long LEVEL = 0x40074c60L, VELS = 0x80001f18L, TRIGS = 0x8000122cL;
   static final int X0 = 0x6400, LEVW = 0x5a00, STALE = 0x01234567;
+  static final long LEVELS = 0x439d1160L;	// the level each track ended its last tick on (8 longs)
 
   List<long[]> secAddr = new ArrayList<>();
   List<byte[]> secData = new ArrayList<>();
@@ -89,7 +90,10 @@ public class EmuCfoOscillator extends GhidraScript {
     int fms = (st1 >>> 13) * len;
     int m2 = (Integer.compareUnsigned(play, 2) < 0) ? -1 : 0, m3 = (Integer.compareUnsigned(play - 1, 2) < 0) ? -1 : 0;
     int[] g = gains(br);
-    int lvl = level >>> 16;
+    int now = level >>> 16, last = mprev[t];	// the level ramps from last tick's to this tick's
+    if (Integer.compareUnsigned(last, 0x7fff) > 0) last = now;	// not a level: no ramp
+    mprev[t] = now;
+    int cur = last << 5, step = now - last;
     int[] w1 = wave(strt), w23 = wave(loop);
     int[] s2 = new int[32], s3 = new int[32], out = new int[32];
     for (int i = 0; i < 32; i++) { ph[t][1] += st2; s2[i] = samp(w23, ph[t][1]); }
@@ -98,7 +102,8 @@ public class EmuCfoOscillator extends GhidraScript {
       int fm = (s2[i] & m2) + (s3[i] & m3);
       ph[t][0] += st1 + fm * fms;
       int s1 = samp(w1, ph[t][0]);
-      out[i] = (s1 * g[0] + s2[i] * g[1] + s3[i] * g[2]) * lvl;
+      cur += step;
+      out[i] = (s1 * g[0] + s2[i] * g[1] + s3[i] * g[2]) * (cur >> 5);
     }
     return out;
   }
@@ -110,6 +115,8 @@ public class EmuCfoOscillator extends GhidraScript {
   boolean m5 = false, remap = true;
   int maxSteps = 0;
   int activeMask = 0, trigMask = 0;	// voices on, and voices with a trig next tick
+  int[] mprev = new int[8];		// the model's last level per track
+  long seedLevels = 0;			// what fresh() puts in the level RAM
 
   void fresh() throws Exception {
     if (emu != null) emu.dispose();
@@ -119,6 +126,7 @@ public class EmuCfoOscillator extends GhidraScript {
     emu.writeMemory(toAddr(ENGINE), new byte[8 * 0x6a]);
     emu.writeMemory(toAddr(PHASES), new byte[96]);
     for (int t = 0; t < 8; t++) for (int k = 0; k < 3; k++) ph[t][k] = 0;
+    for (int t = 0; t < 8; t++) { wr(LEVELS + 4 * t, seedLevels, 4); mprev[t] = (int) seedLevels; }
   }
 
   /** machine/sample per track, and the synth settings (same for every synth track, note per track). */
@@ -380,6 +388,22 @@ public class EmuCfoOscillator extends GhidraScript {
     activeMask = 0x0f; trigMask = 0xf0;
     run("no de-click for a voice that is off", 5, zero, zero, notes, 0x4000, 3, 85, 60, 30, 60, MAX);
     activeMask = 0; trigMask = 0;
+    {	// the ramp: full level, then a quarter, then the de-click's 0, then full again
+      fresh();
+      int[] lv = {MAX, MAX, MAX, 0x20000000, 0x20000000, MAX, MAX};
+      int[] tm = {0, 0, 0, 0, 0x02, 0, 0};
+      boolean ok = true;
+      activeMask = 0xff;
+      for (int k = 0; k < lv.length && ok; k++) {
+        trigMask = tm[k];
+        ok = tick("level ramps between ticks (tick " + k + ")", zero, zero, notes, 0x4000, 3, 85, 60, 30, 60, lv[k], false);
+      }
+      activeMask = 0; trigMask = 0;
+      if (ok) println(String.format("  %-64s OK", "level ramps between ticks, " + lv.length + " ticks"));
+    }
+    seedLevels = 0xdeadbeefL;
+    run("level RAM not set at boot: no ramp on the first tick", 3, zero, zero, notes, 0x4000, 3, 85, 60, 30, 60, MAX);
+    seedLevels = 0;
     if (names) nameCases();
     if (icon) iconCases();
     if (m5) {
