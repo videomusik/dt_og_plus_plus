@@ -37,6 +37,7 @@ STOCK3 = os.path.join(ROOT, "work", "dt_1.54", "section_3_MAIN_OS.bin")
 HOOKS = {
     ".hook_fill": (0x40077fc8, "4eb940072478"),          # jsr 0x40072478, after the two render lanes
     ".hook_layout": (0x400657e6, "203c4197df5c4e75"),    # FUN_400657cc's fallback: SLICE's record
+    ".hook_slots": (0x40078f72, "7403b48065dc"),         # FUN_40078f44: machine > 3 gives id 0 (S15)
 }
 # Candidate pads: extent and member functions (for the fill). Only pads named here may hold code.
 PADS = {
@@ -82,11 +83,11 @@ def run(*cmd):
     return r.stdout
 
 
-def assemble(ld, tmp, inert=False, machine5=False, names=False, icon=False):
+def assemble(ld, tmp, inert=False, machine5=False, names=False, icon=False, slots=False):
     run(sys.executable, os.path.join(HERE, "make_waves.py"), os.path.join(tmp, "waves.inc"))
     src = os.path.join(HERE, "cfo.s")
     defs = (["--defsym", "MACHINE5=1"] if machine5 else []) + (["--defsym", "NAMES=1"] if names else []) + \
-        (["--defsym", "ICON=1"] if icon else [])
+        (["--defsym", "ICON=1"] if icon else []) + (["--defsym", "SLOTS=1"] if slots else [])
     if inert:
         src = os.path.join(tmp, "inert.s")
         with open(src, "w") as f:
@@ -169,11 +170,13 @@ def main():
         secs5, syms5 = assemble(ld, tmp, machine5=True)
         secs5n, syms5n = assemble(ld, tmp, machine5=True, names=True)
         secs5i, syms5i = assemble(ld, tmp, machine5=True, names=True, icon=True)
+        secs5s, syms5s = assemble(ld, tmp, machine5=True, names=True, icon=True, slots=True)
         used = []
         allsecs = list(secs.items()) + [("m5" + k, v) for k, v in secs5.items()] + \
-            [("mn" + k, v) for k, v in secs5n.items()] + [("mi" + k, v) for k, v in secs5i.items()]
+            [("mn" + k, v) for k, v in secs5n.items()] + [("mi" + k, v) for k, v in secs5i.items()] + \
+            [("ms" + k, v) for k, v in secs5s.items()]
         for name, (vma, data) in sorted(allsecs, key=lambda x: x[1][0]):
-            name = name[2:] if name[:2] in ("m5", "mn", "mi") else name
+            name = name[2:] if name[:2] in ("m5", "mn", "mi", "ms") else name
             end = vma + len(data)
             if name in HOOKS:
                 a, disp = HOOKS[name]
@@ -201,9 +204,14 @@ def main():
         pads14 = dict(pads13)
         for k, (lo, hi) in enumerate(ICON_CODE):
             pads14[".icon_code%d" % k] = (lo, bytes(im14[lo - BASE:hi - BASE]))
+        im15 = apply_icon(apply_renames(bytearray(img), syms5s), syms5s)
+        pads15 = dict(pads13)
+        for k, (lo, hi) in enumerate(ICON_CODE):
+            pads15[".icon_code%d" % k] = (lo, bytes(im15[lo - BASE:hi - BASE]))
         for path, (ss, sy) in ((load, (secs, syms)), (os.path.join(out, stem + "_m5.load"), (secs5, syms5)),
                                (os.path.join(out, stem + "_m5n.load"), (dict(secs5n, **pads13), syms5n)),
-                               (os.path.join(out, stem + "_m5i.load"), (dict(secs5i, **pads14), syms5i))):
+                               (os.path.join(out, stem + "_m5i.load"), (dict(secs5i, **pads14), syms5i)),
+                               (os.path.join(out, stem + "_m5s.load"), (dict(secs5s, **pads15), syms5s))):
             with open(path, "w") as f:
                 for name, (vma, data) in ss.items():
                     f.write("%08x %s\n" % (vma, data.hex()))
@@ -236,10 +244,14 @@ def main():
         for _n, (vma, data) in secs5i.items():
             im[vma - BASE:vma - BASE + len(data)] = data
         built["S14"] = bytes(apply_icon(apply_renames(apply_edits(im, syms5i), syms5i), syms5i))
+        im = bytearray(img1)
+        for _n, (vma, data) in secs5s.items():
+            im[vma - BASE:vma - BASE + len(data)] = data
+        built["S15"] = bytes(apply_icon(apply_renames(apply_edits(im, syms5s), syms5s), syms5s))
         dest = os.path.join(ROOT, "out", "1.54", "stages")
         os.makedirs(dest, exist_ok=True)
         syx, tool = build.DEFAULT_SYX, build.DEFAULT_TOOL
-        for name in ("S9", "S10", "S11", "S12", "S13", "S14"):
+        for name in ("S9", "S10", "S11", "S12", "S13", "S14", "S15"):
             p3 = built[name]
             sel, i = [], 0
             while i < len(stock):

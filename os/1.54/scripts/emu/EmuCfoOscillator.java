@@ -30,7 +30,9 @@
 // stock icon routine and the icon pad as that stage has them), the MACHINE menu's icon routine
 // (0x40029e9c) runs for machines 0..6 with the list item's machine stubbed: the draw must get SLICE's
 // icon for 3, POLY's for 4, CFOO's for 5, a stock icon for 0..2, and no draw for 6.
-//   ./scripts/ghidra_emu.sh 1.54 EmuCfoOscillator <file.load> [machine5 [names [icon]]]
+// With 'slots' as well, or a load carrying the SLOTS hook (sym slot_machine), FUN_40078f44 runs for the
+// SRC slots on machines 0..7 with its run-time table seeded: machine 5 must get ONESHOT's ids.
+//   ./scripts/ghidra_emu.sh 1.54 EmuCfoOscillator <file.load> [machine5 [names [icon [slots]]]]
 // Runs in Ghidra's emulator only; nothing touches a device. @category dt_og_plus_plus
 import ghidra.app.script.GhidraScript;
 import ghidra.app.emulator.EmulatorHelper;
@@ -114,6 +116,7 @@ public class EmuCfoOscillator extends GhidraScript {
   int[][] lastOut = new int[8][];
   boolean m5 = false, remap = true;
   int maxSteps = 0;
+  boolean slots = false;			// run slotCases even without the hook (a control)
   int activeMask = 0, trigMask = 0;	// voices on, and voices with a trig next tick
   int[] mprev = new int[8];		// the model's last level per track
   long seedLevels = 0;			// what fresh() puts in the level RAM
@@ -336,6 +339,35 @@ public class EmuCfoOscillator extends GhidraScript {
     if (bad.length() != 0) fails++;
   }
 
+  /** machine 5 mode, a load with the SLOTS hook (sym slot_machine): FUN_40078f44(slot, machine) for the
+   *  SRC slots 17..24 and machines 0..7. Its table 0x4199f9c4 (8 ids per machine 0..3) is built at run
+   *  time, so it is seeded with 1000 + index: machines 0..3 must get their own ids, machine 5 machine
+   *  0's, every other machine id 0. */
+  void slotCases() throws Exception {
+    fresh();
+    StringBuilder bad = new StringBuilder();
+    for (int i = 0; i < 32; i++) wr(0x4199f9c4L + 4 * i, 1000 + i, 4);
+    for (int m = 0; m < 8; m++)
+      for (int slot = 17; slot <= 24; slot++) {
+        long sp = SP0;
+        sp -= 4; wr(sp, m, 4); sp -= 4; wr(sp, slot, 4); sp -= 4; wr(sp, RET, 4);
+        emu.writeRegister("SP", sp); emu.writeRegister("PC", 0x40078f44L);
+        boolean done = false;
+        for (int s = 0; s < 200; s++) {
+          if (emu.getExecutionAddress().getOffset() == RET) { done = true; break; }
+          if (!emu.step(monitor)) { bad.append(" [FAULT]"); break; }
+        }
+        int mm = m == 5 ? 0 : m;
+        long want = mm < 4 ? 1000 + 8 * mm + slot - 17 : 0;
+        if (!done) bad.append(String.format(" [machine %d slot %d: no return]", m, slot));
+        else if (rd("D0") != want) bad.append(String.format(" [machine %d slot %d: %d, want %d]", m, slot, rd("D0"), want));
+        if (done && rd("SP") != sp + 4) bad.append(" [SP]");
+        if (bad.length() > 200) break;
+      }
+    println(String.format("  %-64s %s%s", "SRC slot ids: 0-3 own, 5 as ONESHOT (0), 4/6/7 none", bad.length() == 0 ? "OK" : "**FAIL**", bad));
+    if (bad.length() != 0) fails++;
+  }
+
   /** machine 5 mode: FUN_400657cc (with the layout hook from the load file) for machines 0..7. */
   void layoutCases() throws Exception {
     StringBuilder bad = new StringBuilder();
@@ -374,6 +406,7 @@ public class EmuCfoOscillator extends GhidraScript {
     m5 = args.length > 1 && args[1].equals("machine5");
     boolean names = m5 && args.length > 2 && args[2].equals("names");
     boolean icon = names && args.length > 3 && args[3].equals("icon");
+    slots = icon && args.length > 4 && args[4].equals("slots");
     for (String line : Files.readAllLines(Paths.get(args[0]))) {
       String[] p = line.trim().split("\\s+");
       if (p.length == 3 && p[0].equals("sym")) sym.put(p[1], Long.parseLong(p[2], 16));
@@ -440,6 +473,7 @@ public class EmuCfoOscillator extends GhidraScript {
     if (m5) {
       layoutCases();
       polyVoiceCase();
+      if (sym.containsKey("slot_machine") || slots) slotCases();
       remap = false;
       run("machine 5: ONESHOT with SAMP OFF is left alone", 3, zero, zero, c4, 0x4000, 3, 0, 0, 0, 0, MAX);
       remap = true;

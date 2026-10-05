@@ -234,9 +234,9 @@ the pad's 2,372. The routes:
 
 ## Testing on the unit
 
-`make_cfo.py lz4_stream.ld --stages` builds six images on top of the reference build (section 3
+`make_cfo.py lz4_stream.ld --stages` builds seven images on top of the reference build (section 3
 `efc90606…`, `.syx` `3fd4b0a3`), each adding one step to the stage named in its row. They are meant to
-be flashed in order, S9 to S14:
+be flashed in order, S9 to S15:
 
 | Stage | `.syx` | Section 3 | Contents |
 |---|---|---|---|
@@ -246,6 +246,7 @@ be flashed in order, S9 to S14:
 | S12 | `3d258e52` | `a1637da2…` | S9 + the machine CFOO (machine 5, after POLY) with ONESHOT's SRC page, and the synth playing on it ([below](#cfoo-machine-5-in-s12)) |
 | S13 | `b29c5ea7` | `49c9b6c2…` | S12 + CFOO's own parameter names on its SRC page ([below](#cfoos-own-parameter-names-in-s13)) |
 | S14 | `2d8fc5fa` | `49f7fd62…` | S13 + a placeholder picker icon for CFOO ([below](#cfoos-picker-icon-in-s14)) |
+| S15 | `7a8d8397` | `fafd7963…` | S14 + a machine change to CFOO reaches the engine at once ([below](#a-machine-change-to-cfoo-in-s15)) |
 
 Checked on the built images (S12's own checks are [below](#cfoo-machine-5-in-s12)):
 - the build's own checks;
@@ -300,6 +301,9 @@ What to check:
   encoder popups read Tune, FM Source, Osc Mix, Sample Slot, OSC1 Wave, FM Amount, OSC2+3 Wave and Level.
   A ONESHOT track's page is unchanged, and so is a MIDI track's CHAN/TRK label. The values themselves
   still show as ONESHOT shows them, for example PLAY's play-mode pictures on FMSR.
+- **S15:** set a track to CFOO and trig it, or play it over MIDI, at once, without touching SAMP: it
+  sounds. Its SRC page starts at ONESHOT's defaults (TUNE 0, FMSR on no FM, LEV 100), as a change to
+  ONESHOT would. Changing machines between ONESHOT, SLICE and the others behaves as before.
 - **S14:** the MACHINE menu shows CFOO's icon, two rising sawtooth ramps, left of its name, as POLY
   shows its keyboard. The other machines' icons are unchanged. The picture is a placeholder.
 
@@ -574,6 +578,34 @@ The picture is a placeholder: two rising sawtooth ramps, 52 ink pixels
 Control: S13's own bytes over the same regions, with the build's icon data and old selector table, run
 in icon mode. Machines 0–4 get the same icons as on S14, and machine 5 gets none, so only machine 5
 fails.
+
+## A machine change to CFOO, in S15
+
+On the unit, a track just set to CFOO stayed silent until SAMP was moved (S12 to S14). ✅ Read in the
+code (objdump): the machine setter (`FUN_400225ca`, `0x4002263c`) stores the new machine in the sound and
+calls `FUN_400220fc(sound set, 1, old machine, 0)`, which walks the SRC slots 17–24
+(`FUN_40078d62`/`FUN_40078d66`). For each it asks `FUN_40078f44(slot, new machine)` for the parameter id,
+sets the slot to that descriptor's default (`FUN_40078f0c`) and posts a change through the set's vfunc
+at `+0x10`; a slot whose id is 0 is skipped. `FUN_40078f44` gives id 0 for every SRC slot of a machine
+above 3, so a change to machine 5 set no slot and posted nothing, and the engine kept the old machine
+until a later change (SAMP) reached it.
+
+S15 is built with `--defsym SLOTS=1` on top of S14. Its hook (6 B at `0x40078f72` in `FUN_40078f44`, the
+target of the branch at `0x40078f64`, with the machine in `%d0` and `%d2` saved by the function) looks
+machine 5 up as machine 0, so CFOO's SRC slots are ONESHOT's parameters 108–115, the ones its page shows.
+Every other machine is looked up as before. A change to CFOO then sets the eight slots to ONESHOT's
+defaults and posts eight changes, as a change to ONESHOT does. The other users of `FUN_40078f44`
+(`SoundParameterSet::vfunc_20`, `FUN_40015e00`, `FUN_40084ef6`) get ONESHOT's ids for CFOO's SRC
+parameters too, where they got the `Error` descriptor before.
+
+**Checked:**
+- `EmuCfoOscillator` runs the real `FUN_40078f44` with the hook for slots 17–24 on machines 0–7, its
+  run-time table seeded: machines 0–3 get their own ids, machine 5 machine 0's, machines 4, 6 and 7 id 0.
+  On S14's code the same case fails only for machine 5;
+- every other case, the window, the image bytes and every other harness pass on S15's own bytes.
+
+⚠️ That the posted changes make the engine take the new machine is inferred from S12–S14's behaviour
+(any later change did), not traced: S15 tests it.
 
 ## Related notes
 

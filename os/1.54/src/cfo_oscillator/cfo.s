@@ -446,6 +446,29 @@ cfoo_plane:
 	.long	0xe0000000, 0xf0000000, 0xf8000000, 0xfc000000, 0xfe000000
 .endif
 
+| ---- CFOO's SRC slots are ONESHOT's parameters (--defsym SLOTS=1, with MACHINE5). FUN_40078f44(slot,
+| machine) gives an SRC slot's parameter id for machines 0..3 and id 0 above; on a machine change,
+| FUN_400220fc skips every slot whose id is 0, so a change to machine 5 reset no slot and posted no
+| change at all. Its test (6 B at 0x40078f72, a branch target, the machine in %d0, %d2 saved by the
+| function) comes here: machine 5 is looked up as machine 0, every other machine as before.
+
+.ifdef SLOTS
+	.section .hook_slots,"ax"	| 0x40078f72: moveq #3,%d2 ; cmpl %d0,%d2 ; bcss 0x40078f54
+	jmp	slot_machine
+
+	.section .cfo_slots,"ax"
+slot_machine:
+	moveq	#CFOO,%d2
+	cmpl	%d0,%d2
+	bnes	1f
+	moveq	#0,%d0			| CFOO: ONESHOT's ids 108..115
+1:	moveq	#3,%d2
+	cmpl	%d0,%d2
+	bcss	2f
+	jmp	0x40078f78		| the table lookup
+2:	jmp	0x40078f54		| id 0
+.endif
+
 | ---- the machine name table: (long, short) per machine, 8 B each, as the stock table at 0x401a9d40.
 | The two readers 0x4007910c (long) and 0x4007912c (short) are pointed here and their bound raised.
 
