@@ -269,7 +269,10 @@ Results on the unit, OS 1.54, each stage flashed on the one before from S8:
   assigned to a track, the track stays silent, both for trigs and for incoming MIDI, until SAMP is moved;
   then it plays. ⚠️ Not traced. A likely cause: the per-tick machine byte comes from the voice's copy of
   the sound's machine (`0x800018bc`), which is refreshed only when a sound is applied to the voice
-  (`FUN_40077282`), and moving SAMP very probably applies it.
+  (`FUN_40077282`), and moving SAMP very probably applies it. The cause is in the code and S15 fixes it
+  ([below](#a-machine-change-to-cfoo-in-s15)).
+- ✅ **S15:** on an empty pattern, track 1 set to CFOO and a trig key pressed without touching SAMP: it
+  sounds, the sine.
 
 What to check:
 - **S9:** nothing changes anywhere. A live caller of the pad would now get 0 at once.
