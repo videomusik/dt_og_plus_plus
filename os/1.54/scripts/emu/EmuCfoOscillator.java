@@ -483,6 +483,183 @@ public class EmuCfoOscillator extends GhidraScript {
     if (bad.length() != 0) fails++;
   }
 
+  /** displays mode (S17): CFOO's own value displays. The model is the agreed interface, written from the
+   *  knob table, not from the code: A, C, D a wave on one 0..127 scale (A: (A - 4) x 1.5); B OFF, OSC2,
+   *  2+3, OSC3 (above 3: OFF, as the synth takes no source); E the mix E + E/16, at most 127; F the FM
+   *  amount; G -48st..-1st, 0, +1ct..+50ct and H -50ct..-1ct, 0, +1st..+48st over 0..98, above 98 as 98.
+   *  Each knob's own range, for the picture: A 4..88, B 0..3, C and D 0..127, E and F 0..120, G and H
+   *  0..98. */
+  static final long DSET = 0x439d3e00L, DPAGE = 0x439d3e40L, DBUF = 0x439d3e80L, POPBUF = 0x4197de98L;
+  static final long MACHQ = 0x4002200aL, PAGEQ = 0x4002b5d4L, FMT = 0x400657eeL;
+  static final int[][] KRANGE = {{4, 84}, {0, 3}, {0, 127}, {0, 127}, {0, 120}, {0, 120}, {0, 98}, {0, 98}};
+  static String agreedText(int k, int n) {
+    switch (k) {
+      case 0: return String.valueOf(Math.max(n - 4, 0) * 3 / 2);
+      case 1: return n <= 3 ? new String[] {"OFF", "OSC2", "2+3", "OSC3"}[n] : "OFF";
+      case 4: return String.valueOf(Math.min(127, n + n / 16));
+      case 6: { int d = Math.min(n, 98) - 48; return d < 0 ? d + "st" : d == 0 ? "0" : "+" + d + "ct"; }
+      case 7: { int d = Math.min(n, 98) - 50; return d < 0 ? d + "ct" : d == 0 ? "0" : "+" + d + "st"; }
+      default: return String.valueOf(n);
+    }
+  }
+  /** the note-sum offset a G or H text means: a semitone is 0x10000, a cent 655 */
+  static int textOffset(String t) {
+    if (t.equals("0")) return 0;
+    int v = Integer.parseInt(t.substring(0, t.length() - 2).replace("+", ""));
+    return t.endsWith("st") ? v * 0x10000 : v * 655;
+  }
+  /** call a routine with the stack given (top first), stubbing the machine queries; null if it ran away */
+  long machine = 5;
+  boolean callTo(long pc, long[] stack, long stopAt, StringBuilder bad, String what) throws Exception {
+    long sp = SP0 - 4L * stack.length;
+    for (int i = 0; i < stack.length; i++) wr(sp + 4L * i, stack[i], 4);
+    emu.writeRegister("SP", sp); emu.writeRegister("PC", pc);
+    for (int i = 0; i < KEEP.length; i++) emu.writeRegister(KEEP[i], 0x5a5a0000L + i);
+    emu.writeRegister("A2", DPAGE);
+    for (int s = 0; s < 3000; s++) {
+      long p = emu.getExecutionAddress().getOffset();
+      if (p == RET || p == stopAt) return true;
+      if (p == MACHQ || p == PAGEQ) {
+        long q = rd("SP");
+        long arg = rdn(q + 4, 4);
+        if (arg != (p == MACHQ ? DSET : DPAGE)) bad.append(" [" + what + ": machine query got 0x" + Long.toHexString(arg) + "]");
+        emu.writeRegister("D0", machine); emu.writeRegister("D1", 0xdead0001L);
+        emu.writeRegister("PC", rdn(q, 4)); emu.writeRegister("SP", q + 4);
+        continue;
+      }
+      if (!emu.step(monitor)) { bad.append(" [" + what + ": FAULT " + emu.getLastError() + "]"); return false; }
+    }
+    bad.append(" [" + what + ": ran away]");
+    return false;
+  }
+  boolean regsKept(StringBuilder bad, String what) throws Exception {
+    for (int i = 0; i < KEEP.length; i++) {
+      long want = KEEP[i].equals("A2") ? DPAGE : 0x5a5a0000L + i;
+      if (rd(KEEP[i]) != want) { bad.append(" [" + what + ": " + KEEP[i] + " not kept]"); return false; }
+    }
+    return true;
+  }
+  void displayCases() throws Exception {
+    fresh();
+    long popup = sym.get("cfo_popup");
+    StringBuilder hooks = new StringBuilder();
+    if (rdn(0x40032d16L, 2) != 0x4eb9L || rdn(0x40032d18L, 4) != popup) hooks.append(" [0x40032d16 is not jsr cfo_popup]");
+    if (rdn(0x4000f2bcL, 2) != 0x4ef9L || rdn(0x4000f2beL, 4) != sym.get("cfo_pic")) hooks.append(" [0x4000f2bc is not jmp cfo_pic]");
+    if (rdn(0x4000f324L, 2) != 0x4ef9L || rdn(0x4000f326L, 4) != sym.get("cfo_ctext")) hooks.append(" [0x4000f324 is not jmp cfo_ctext]");
+    println(String.format("  %-64s %s%s", "displays: the three hooks in place", hooks.length() == 0 ? "OK" : "**FAIL**", hooks));
+    if (hooks.length() != 0) fails++;
+
+    // 1. the texts, through the popup and the cell, every knob and value, against the agreed table
+    StringBuilder bad = new StringBuilder();
+    int n_checked = 0;
+    for (long mach : new long[] {5, 0, 4}) {
+      machine = mach;
+      for (int id = 106; id <= 117; id++) {
+        boolean ours = mach == 5 && id >= 108 && id <= 115;
+        for (int n = 0; n < 256 && bad.length() < 400; n++) {
+          if (!ours && n > 2) break;
+          long value = ((long) n << 8) | 0x80;		// a fraction the display must ignore
+          String want = ours ? agreedText(id - 108, n) : null;
+          // the popup: cfo_popup(id, value), the page in %a2
+          wr(POPBUF, 0x5a5a5a5a5a5a5a5aL, 8);
+          if (callTo(popup, new long[] {RET, id, value}, FMT, bad, "popup id " + id + " n " + n)) {
+            long pc = emu.getExecutionAddress().getOffset();
+            if (ours) {
+              String got = cstr(POPBUF);
+              if (pc != RET) bad.append(" [popup id " + id + ": went to the stock formatter]");
+              else if (!got.equals(want)) bad.append(" [popup id " + id + " n " + n + ": '" + got + "', want '" + want + "']");
+              else if (rd("D0") != POPBUF) bad.append(" [popup: %d0 is not the buffer]");
+              else if (rd("SP") != SP0 - 8) bad.append(" [popup: SP]");
+              else regsKept(bad, "popup");
+            } else if (pc != FMT) bad.append(" [popup machine " + mach + " id " + id + ": did not go to the stock formatter]");
+            else if (rd("SP") != SP0 - 12 || rdn(SP0 - 8, 4) != id || rdn(SP0 - 4, 4) != value) bad.append(" [popup: stock call's stack changed]");
+          }
+          // the cell's text: ParameterSet::vfunc_22(set, id, value, buffer), entered at its hooked start
+          wr(DBUF, 0x5a5a5a5a5a5a5a5aL, 8);
+          if (callTo(0x4000f324L, new long[] {RET, DSET, id, value, DBUF}, 0x4000f32cL, bad, "cell text id " + id)) {
+            long pc = emu.getExecutionAddress().getOffset();
+            if (ours) {
+              String got = cstr(DBUF);
+              if (pc != RET) bad.append(" [cell text id " + id + ": went on into vfunc_22]");
+              else if (!got.equals(want)) bad.append(" [cell text id " + id + " n " + n + ": '" + got + "', want '" + want + "']");
+              else if (rd("SP") != SP0 - 16) bad.append(" [cell text: SP]");
+              else regsKept(bad, "cell text");
+            } else if (pc != 0x4000f32cL) bad.append(" [cell text machine " + mach + " id " + id + ": did not go on into vfunc_22]");
+            else {
+              long q = rd("SP");
+              if (q != SP0 - 20 - 20) bad.append(" [cell text: the replayed frame is wrong]");
+              String[] saved = {"D2", "D3", "D4", "A2", "A3"};
+              for (int i = 0; i < 5; i++) {
+                long want2 = saved[i].equals("A2") ? DPAGE : 0x5a5a0000L + java.util.Arrays.asList(KEEP).indexOf(saved[i]);
+                if (rdn(q + 4L * i, 4) != want2) { bad.append(" [cell text: " + saved[i] + " not saved as vfunc_22 saves it]"); break; }
+              }
+              if (rdn(q + 24, 4) != DSET || rdn(q + 28, 4) != id || rdn(q + 32, 4) != value) bad.append(" [cell text: stock call's arguments changed]");
+            }
+          }
+          n_checked++;
+        }
+      }
+    }
+    machine = 5;
+    println(String.format("  %-64s %s%s", "displays: popup and cell text, " + n_checked + " values, agreed table", bad.length() == 0 ? "OK" : "**FAIL**", bad));
+    if (bad.length() != 0) fails++;
+
+    // 2. the picture: ParameterSet::vfunc_23(set, id, value, ...) draws STRT's knob, the value rescaled
+    bad = new StringBuilder();
+    for (long mach : new long[] {5, 0, 4}) {
+      machine = mach;
+      for (int id = 106; id <= 117; id++) {
+        boolean ours = mach == 5 && id >= 108 && id <= 115;
+        for (int n = 0; n < 256 && bad.length() < 400; n++) {
+          if (!ours && n > 2) break;
+          long value = ((long) n << 8) | 0x80;
+          if (!callTo(0x4000f2bcL, new long[] {RET, DSET, id, value, 0x11, 0x22, 0x33, 0x44}, 0x4000f2c4L, bad, "picture id " + id)) continue;
+          if (emu.getExecutionAddress().getOffset() != 0x4000f2c4L) { bad.append(" [picture id " + id + ": did not go on into vfunc_23]"); continue; }
+          long q = rd("SP");
+          if (q != SP0 - 32 - 20) { bad.append(" [picture: the replayed frame is wrong]"); continue; }
+          String[] saved = {"D2", "D3", "D4", "D5", "D6"};
+          for (int i = 0; i < 5; i++)
+            if (rdn(q + 4L * i, 4) != 0x5a5a0000L + java.util.Arrays.asList(KEEP).indexOf(saved[i])) { bad.append(" [picture: " + saved[i] + " not saved]"); break; }
+          long gotId = rdn(q + 28, 4), gotVal = rdn(q + 32, 4);
+          long wantId = id, wantVal = value;
+          if (ours) {
+            int[] r = KRANGE[id - 108];
+            long rel = Math.min(Math.max(n - r[0], 0), r[1]);
+            wantId = 112; wantVal = rel * 0x7800 / r[1];
+          }
+          if (gotId != wantId || gotVal != wantVal)
+            bad.append(String.format(" [picture machine %d id %d n %d: id %d value 0x%x, want id %d value 0x%x]", mach, id, n, gotId, gotVal, wantId, wantVal));
+          if (rdn(q + 24, 4) != DSET || rdn(q + 36, 4) != 0x11 || rdn(q + 48, 4) != 0x44) bad.append(" [picture: other arguments changed]");
+        }
+      }
+    }
+    machine = 5;
+    println(String.format("  %-64s %s%s", "displays: picture = STRT's knob over each knob's own range", bad.length() == 0 ? "OK" : "**FAIL**", bad));
+    if (bad.length() != 0) fails++;
+
+    // 3. the synth agrees with the text: detune_lo (G) and detune_hi (H), every value
+    bad = new StringBuilder();
+    String[] rout = {"detune_lo", "detune_hi"};
+    for (int g = 0; g < 2; g++) {
+      for (int n = 0; n < 256 && bad.length() < 300; n++) {
+        long sp = SP0 - 4;
+        wr(sp, RET, 4);
+        emu.writeRegister("SP", sp); emu.writeRegister("PC", sym.get(rout[g])); emu.writeRegister("D0", n);
+        boolean done = false;
+        for (int s = 0; s < 100; s++) {
+          if (emu.getExecutionAddress().getOffset() == RET) { done = true; break; }
+          if (!emu.step(monitor)) break;
+        }
+        int want = textOffset(agreedText(6 + g, n));
+        if (!done) bad.append(" [" + rout[g] + " " + n + ": no return]");
+        else if ((int) rd("D0") != want)
+          bad.append(String.format(" [%s %d: 0x%x, want 0x%x for '%s']", rout[g], n, (int) rd("D0"), want, agreedText(6 + g, n)));
+      }
+    }
+    println(String.format("  %-64s %s%s", "displays: G and H texts = the synth's detune, values 0-255", bad.length() == 0 ? "OK" : "**FAIL**", bad));
+    if (bad.length() != 0) fails++;
+  }
+
   /** machine 5 mode: FUN_400657cc (with the layout hook from the load file) for machines 0..7. */
   void layoutCases() throws Exception {
     StringBuilder bad = new StringBuilder();
@@ -598,6 +775,7 @@ public class EmuCfoOscillator extends GhidraScript {
       polyVoiceCase();
       if (sym.containsKey("slot_machine") || slots) slotCases();
       if (knobs) rangeCases();
+      if (knobs && sym.containsKey("cfo_text")) displayCases();
       remap = false;
       run("machine 5: ONESHOT with SAMP OFF is left alone", 3, zero, zero, c4, 0x4000, 3, 0, 0, 0, 0, MAX);
       remap = true;

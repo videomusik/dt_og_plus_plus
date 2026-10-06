@@ -24,6 +24,9 @@ Stages, written to out/1.54/stages/ (only with --stages):
   S12  S9 + the machine CFOO (machine 5, after POLY) and the synth playing on it
   S13  S12 + CFOO's own parameter names on its SRC page
   S14  S13 + a placeholder picker icon for CFOO
+  S15  S14 + a machine change to CFOO resets its SRC slots (ONESHOT's ids for machine 5)
+  S16  S15 + CFOO's own knobs, ranges and defaults
+  S17  S16 + CFOO's own value displays: the cell's picture and text, and the encoder popup's value
 patch.json is not changed: the feature is a prototype."""
 import json, os, shutil, subprocess, sys, tempfile
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -38,6 +41,9 @@ HOOKS = {
     ".hook_fill": (0x40077fc8, "4eb940072478"),          # jsr 0x40072478, after the two render lanes
     ".hook_layout": (0x400657e6, "203c4197df5c4e75"),    # FUN_400657cc's fallback: SLICE's record
     ".hook_slots": (0x40078f72, "7403b48065dc"),         # FUN_40078f44: machine > 3 gives id 0 (S15)
+    ".hook_popup": (0x40032d16, "4eb9400657ee"),         # the encoder popup's jsr FUN_400657ee (S17)
+    ".hook_pic": (0x4000f2bc, "4fefffec48d7007c"),       # ParameterSet::vfunc_23's first 8 B (S17)
+    ".hook_ctext": (0x4000f324, "4fefffec48d70c1c"),     # ParameterSet::vfunc_22's first 8 B (S17)
 }
 # Candidate pads: extent and member functions (for the fill). Only pads named here may hold code.
 PADS = {
@@ -86,12 +92,13 @@ def run(*cmd):
     return r.stdout
 
 
-def assemble(ld, tmp, inert=False, machine5=False, names=False, icon=False, slots=False, knobs=False):
+def assemble(ld, tmp, inert=False, machine5=False, names=False, icon=False, slots=False, knobs=False,
+             displays=False):
     run(sys.executable, os.path.join(HERE, "make_waves.py"), os.path.join(tmp, "waves.inc"))
     src = os.path.join(HERE, "cfo.s")
     defs = (["--defsym", "MACHINE5=1"] if machine5 else []) + (["--defsym", "NAMES=1"] if names else []) + \
         (["--defsym", "ICON=1"] if icon else []) + (["--defsym", "SLOTS=1"] if slots else []) + \
-        (["--defsym", "KNOBS=1"] if knobs else [])
+        (["--defsym", "KNOBS=1"] if knobs else []) + (["--defsym", "DISPLAYS=1"] if displays else [])
     if inert:
         src = os.path.join(tmp, "inert.s")
         with open(src, "w") as f:
@@ -185,12 +192,15 @@ def main():
         secs5i, syms5i = assemble(ld, tmp, machine5=True, names=True, icon=True)
         secs5s, syms5s = assemble(ld, tmp, machine5=True, names=True, icon=True, slots=True)
         secs5k, syms5k = assemble(ld, tmp, machine5=True, names=True, icon=True, slots=True, knobs=True)
+        secs5d, syms5d = assemble(ld, tmp, machine5=True, names=True, icon=True, slots=True, knobs=True,
+                                  displays=True)
         used = []
         allsecs = list(secs.items()) + [("m5" + k, v) for k, v in secs5.items()] + \
             [("mn" + k, v) for k, v in secs5n.items()] + [("mi" + k, v) for k, v in secs5i.items()] + \
-            [("ms" + k, v) for k, v in secs5s.items()] + [("mk" + k, v) for k, v in secs5k.items()]
+            [("ms" + k, v) for k, v in secs5s.items()] + [("mk" + k, v) for k, v in secs5k.items()] + \
+            [("md" + k, v) for k, v in secs5d.items()]
         for name, (vma, data) in sorted(allsecs, key=lambda x: x[1][0]):
-            name = name[2:] if name[:2] in ("m5", "mn", "mi", "ms", "mk") else name
+            name = name[2:] if name[:2] in ("m5", "mn", "mi", "ms", "mk", "md") else name
             end = vma + len(data)
             if name in HOOKS:
                 a, disp = HOOKS[name]
@@ -226,11 +236,16 @@ def main():
         pads16 = {}
         for k, (lo, hi) in enumerate([LABEL_PADS] + ICON_CODE + [(a - 2, a + 4) for a in RANGE_SITES]):
             pads16[".site%d" % k] = (lo, bytes(im16[lo - BASE:hi - BASE]))
+        im17 = apply_ranges(apply_icon(apply_renames(bytearray(img), syms5d), syms5d), syms5d)
+        pads17 = {}
+        for k, (lo, hi) in enumerate([LABEL_PADS] + ICON_CODE + [(a - 2, a + 4) for a in RANGE_SITES]):
+            pads17[".site%d" % k] = (lo, bytes(im17[lo - BASE:hi - BASE]))
         for path, (ss, sy) in ((load, (secs, syms)), (os.path.join(out, stem + "_m5.load"), (secs5, syms5)),
                                (os.path.join(out, stem + "_m5n.load"), (dict(secs5n, **pads13), syms5n)),
                                (os.path.join(out, stem + "_m5i.load"), (dict(secs5i, **pads14), syms5i)),
                                (os.path.join(out, stem + "_m5s.load"), (dict(secs5s, **pads15), syms5s)),
-                               (os.path.join(out, stem + "_m5k.load"), (dict(secs5k, **pads16), syms5k))):
+                               (os.path.join(out, stem + "_m5k.load"), (dict(secs5k, **pads16), syms5k)),
+                               (os.path.join(out, stem + "_m5d.load"), (dict(secs5d, **pads17), syms5d))):
             with open(path, "w") as f:
                 for name, (vma, data) in ss.items():
                     f.write("%08x %s\n" % (vma, data.hex()))
@@ -271,10 +286,14 @@ def main():
         for _n, (vma, data) in secs5k.items():
             im[vma - BASE:vma - BASE + len(data)] = data
         built["S16"] = bytes(apply_ranges(apply_icon(apply_renames(apply_edits(im, syms5k), syms5k), syms5k), syms5k))
+        im = bytearray(img1)
+        for _n, (vma, data) in secs5d.items():
+            im[vma - BASE:vma - BASE + len(data)] = data
+        built["S17"] = bytes(apply_ranges(apply_icon(apply_renames(apply_edits(im, syms5d), syms5d), syms5d), syms5d))
         dest = os.path.join(ROOT, "out", "1.54", "stages")
         os.makedirs(dest, exist_ok=True)
         syx, tool = build.DEFAULT_SYX, build.DEFAULT_TOOL
-        for name in ("S9", "S10", "S11", "S12", "S13", "S14", "S15", "S16"):
+        for name in ("S9", "S10", "S11", "S12", "S13", "S14", "S15", "S16", "S17"):
             p3 = built[name]
             sel, i = [], 0
             while i < len(stock):

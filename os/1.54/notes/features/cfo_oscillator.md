@@ -234,9 +234,9 @@ the pad's 2,372. The routes:
 
 ## Testing on the unit
 
-`make_cfo.py lz4_stream.ld --stages` builds eight images on top of the reference build (section 3
+`make_cfo.py lz4_stream.ld --stages` builds nine images on top of the reference build (section 3
 `efc90606…`, `.syx` `3fd4b0a3`), each adding one step to the stage named in its row. They are meant to
-be flashed in order, S9 to S16:
+be flashed in order, S9 to S17:
 
 | Stage | `.syx` | Section 3 | Contents |
 |---|---|---|---|
@@ -248,6 +248,7 @@ be flashed in order, S9 to S16:
 | S14 | `2d8fc5fa` | `49f7fd62…` | S13 + a placeholder picker icon for CFOO ([below](#cfoos-picker-icon-in-s14)) |
 | S15 | `7a8d8397` | `fafd7963…` | S14 + a machine change to CFOO reaches the engine at once ([below](#a-machine-change-to-cfoo-in-s15)) |
 | S16 | `60f12e59` | `d6cc95c2…` | S15 + CFOO's own knobs: map, ranges, defaults, detune, names ([below](#cfoos-own-knobs-in-s16)) |
+| S17 | `6f42dd47` | `b7ac2008…` | S16 + CFOO's own value displays: the knob pictures, the cell's text and the encoder popup ([below](#cfoos-own-value-displays-in-s17)) |
 
 Checked on the built images (S12's own checks are [below](#cfoo-machine-5-in-s12)):
 - the build's own checks;
@@ -274,6 +275,12 @@ Results on the unit, OS 1.54, each stage flashed on the one before from S8:
   ([below](#a-machine-change-to-cfoo-in-s15)).
 - ✅ **S15:** on an empty pattern, track 1 set to CFOO and a trig key pressed without touching SAMP: it
   sounds, the sine.
+- ⚠️ **S16:** the controls work, but the ranges seen on the unit are not those of the knob table. A screen
+  dump of a CFOO track's SRC page shows the eight labels (WAV1 FMSR WAV2 WAV3 / MIX FM DET2 DET3) and
+  CFOO's defaults, each value drawn as ONESHOT's parameter in that slot draws it: knobs for A, C, E, F
+  and G, PLAY's picture for B, SAMP's box for D and LEV's fader for H. G's unison (48) sits at 40 % of
+  LOOP's 0–120 sweep. That is what S16 leaves to ONESHOT ([below](#cfoos-own-knobs-in-s16)); S17 gives
+  CFOO its own displays.
 
 What to check:
 - **S9:** nothing changes anywhere. A live caller of the pad would now get 0 at once.
@@ -310,6 +317,13 @@ What to check:
   3, G and H at 98, E and F at 120). The detunes follow the table below: G down in semitones and up in
   cents, H down in cents and up in semitones. LEV is gone: the level follows velocity, and the AMP page
   sets the volume. The values still show as ONESHOT's numbers or pictures.
+- **S17:** on a CFOO track all eight cells are plain knobs, each turning over its own range: A, C, D over
+  the waves, B in four steps, E and F to 120, G and H to 98 with unison at the top. The encoder popup
+  (and the cell's text, where the page shows one) reads, for example, `OSC1 Wave=0`, `FM Source=OFF`,
+  `OSC2 Wave=64`, `Osc Mix=127`, `FM Amount=60`, `OSC2 Detune=-12st`, `OSC2 Detune=0`, `OSC3 Detune=+7st`,
+  `OSC3 Detune=-25ct`: what the synth plays. A ONESHOT, WERP, REPITCH, SLICE or POLY track's page
+  looks as before. A POLY track that follows a CFOO track should show CFOO's displays, as its page
+  shows its source's parameters (not checked).
 - **S15:** set a track to CFOO and trig it, or play it over MIDI, at once, without touching SAMP: it
   sounds. Its SRC page starts at ONESHOT's defaults (TUNE 0, FMSR on no FM, LEV 100), as a change to
   ONESHOT would. Changing machines between ONESHOT, SLICE and the others behaves as before.
@@ -663,10 +677,78 @@ scaled to 0–120 on G, for example): the synth clamps every knob itself.
   the window and every other harness pass on S16's own bytes. S9–S15 rebuild byte for byte.
 - Control: OSC2's detune through OSC3's table fails exactly the cases in which OSC2 is heard.
 
-⚠️ Not hooked, so still ONESHOT's ranges: the parameter cell's own range use
+⚠️ Not hooked, so still ONESHOT's ranges: the edit of one parameter on all eight tracks
 (`MachineParameterPageView::vfunc_23`, `0x400326aa`), MIDI CC scaling (`FUN_40084650`, `FUN_40084760`,
-`FUN_40084ef6`), and the modulation and lock paths (`FUN_4001c85c` and its neighbours). What each shows or
-does with CFOO's narrower ranges is to be seen on the unit.
+`FUN_40084ef6`), the modulation and lock paths (`FUN_4001c85c` and its neighbours), and every value
+display. What each does with CFOO's narrower ranges is listed under S17
+([below](#cfoos-own-value-displays-in-s17)), which gives CFOO its own displays.
+
+## CFOO's own value displays, in S17
+
+Built with `--defsym DISPLAYS=1` on top of S16. In S16 every CFOO value is still shown as ONESHOT's
+parameter in that slot shows it: the cell's picture and text and the encoder popup all go through the
+id's display object, and the knob drawers scale by ONESHOT's ranges. ✅ Read in the code (objdump,
+decompile):
+- the cell, `MachineParameterPageView::vfunc_37`, has the parameter set draw the value's picture
+  (`ParameterSet::vfunc_23`, `0x4000f2bc`) and write its text (`ParameterSet::vfunc_22`, `0x4000f324`),
+  both with `(set, id, value, …)` on the stack;
+- the encoder popup, `ParameterPageView::vfunc_17`, writes the value with `FUN_400657ee(id, value)` at
+  `0x40032d16`, the page in `%a2` (loaded at `0x40032a84`, kept to the end);
+- the display objects are built at start-up by `FUN_40152280`: STRT's and LEN's pictures are the same
+  plain knob, whose drawer (`0x400600a4`) picks frame 12 + round(value × 72 / 120.0), with 120.0
+  (`0x7800`) built in.
+
+S17 hooks the two methods at their first 8 B (a `lea` and a `moveml`, which the hook routines replay)
+and the popup at its call operand. For ids 108–115 on a CFOO sound (`FUN_4002200a(set)` for the cell,
+`FUN_4002b5d4(page)` for the popup, as S13's names do):
+- **The picture** is STRT's knob for every knob, the value rescaled from the knob's own range
+  (`cfoo_ranges`, the S16 table) to 0–120.0, so each knob turns over its whole range: B in four steps,
+  G and H with unison just left and right of the top.
+- **The text**, in the cell and in the popup, is what the synth makes of the value:
+
+  | Knob | Text | Example |
+  |---|---|---|
+  | A | the wave on the 0–127 scale of C and D: (A − 4) × 1.5 | `0` (SIN) … `126` |
+  | B | `OFF`, `OSC2`, `2+3`, `OSC3`; above 3 `OFF`, as the synth takes no source | `2+3` |
+  | C, D | the wave, 0–127 | `64` |
+  | E | the mix as the synth uses it, E + E/16, at most 127 | `127` |
+  | F | the FM amount, 0–120 | `60` |
+  | G | `-48st` … `-1st`, `0`, `+1ct` … `+50ct`; above 98 as 98 | `-12st` |
+  | H | `-50ct` … `-1ct`, `0`, `+1st` … `+48st`; above 98 as 98 | `+7st` |
+
+  The routine writes at most 6 B and uses no stock formatting code. Every other id and machine goes on
+  to the stock code with its arguments untouched.
+
+**Checked:**
+- `EmuCfoOscillator`'s displays mode, against a model of the knob table written in the harness: the
+  popup routine and the cell's text hook for ids 106–117, values 0–255 with a fraction, on machines 5,
+  0 and 4 (2,132 cases): CFOO's text only for 108–115 on machine 5, and otherwise the stock code reached
+  with its stack, arguments and saved registers as they would be;
+- the picture hook for the same ids and values: STRT's id and the rescaled value only for CFOO, the
+  replayed frame and the other arguments unchanged;
+- G and H across: for every value 0–255, `detune_lo` and `detune_hi` give exactly the semitones
+  (`0x10000` each) or cents (655 each) the text names;
+- the S16 synth cases, names, icon, layout, slots, ranges and the POLY voice still pass; the image
+  bytes, the window, `EmuMachineList` and every other harness pass on S17's own bytes. S9–S16 rebuild
+  byte for byte. S17 differs from S16 in the three hooks, the new code and strings, and the operands of
+  the name and range tables, which the larger code moves.
+
+Controls, each a copy of S17's code with one instruction changed: G's text offset 48 → 50 fails the
+text cases; the picture's id 112 → 113 fails the picture cases; `detune_lo`'s 48 → 47 fails the
+cross-check and the S16 synth cases that play OSC2.
+
+⚠️ Still ONESHOT's, not changed by S16 or S17 (objdump, decompile):
+- **A reset to a parameter's default**, `ParameterSet::vfunc_4` (`0x4000ff9a`), takes ONESHOT's
+  default (`FUN_40078f0c` at `0x4000ffac`, the set not in `%a2`) and stores it through the hooked setter,
+  which clamps it into CFOO's range: A 64, B 3, C 0, D 0, E 0, F 120, G 0 (−48 st), H 98 (+48 st). What
+  triggers it is not traced (229 call sites through that vtable slot).
+- **Randomising a sound**, `FUN_40021d26` (named RANDOM), draws every id's value from its own range and
+  stores the last one per slot, SLICE's for slots 17–24; the synth clamps each knob.
+- **MIDI CC** (`ParameterSet::vfunc_26`, 0–127 × 256) and `vfunc_25` (a 14-bit value, doubled) clamp to
+  ONESHOT's range before the hooked setter clamps to CFOO's: a CC on G or H has a dead zone above 98, on
+  A below 4 and above 88.
+- **The all-tracks edit**, `MachineParameterPageView::vfunc_23`, steps with ONESHOT's range and stores
+  through the hooked setter.
 
 ## Related notes
 

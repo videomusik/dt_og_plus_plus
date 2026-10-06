@@ -677,6 +677,234 @@ cfoo_ranges:				| {min, max, default}, 8.8, knobs A..H (ONESHOT's slot range)
 	.long	0x0000, 0x6200, 0x3200	| H OSC3 detune 0..98: unison at 50     (LEV 0..127)
 .endif
 
+| ---- CFOO's own value displays (--defsym DISPLAYS=1, with KNOBS). A parameter's value shows in two
+| places: the cell on the SRC page (ParameterSet::vfunc_23 draws its picture, vfunc_22 writes its text)
+| and the encoder popup (ParameterPageView::vfunc_17 calls FUN_400657ee at 0x40032d16, the page in
+| %a2). For ids 108..115 on a CFOO sound:
+| - the cell's picture is STRT's plain knob (id 112, 0..120), its value rescaled from the knob's own
+|   range in cfoo_ranges, so every knob turns over its whole range and the detunes' unison sits at the
+|   top;
+| - the cell's text and the popup's value are this build's: what the synth makes of the value.
+| The two cell methods are hooked at their first 8 B (replayed here); the popup at its call operand.
+
+.ifdef DISPLAYS
+	.section .hook_popup,"ax"	| 0x40032d16: jsr FUN_400657ee
+	jsr	cfo_popup
+	.section .hook_pic,"ax"		| 0x4000f2bc: lea %sp@(-20),%sp ; moveml %d2-%d6,%sp@
+	jmp	cfo_pic
+	nop
+	.section .hook_ctext,"ax"	| 0x4000f324: lea %sp@(-20),%sp ; moveml %d2-%d4/%a2-%a3,%sp@
+	jmp	cfo_ctext
+	nop
+
+	.section .cfo_display,"ax"
+| cfo_pic(set, id, value, ...): ParameterSet::vfunc_23, the cell's picture.
+cfo_pic:
+	movel	%sp@(8),%d0		| the id
+	subil	#108,%d0
+	moveq	#7,%d1
+	cmpl	%d0,%d1
+	bcss	9f			| not an SRC parameter
+	movel	%sp@(4),%sp@-		| the parameter set
+	jsr	0x4002200a		| its sound's machine
+	addql	#4,%sp
+	subql	#CFOO,%d0
+	bnes	9f
+	movel	%sp@(8),%d0		| the knob's record in cfoo_ranges, 12 B each
+	subil	#108,%d0
+	lsll	#2,%d0
+	movel	%d0,%d1
+	addl	%d0,%d0
+	addl	%d1,%d0
+	lea	cfoo_ranges,%a0
+	adda.l	%d0,%a0
+	movel	%sp@(12),%d1		| the value's integer part, as the synth reads it
+	andil	#0xffff,%d1
+	lsrl	#8,%d1
+	movel	%a0@,%d0		| - min, clamped to 0..span
+	lsrl	#8,%d0
+	subl	%d0,%d1
+	bpls	1f
+	moveq	#0,%d1
+1:	movel	%a0@(4),%d0
+	subl	%a0@,%d0
+	lsrl	#8,%d0			| span
+	cmpl	%d1,%d0
+	bccs	2f
+	movel	%d0,%d1
+2:	moveal	%d0,%a1
+	movel	#0x7800,%d0		| x 120.0 / span: STRT's knob, whose drawer scales by 120.0
+	mulsl	%d0,%d1
+	movel	%a1,%d0
+	divul	%d0,%d1
+	movel	%d1,%sp@(12)
+	moveq	#112,%d0
+	movel	%d0,%sp@(8)
+9:	lea	%sp@(-20),%sp		| the 8 B the hook replaced
+	moveml	%d2-%d6,%sp@
+	jmp	0x4000f2c4
+
+| cfo_ctext(set, id, value, buffer): ParameterSet::vfunc_22, the cell's text.
+cfo_ctext:
+	movel	%sp@(8),%d0
+	subil	#108,%d0
+	moveq	#7,%d1
+	cmpl	%d0,%d1
+	bcss	9f
+	movel	%sp@(4),%sp@-
+	jsr	0x4002200a
+	addql	#4,%sp
+	subql	#CFOO,%d0
+	bnes	9f
+	movel	%sp@(8),%d0
+	subil	#108,%d0
+	movel	%sp@(12),%d1
+	moveal	%sp@(16),%a0
+	jmp	cfo_text		| returns to vfunc_22's caller
+9:	lea	%sp@(-20),%sp		| the 8 B the hook replaced
+	moveml	%d2-%d4/%a2-%a3,%sp@
+	jmp	0x4000f32c
+
+| cfo_popup(id, value), the page in %a2: the encoder popup's value text.
+cfo_popup:
+	movel	%sp@(4),%d0
+	subil	#108,%d0
+	moveq	#7,%d1
+	cmpl	%d0,%d1
+	bcss	9f
+	movel	%a2,%sp@-		| the page
+	jsr	0x4002b5d4		| the machine it shows (a POLY follower: its source's)
+	addql	#4,%sp
+	subql	#CFOO,%d0
+	bnes	9f
+	movel	%sp@(4),%d0
+	subil	#108,%d0
+	movel	%sp@(8),%d1
+	lea	0x4197de98,%a0		| FUN_400657ee's own buffer, which it returns
+	jsr	cfo_text
+	movel	#0x4197de98,%d0
+	rts
+9:	jmp	0x400657ee
+
+| cfo_text: %d0 = knob 0..7 (A..H), %d1 = its value (8.8), %a0 = a buffer. Writes what the synth makes
+| of the value, NUL-terminated: A, C, D the wave on one 0..127 scale; B OFF, OSC2, 2+3, OSC3; E the mix
+| 0..127; F the FM amount; G -48st..-1st, 0, +1ct..+50ct; H -50ct..-1ct, 0, +1st..+48st. At most 6 B.
+| Clobbers %d0, %d1, %a0, %a1.
+cfo_text:
+	andil	#0xffff,%d1
+	lsrl	#8,%d1			| the integer part, as the synth reads it
+	tstl	%d0
+	beqs	t_a
+	subql	#1,%d0
+	beqw	t_b
+	subql	#1,%d0
+	beqs	t_num			| C
+	subql	#1,%d0
+	beqs	t_num			| D
+	subql	#1,%d0
+	beqs	t_e
+	subql	#1,%d0
+	beqs	t_num			| F
+	subql	#1,%d0
+	beqs	t_g
+	jsr	t_cap98			| H
+	subil	#50,%d1
+	beqs	t_zero
+	bmis	t_neg_ct
+	bras	t_pos_st
+t_g:	jsr	t_cap98
+	subil	#48,%d1
+	beqs	t_zero
+	bmis	t_neg_st
+t_pos_ct:
+	moveb	#43,%a0@+		| '+'
+t_neg_ct:
+	jsr	t_putnum
+	lea	s_ct,%a1
+	bras	t_copy
+t_pos_st:
+	moveb	#43,%a0@+
+t_neg_st:
+	jsr	t_putnum
+	lea	s_st,%a1
+	bras	t_copy
+t_zero:	moveb	#48,%a0@+		| '0'
+	clrb	%a0@
+	rts
+t_a:	subql	#4,%d1			| OSC1's wave: (A - 4) x 1.5, as the synth
+	bpls	1f
+	moveq	#0,%d1
+1:	movel	%d1,%d0
+	addl	%d1,%d1
+	addl	%d0,%d1
+	lsrl	#1,%d1
+	bras	t_num
+t_e:	movel	%d1,%d0			| the mix: E + E/16, at most 127, as the synth
+	lsrl	#4,%d0
+	addl	%d0,%d1
+	moveq	#127,%d0
+	cmpl	%d1,%d0
+	bccs	t_num
+	movel	%d0,%d1
+t_num:	jsr	t_putnum
+	clrb	%a0@
+	rts
+t_b:	moveq	#3,%d0			| above 3 the synth takes no FM source
+	cmpl	%d1,%d0
+	bccs	1f
+	moveq	#0,%d1
+1:	lea	fmsr_names,%a1
+	moveal	%a1@(0,%d1:l:4),%a1
+t_copy:	moveb	%a1@+,%a0@+
+	bnes	t_copy
+	rts
+t_cap98:
+	moveq	#98,%d0
+	cmpl	%d1,%d0
+	bccs	1f
+	movel	%d0,%d1
+1:	rts
+| t_putnum: %d1 = -999..999 in decimal at %a0, which it advances. Clobbers %d0, %d1.
+t_putnum:
+	tstl	%d1
+	bpls	1f
+	moveb	#45,%a0@+		| '-'
+	negl	%d1
+1:	moveq	#100,%d0
+	cmpl	%d0,%d1
+	bcss	2f
+	moveq	#47,%d0			| the hundreds: '0' - 1, counted up
+5:	addql	#1,%d0
+	subil	#100,%d1
+	bpls	5b
+	addil	#100,%d1
+	moveb	%d0,%a0@+
+	bras	3f			| the tens even when 0
+2:	moveq	#10,%d0
+	cmpl	%d0,%d1
+	bcss	4f
+3:	moveq	#47,%d0			| the tens
+6:	addql	#1,%d0
+	subil	#10,%d1
+	bpls	6b
+	addil	#10,%d1
+	moveb	%d0,%a0@+
+4:	addil	#48,%d1
+	moveb	%d1,%a0@+
+	rts
+
+	.section .cfo_names,"a"
+	.balign	4
+fmsr_names:
+	.long	s_off, s_osc2, s_osc23, s_osc3
+s_off:	.asciz	"OFF"
+s_osc2:	.asciz	"OSC2"
+s_osc23: .asciz	"2+3"
+s_osc3:	.asciz	"OSC3"
+s_st:	.asciz	"st"
+s_ct:	.asciz	"ct"
+.endif
+
 | ---- the machine name table: (long, short) per machine, 8 B each, as the stock table at 0x401a9d40.
 | The two readers 0x4007910c (long) and 0x4007912c (short) are pointed here and their bound raised.
 
