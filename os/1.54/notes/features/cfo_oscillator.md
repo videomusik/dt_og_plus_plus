@@ -234,9 +234,9 @@ the pad's 2,372. The routes:
 
 ## Testing on the unit
 
-`make_cfo.py lz4_stream.ld --stages` builds seven images on top of the reference build (section 3
+`make_cfo.py lz4_stream.ld --stages` builds eight images on top of the reference build (section 3
 `efc90606…`, `.syx` `3fd4b0a3`), each adding one step to the stage named in its row. They are meant to
-be flashed in order, S9 to S15:
+be flashed in order, S9 to S16:
 
 | Stage | `.syx` | Section 3 | Contents |
 |---|---|---|---|
@@ -247,6 +247,7 @@ be flashed in order, S9 to S15:
 | S13 | `b29c5ea7` | `49c9b6c2…` | S12 + CFOO's own parameter names on its SRC page ([below](#cfoos-own-parameter-names-in-s13)) |
 | S14 | `2d8fc5fa` | `49f7fd62…` | S13 + a placeholder picker icon for CFOO ([below](#cfoos-picker-icon-in-s14)) |
 | S15 | `7a8d8397` | `fafd7963…` | S14 + a machine change to CFOO reaches the engine at once ([below](#a-machine-change-to-cfoo-in-s15)) |
+| S16 | `60f12e59` | `d6cc95c2…` | S15 + CFOO's own knobs: map, ranges, defaults, detune, names ([below](#cfoos-own-knobs-in-s16)) |
 
 Checked on the built images (S12's own checks are [below](#cfoo-machine-5-in-s12)):
 - the build's own checks;
@@ -304,6 +305,11 @@ What to check:
   encoder popups read Tune, FM Source, Osc Mix, Sample Slot, OSC1 Wave, FM Amount, OSC2+3 Wave and Level.
   A ONESHOT track's page is unchanged, and so is a MIDI track's CHAN/TRK label. The values themselves
   still show as ONESHOT shows them, for example PLAY's play-mode pictures on FMSR.
+- **S16:** a CFOO track's SRC page reads WAV1 FMSR WAV2 WAV3 MIX FM DET2 DET3. A fresh CFOO track is
+  a plain sine (OSC1 SIN alone, no FM, both detunes at unison). Each knob stops at its own range (B at
+  3, G and H at 98, E and F at 120). The detunes follow the table below: G down in semitones and up in
+  cents, H down in cents and up in semitones. LEV is gone: the level follows velocity, and the AMP page
+  sets the volume. The values still show as ONESHOT's numbers or pictures.
 - **S15:** set a track to CFOO and trig it, or play it over MIDI, at once, without touching SAMP: it
   sounds. Its SRC page starts at ONESHOT's defaults (TUNE 0, FMSR on no FM, LEV 100), as a change to
   ONESHOT would. Changing machines between ONESHOT, SLICE and the others behaves as before.
@@ -609,6 +615,58 @@ parameters too, where they got the `Error` descriptor before.
 
 ⚠️ That the posted changes make the engine take the new machine is inferred from S12–S14's behaviour
 (any later change did), not traced: S15 tests it.
+
+## CFOO's own knobs, in S16
+
+Built with `--defsym KNOBS=1` on top of S15. CFOO's page keeps ONESHOT's parameter ids 108–115 (one per
+SRC slot, knobs A–H), with its own meanings, names, ranges and defaults:
+
+| Knob | Slot | Name | Range | Default | What the synth does |
+|---|---|---|---|---|---|
+| A | 17 (`+0x34`) | WAV1, OSC1 Wave | 4–88 | 4 | OSC1's wave, (A − 4) × 1.5: SIN → TRI → SAW → SQR |
+| B | 18 (`+0x36`) | FMSR, FM Source | 0–3 | 0 | 0 off, 1 OSC2, 2 OSC2+3, 3 OSC3 |
+| C | 19 (`+0x38`) | WAV2, OSC2 Wave | 0–127 | 0 | OSC2's wave |
+| D | 20 (`+0x3a`) | WAV3, OSC3 Wave | 0–127 | 0 | OSC3's wave |
+| E | 21 (`+0x3c`) | MIX, Osc Mix | 0–120 | 0 | the mix, E + E/16: OSC1 → 1+2 → 1+2+3 → 2+3 |
+| F | 22 (`+0x3e`) | FM, FM Amount | 0–120 | 0 | FM depth, as LEN was |
+| G | 23 (`+0x40`) | DET2, OSC2 Detune | 0–98 | 48 | 0–47: −48 … −1 semitones; 48 unison; 49–98: +1 … +50 cents |
+| H | 24 (`+0x42`) | DET3, OSC3 Detune | 0–98 | 50 | 0–49: −50 … −1 cents; 50 unison; 51–98: +1 … +48 semitones |
+
+A cent is 655 in the note sum (a semitone is `0x10000`), so ±50 cents is ±32,750; the pitch table
+resolves about 0.6 cent. OSC1 follows the note alone (no TUNE). The level is `FUN_40074c60(x, 127)`:
+velocity only, with the de-click and the ramp as before.
+
+**Own ranges and defaults.** ✅ Read in the code (objdump): every reader of a parameter's range and
+default gets it from `FUN_40078f0c(id)` (36 callers), or from its copy `FUN_4007927c` (6 callers in the
+project loader), which copy the 12 B `{min, max, default}` from descriptor `+0x08` to `%a0`, given only
+the id. Five callers hold the parameter set in `%a2` (loaded in their prologues, not changed before the
+call): `ParameterSet::vfunc_8` (`0x4000f534`), the value setter `FUN_4000fef6` (`0x4000ff20`),
+`ParameterSet::vfunc_11` (`0x400100c4`), `ParameterSet::vfunc_25` (`0x40010154`, the knob edit, reached
+from `SoundParameterSet::vfunc_25`) and the machine-change reset `FUN_400220fc` (`lea` into `%a5` at
+`0x40022138`). S16 points those five operands at `cfo_range`: for ids 108–115 on a set whose machine
+(`FUN_4002200a`, which keeps `%a2`) is 5 it copies CFOO's record, and anything else goes on to
+`FUN_40078f0c` untouched. Each of CFOO's ranges lies inside ONESHOT's for the same slot (TUNE 4–88,
+PLAY 0–3, BR and SAMP 0–127, STRT, LEN and LOOP 0–120, LEV 0–127), so the readers that are not hooked,
+which clamp to ONESHOT's ranges (the project loader, MIDI and modulation among them), cannot move a
+stored CFOO value out of the slot. A value beyond CFOO's range can still arrive through them (a MIDI CC
+scaled to 0–120 on G, for example): the synth clamps every knob itself.
+
+**Checked:**
+- `EmuCfoOscillator` in knobs mode (a load with `cfo_range`) runs 21 synth cases against a model written
+  from the table above, not from the code: defaults, A across its range and below it, the mix points,
+  each FM source, each detune region and its ends, values above the ranges, extreme notes with +48 st,
+  the de-click, the level RAM at boot, half level. A pure SIN at note 60 measures 261.47 Hz.
+- It runs `cfo_range` against a fake parameter set whose sound carries machine 5, 0 or 4, for ids
+  106–117: CFOO's record only for 108–115 on machine 5, the stock record otherwise, `%a2`, `%d2` and the
+  stack kept; and it checks that all five call operands point at `cfo_range`.
+- The names case expects the new names; layout, icon, slots and the POLY voice pass; the image bytes,
+  the window and every other harness pass on S16's own bytes. S9–S15 rebuild byte for byte.
+- Control: OSC2's detune through OSC3's table fails exactly the cases in which OSC2 is heard.
+
+⚠️ Not hooked, so still ONESHOT's ranges: the parameter cell's own range use
+(`MachineParameterPageView::vfunc_23`, `0x400326aa`), MIDI CC scaling (`FUN_40084650`, `FUN_40084760`,
+`FUN_40084ef6`), and the modulation and lock paths (`FUN_4001c85c` and its neighbours). What each shows or
+does with CFOO's narrower ranges is to be seen on the unit.
 
 ## Related notes
 

@@ -89,6 +89,147 @@ cfo_pad:
 | ---- one track: %a5 = its engine block (SRC slots 17..24 at +0x34..+0x42, 8.8)
 
 	.section .cfo_track,"ax"
+.ifdef KNOBS
+| CFOO's own knobs (S16). The SRC slots, by knob: A +0x34 OSC1 wave (4..88), B +0x36 FM source (0 off,
+| 1 OSC2, 2 OSC2+3, 3 OSC3), C +0x38 OSC2 wave, D +0x3a OSC3 wave (0..127), E +0x3c the mix (0..120),
+| F +0x3e FM amount (0..120), G +0x40 OSC2 detune, H +0x42 OSC3 detune (0..98). Values outside these
+| ranges can still arrive (MIDI, LFOs scale to ONESHOT's wider ranges), so each is clamped here.
+track:
+	movel	%a6@(TRK),%d0		| its three phases
+	movel	%d0,%d1
+	addl	%d0,%d0
+	addl	%d1,%d0
+	lsll	#2,%d0
+	lea	PHASES,%a4
+	adda.l	%d0,%a4
+	movel	%a6@(TRK),%d0		| OSC1's note sum: the note + the table offset (no TUNE)
+	lea	NOTES,%a0
+	movel	%a0@(0,%d0:l:4),%d2
+	addil	#0x30000,%d2
+	movel	%d2,%a6@(NSUM)
+	movel	%d2,%d0
+	jsr	pitch
+	movel	%d0,%a6@(STEP1)
+	moveq	#13,%d1			| FM scale: step / 8192 x F
+	lsrl	%d1,%d0
+	mvzb	%a5@(0x3e),%d1
+	mulsl	%d1,%d0
+	movel	%d0,%a6@(FMS)
+	mvzb	%a5@(0x36),%d0		| B: FM from OSC2 for 1 and 2, from OSC3 for 2 and 3
+	subql	#1,%d0
+	moveq	#2,%d1
+	cmpl	%d1,%d0
+	scs	%d1
+	extbl	%d1
+	movel	%d1,%a6@(M2)
+	subql	#1,%d0
+	moveq	#2,%d1
+	cmpl	%d1,%d0
+	scs	%d1
+	extbl	%d1
+	movel	%d1,%a6@(M3)
+	mvzb	%a5@(0x3c),%d0		| E: the mix, 0..120 stretched to 0..127
+	movel	%d0,%d1
+	lsrl	#4,%d1
+	addl	%d1,%d0
+	moveq	#127,%d1
+	cmpl	%d0,%d1
+	bccs	1f
+	movel	%d1,%d0
+1:	jsr	gains
+	movel	#0x7f00,%sp@-		| the level, Q31 >> 16: LEVEL(x, 127), velocity only
+	movel	%a6@(TRK),%d0
+	lea	VELS,%a0
+	mvzw	%a0@(0,%d0:l:2),%d0
+	movel	%d0,%sp@-
+	jsr	LEVEL
+	addql	#8,%sp
+	movel	%a6@(TRK),%d1		| the lanes' de-click
+	movel	%d1,%d2
+	mulu.w	#0x5e,%d1
+	lea	VOICES+0x28,%a0
+	tstb	%a0@(0,%d1:l)
+	beqs	1f
+	movel	TRIGS,%d1
+	btst	%d2,%d1
+	beqs	1f
+	clrl	%d0
+1:	clrw	%d0
+	swap	%d0
+	movel	%a6@(TRK),%d1		| the ramp from the last tick's level
+	lea	LEVELS,%a0
+	lea	%a0@(0,%d1:l:4),%a0
+	movel	%a0@,%d1
+	movel	%d0,%a0@
+	cmpil	#0x7fff,%d1
+	blss	2f
+	movel	%d0,%d1
+2:	movel	%d0,%d2
+	subl	%d1,%d2
+	movel	%d2,%a6@(LSTEP)
+	lsll	#5,%d1
+	movel	%d1,%a6@(LCUR)
+	mvzb	%a5@(0x40),%d0		| OSC2: G, -48..-1 st, unison at 48, +1..+50 cents; wave C
+	jsr	detune_lo
+	addl	%a6@(NSUM),%d0
+	jsr	pitch
+	movel	%d0,%d6
+	mvzb	%a5@(0x38),%d0
+	jsr	wave
+	lea	%a4@(4),%a2
+	lea	%a6@(S2),%a3
+	jsr	osc32
+	mvzb	%a5@(0x42),%d0		| OSC3: H, -50..-1 cents, unison at 50, +1..+48 st; wave D
+	jsr	detune_hi
+	addl	%a6@(NSUM),%d0
+	jsr	pitch
+	movel	%d0,%d6
+	mvzb	%a5@(0x3a),%d0
+	jsr	wave
+	lea	%a4@(8),%a2
+	lea	%a6@(S3),%a3
+	jsr	osc32
+	mvzb	%a5@(0x34),%d0		| OSC1: A, 4..88 -> wave (A - 4) x 1.5, with FM, into the buffer
+	subql	#4,%d0
+	bpls	1f
+	moveq	#0,%d0
+1:	movel	%d0,%d1
+	addl	%d0,%d0
+	addl	%d1,%d0
+	lsrl	#1,%d0
+	jsr	wave
+	movel	%a6@(STEP1),%d6
+	movel	%a6@(TRK),%d0
+	lsll	#7,%d0
+	movea.l	%a6@(A18),%a3
+	adda.l	%d0,%a3
+	movea.l	%a4,%a2
+	jmp	osc1_mix
+
+| detune_lo: %d0 = G (clamped to 0..98) -> %d0 = note-sum offset: below 48 semitones (0x10000 each),
+| above 48 cents (655 each). detune_hi: %d0 = H (0..98): below 50 cents, above 50 semitones.
+| Clobber %d1.
+detune_lo:
+	bsrs	clamp98
+	subil	#48,%d0
+	bmis	semis
+	bras	cents
+detune_hi:
+	bsrs	clamp98
+	subil	#50,%d0
+	bmis	cents
+semis:	swap	%d0			| (d0 << 16): exact, also for negative d0
+	clrw	%d0
+	rts
+cents:	mulsw	#655,%d0			| -50..50 cents, a 16-bit product
+	rts
+clamp98:
+	moveq	#98,%d1
+	cmpl	%d0,%d1
+	bccs	1f
+	movel	%d1,%d0
+1:	rts
+.else
 track:
 	movel	%a6@(TRK),%d0		| its three phases
 	movel	%d0,%d1
@@ -188,6 +329,7 @@ track:
 	adda.l	%d0,%a3
 	movea.l	%a4,%a2
 	jmp	osc1_mix
+.endif
 
 | ---- pitch: %d0 = note sum -> %d0 = phase step per sample (2^32 = one cycle, 48 kHz).
 | The stock table gives 2^29 at note 60; (2^29 >> 13) x 357 = 23,396,352, 261.4 Hz (C4 -1 cent).
@@ -395,10 +537,24 @@ cfo_long:
 1:	jmp	0x4000feac		| the stock long-name accessor
 
 	.section .cfo_names,"a"
+.ifdef KNOBS
+cfoo_short_names:			| ids 108..115, knobs A..H
+	.long	n_wav1, n_fmsr, n_wav2, n_wav3, n_mix, n_fm, n_det2, n_det3
+cfoo_long_names:
+	.long	n_osc1_wave, n_fm_source, n_osc2_wave, n_osc3_wave, n_osc_mix, n_fm_amount, n_osc2_det, n_osc3_det
+n_wav3:	.asciz	"WAV3"
+n_det2:	.asciz	"DET2"
+n_det3:	.asciz	"DET3"
+n_osc2_wave:	.asciz	"OSC2 Wave"
+n_osc3_wave:	.asciz	"OSC3 Wave"
+n_osc2_det:	.asciz	"OSC2 Detune"
+n_osc3_det:	.asciz	"OSC3 Detune"
+.else
 cfoo_short_names:			| ids 108..115: TUNE PLAY BR SAMP STRT LEN LOOP LEV
 	.long	0x401d9fff, n_fmsr, n_mix, 0x401c6f07, n_wav1, n_fm, n_wav2, 0x401cca34
 cfoo_long_names:
 	.long	0x401cce1e, n_fm_source, n_osc_mix, 0x401cce3e, n_osc1_wave, n_fm_amount, n_osc23_wave, n_level
+.endif
 n_fmsr:	.asciz	"FMSR"
 n_mix:	.asciz	"MIX"
 n_wav1:	.asciz	"WAV1"
@@ -467,6 +623,58 @@ slot_machine:
 	bcss	2f
 	jmp	0x40078f78		| the table lookup
 2:	jmp	0x40078f54		| id 0
+.endif
+
+| ---- CFOO's own ranges and defaults (--defsym KNOBS=1, with SLOTS). FUN_40078f0c(id) copies a
+| parameter's {min, max, default} (12 B from descriptor +0x08) to %a0. At five call sites %a2 holds the
+| parameter set (ParameterSet::vfunc_8, vfunc_11, vfunc_25, the value setter FUN_4000fef6, and the
+| machine-change reset FUN_400220fc); those calls come here. For ids 108..115 on a set whose machine
+| (FUN_4002200a) is 5, CFOO's record is copied; anything else goes to FUN_40078f0c untouched. Each of
+| CFOO's ranges lies inside ONESHOT's for the same slot, so the readers that are not hooked (they clamp
+| to ONESHOT's ranges) cannot push a CFOO value out of the slot's stored range.
+
+.ifdef KNOBS
+	.section .cfo_range,"ax"
+cfo_range:
+	movel	%sp@(4),%d0
+	subil	#108,%d0
+	moveq	#7,%d1
+	cmpl	%d0,%d1
+	bcss	9f			| not an SRC parameter
+	movel	%a0,%sp@-
+	movel	%d0,%sp@-
+	movel	%a2,%sp@-
+	jsr	0x4002200a		| the set's machine; keeps %a2
+	addql	#4,%sp
+	movel	%sp@+,%d1
+	moveal	%sp@+,%a0
+	subql	#CFOO,%d0
+	bnes	9f
+	movel	%d1,%d0			| 12 B per record
+	lsll	#2,%d0
+	movel	%d0,%d1
+	addl	%d0,%d0
+	addl	%d1,%d0
+	lea	cfoo_ranges,%a1
+	adda.l	%d0,%a1
+	movel	%a1@+,%a0@
+	movel	%a1@+,%a0@(4)
+	movel	%a1@,%a0@(8)
+	movel	%a0,%d0
+	rts
+9:	jmp	0x40078f0c
+
+	.section .cfo_names,"a"
+	.balign	4
+cfoo_ranges:				| {min, max, default}, 8.8, knobs A..H (ONESHOT's slot range)
+	.long	0x0400, 0x5800, 0x0400	| A OSC1 wave: SIN..SQR in 85 steps    (TUNE 4..88)
+	.long	0x0000, 0x0300, 0x0000	| B FM source: off                      (PLAY 0..3)
+	.long	0x0000, 0x7f00, 0x0000	| C OSC2 wave: SIN                      (BR 0..127)
+	.long	0x0000, 0x7f00, 0x0000	| D OSC3 wave: SIN                      (SAMP 0..127)
+	.long	0x0000, 0x7800, 0x0000	| E mix: OSC1 alone                     (STRT 0..120)
+	.long	0x0000, 0x7800, 0x0000	| F FM amount: 0                        (LEN 0..120)
+	.long	0x0000, 0x6200, 0x3000	| G OSC2 detune 0..98: unison at 48     (LOOP 0..120)
+	.long	0x0000, 0x6200, 0x3200	| H OSC3 detune 0..98: unison at 50     (LEV 0..127)
 .endif
 
 | ---- the machine name table: (long, short) per machine, 8 B each, as the stock table at 0x401a9d40.

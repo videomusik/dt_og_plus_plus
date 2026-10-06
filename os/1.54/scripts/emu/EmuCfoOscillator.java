@@ -110,6 +110,36 @@ public class EmuCfoOscillator extends GhidraScript {
     return out;
   }
 
+  // knobs mode (S16): A OSC1 wave (4..88), B FM source (0 off, 1 OSC2, 2 OSC2+3, 3 OSC3), C OSC2 wave,
+  // D OSC3 wave, E mix (0..120), F FM amount, G OSC2 detune (-48..-1 st, 48 unison, +1..+50 cents),
+  // H OSC3 detune (-50..-1 cents, 50 unison, +1..+48 st); written from the knob table, not the code.
+  static int detLo(int g) { g = Math.min(g, 98); int d = g - 48; return d < 0 ? d << 16 : d * 655; }
+  static int detHi(int h) { h = Math.min(h, 98); int d = h - 50; return d < 0 ? d * 655 : d << 16; }
+  int[] modelK(int t, int note, int[] k, int level) {
+    int ns = (note << 16) + 0x30000;
+    int st1 = pitch(ns), st2 = pitch(ns + detLo(k[6])), st3 = pitch(ns + detHi(k[7]));
+    int fms = (st1 >>> 13) * k[5];
+    int m2 = Integer.compareUnsigned(k[1] - 1, 2) < 0 ? -1 : 0, m3 = Integer.compareUnsigned(k[1] - 2, 2) < 0 ? -1 : 0;
+    int e = Math.min(k[4] + (k[4] >> 4), 127);
+    int[] g = gains(e);
+    int now = level >>> 16, last = mprev[t];
+    if (Integer.compareUnsigned(last, 0x7fff) > 0) last = now;
+    mprev[t] = now;
+    int cur = last << 5, step = now - last;
+    int[] w1 = wave((Math.max(k[0] - 4, 0) * 3) >> 1), w2 = wave(k[2]), w3 = wave(k[3]);
+    int[] s2 = new int[32], s3 = new int[32], out = new int[32];
+    for (int i = 0; i < 32; i++) { ph[t][1] += st2; s2[i] = samp(w2, ph[t][1]); }
+    for (int i = 0; i < 32; i++) { ph[t][2] += st3; s3[i] = samp(w3, ph[t][2]); }
+    for (int i = 0; i < 32; i++) {
+      int fm = (s2[i] & m2) + (s3[i] & m3);
+      ph[t][0] += st1 + fm * fms;
+      int s1 = samp(w1, ph[t][0]);
+      cur += step;
+      out[i] = (s1 * g[0] + s2[i] * g[1] + s3[i] * g[2]) * (cur >> 5);
+    }
+    return out;
+  }
+
   // ---- one case: several ticks with fixed settings
   static final String[] KEEP = {"D2","D3","D4","D5","D6","D7","A2","A3","A4","A5","A6"};
 
@@ -117,6 +147,7 @@ public class EmuCfoOscillator extends GhidraScript {
   boolean m5 = false, remap = true;
   int maxSteps = 0;
   boolean slots = false;			// run slotCases even without the hook (a control)
+  int[] K = null;			// knobs mode (S16): A..H as written to the SRC slots, or null
   int activeMask = 0, trigMask = 0;	// voices on, and voices with a trig next tick
   int[] mprev = new int[8];		// the model's last level per track
   long seedLevels = 0;			// what fresh() puts in the level RAM
@@ -143,8 +174,9 @@ public class EmuCfoOscillator extends GhidraScript {
       long e = ENGINE + t * 0x6a;
       wr(e + 0x34, tune, 2); wr(e + 0x36, play << 8, 2); wr(e + 0x38, br << 8, 2); wr(e + 0x3a, slot[t] << 8, 2);
       wr(e + 0x3c, strt << 8, 2); wr(e + 0x3e, len << 8, 2); wr(e + 0x40, loop << 8, 2);
+      if (K != null) for (int j = 0; j < 8; j++) wr(e + 0x34 + 2 * j, (K[j] & 0xff) << 8, 2);
       wr(NOTES + 4 * t, (long) note[t] << 16, 4);
-      wr(e + 0x42, LEVW, 2);
+      if (K == null) wr(e + 0x42, LEVW, 2);
       wr(VELS + 2 * t, X0 + t, 2);
       wr(VOICES + t * 0x5e + 0x10, STALE, 4);	// a level the lanes faded: the synth must not read it
       wr(VOICES + t * 0x5e + 0x28, (activeMask >> t) & 1, 1);
@@ -166,7 +198,8 @@ public class EmuCfoOscillator extends GhidraScript {
         int x = (int) rdn(q + 6, 2), lev = (int) rdn(q + 10, 2), t = x - X0;
         if (t < 0 || t > 7) bad.append(String.format(" [level x 0x%04x is no track's]", x));
         else levelCalls[t]++;
-        if (lev != LEVW) bad.append(String.format(" [level LEV 0x%04x, want 0x%04x]", lev, LEVW));
+        int levWant = K != null ? 0x7f00 : LEVW;
+        if (lev != levWant) bad.append(String.format(" [level LEV 0x%04x, want 0x%04x]", lev, levWant));
         emu.writeRegister("D0", level & 0xffffffffL); emu.writeRegister("D1", 0xdead0001L);
         emu.writeRegister("PC", rdn(q, 4)); emu.writeRegister("SP", q + 4);
         continue;
@@ -185,7 +218,7 @@ public class EmuCfoOscillator extends GhidraScript {
       if (done && levelCalls[t] != (synth ? 1 : 0))
         bad.append(String.format(" [track %d: %d level calls, want %d]", t, levelCalls[t], synth ? 1 : 0));
       int lv = ((activeMask & trigMask) >> t & 1) != 0 ? 0 : level;	// the de-click
-      int[] want = synth ? model(t, note[t], tune, play, br, strt, len, loop, lv) : null;
+      int[] want = !synth ? null : K != null ? modelK(t, note[t], K, lv) : model(t, note[t], tune, play, br, strt, len, loop, lv);
       for (int i = 0; i < 32; i++) {
         int got = rd32s(A18 + t * 0x80 + 4 * i);
         int exp = synth ? want[i] : (int) (0x11110000L + t * 0x100 + i);
@@ -211,8 +244,8 @@ public class EmuCfoOscillator extends GhidraScript {
 
   static final long PAGE = 0x439d3400L, QUERY = 0x4002b5d4L, SHORT_PAD = 0x4001562cL, LONG_PAD = 0x4001564cL;
   static final long DESC = 0x401aa09cL;
-  static final String[] CFOO_SHORT = {"TUNE", "FMSR", "MIX", "SAMP", "WAV1", "FM", "WAV2", "LEV"};
-  static final String[] CFOO_LONG = {"Tune", "FM Source", "Osc Mix", "Sample Slot", "OSC1 Wave", "FM Amount", "OSC2+3 Wave", "Level"};
+  String[] CFOO_SHORT = {"TUNE", "FMSR", "MIX", "SAMP", "WAV1", "FM", "WAV2", "LEV"};
+  String[] CFOO_LONG = {"Tune", "FM Source", "Osc Mix", "Sample Slot", "OSC1 Wave", "FM Amount", "OSC2+3 Wave", "Level"};
 
   /** One label-pad call: returns the name it gives, or null on a fault; checks SP, registers, the query's argument. */
   String label(boolean shortLabel, int id, int machine, long frame100, StringBuilder bad) throws Exception {
@@ -368,6 +401,88 @@ public class EmuCfoOscillator extends GhidraScript {
     if (bad.length() != 0) fails++;
   }
 
+  /** knobs mode (S16): the synth cases over CFOO's own knob map, against modelK. */
+  void runK(String label, int ticks, int[] machine, int[] slot, int[] note, int[] k) throws Exception {
+    K = k;
+    run(label, ticks, machine, slot, note, 0, 0, 0, 0, 0, 0, 0x7fffffff);
+  }
+  void knobCases(int[] none, int[] noSlot, int[] zero, int[] c4, int[] notes, int MAX) throws Exception {
+    int[] def = {4, 0, 0, 0, 0, 0, 48, 50};
+    runK("knobs: no synth track, every block untouched", 3, none, noSlot, c4, def);
+    runK("knobs: defaults (OSC1 SIN alone), all 8 tracks", 40, zero, zero, notes, def);
+    runK("knobs: A 46 (TRI..SAW), A 88 (SQR)", 20, zero, zero, notes, new int[] {46, 0, 0, 0, 0, 0, 48, 50});
+    runK("knobs: A 88", 20, zero, zero, notes, new int[] {88, 0, 0, 0, 0, 0, 48, 50});
+    runK("knobs: A 2 (below range, clamps to SIN)", 10, zero, zero, notes, new int[] {2, 0, 0, 0, 0, 0, 48, 50});
+    runK("knobs: mix E 40 / waves C 40, D 90", 20, zero, zero, notes, new int[] {4, 0, 40, 90, 40, 0, 48, 50});
+    runK("knobs: mix E 80", 20, zero, zero, notes, new int[] {4, 0, 40, 90, 80, 0, 48, 50});
+    runK("knobs: mix E 120 (OSC2+3)", 20, zero, zero, notes, new int[] {4, 0, 40, 90, 120, 0, 48, 50});
+    runK("knobs: FM B 1 (OSC2), F 60", 30, zero, zero, notes, new int[] {4, 1, 0, 0, 0, 60, 36, 50});
+    runK("knobs: FM B 2 (OSC2+3), F 120", 30, zero, zero, notes, new int[] {30, 2, 20, 70, 60, 120, 40, 70});
+    runK("knobs: FM B 3 (OSC3), F 90", 30, zero, zero, notes, new int[] {4, 3, 0, 0, 0, 90, 48, 62});
+    runK("knobs: FM B 0 (off), F 120", 20, zero, zero, notes, new int[] {4, 0, 0, 0, 0, 120, 48, 50});
+    runK("knobs: G 0 (-48 st), H 98 (+48 st)", 20, zero, zero, notes, new int[] {4, 0, 0, 0, 85, 0, 0, 98});
+    runK("knobs: G 47 (-1 st), H 49 (-1 c)", 20, zero, zero, notes, new int[] {4, 0, 0, 0, 85, 0, 47, 49});
+    runK("knobs: G 49 (+1 c), H 51 (+1 st)", 20, zero, zero, notes, new int[] {4, 0, 0, 0, 85, 0, 49, 51});
+    runK("knobs: G 98 (+50 c), H 0 (-50 c)", 20, zero, zero, notes, new int[] {4, 0, 0, 0, 85, 0, 98, 0});
+    runK("knobs: G 120, H 127 (above range, clamp to 98)", 20, zero, zero, notes, new int[] {4, 0, 0, 0, 85, 0, 120, 127});
+    runK("knobs: extreme notes with +48 st", 10, zero, zero, new int[] {0, 127, 0, 127, 0, 127, 0, 127}, new int[] {88, 2, 127, 127, 60, 120, 0, 98});
+    K = new int[] {4, 0, 0, 0, 0, 0, 48, 50};
+    activeMask = 0xff; trigMask = 0x0a;
+    run("knobs: de-click", 5, zero, zero, notes, 0, 0, 0, 0, 0, 0, MAX);
+    activeMask = 0; trigMask = 0;
+    seedLevels = 0xdeadbeefL;
+    run("knobs: level RAM not set at boot", 3, zero, zero, notes, 0, 0, 0, 0, 0, 0, MAX);
+    seedLevels = 0;
+    run("knobs: half level", 10, zero, zero, notes, 0, 0, 0, 0, 0, 0, 0x40000000);
+  }
+
+  /** knobs mode (S16): cfo_range against a fake parameter set whose sound carries machine 5 or 0, and
+   *  the five call sites pointing at it. */
+  static final long SET = 0x439d3a00L, VT = 0x439d3a40L, VFN = 0x439d3b00L, SND = 0x439d3c00L, DEST = 0x439d3d00L;
+  static final long[] RANGE_SITES = {0x4000f536L, 0x4000ff22L, 0x400100c6L, 0x40010156L, 0x4002213aL};
+  static final long[][] CFOO_RANGES = {{0x400, 0x5800, 0x400}, {0, 0x300, 0}, {0, 0x7f00, 0}, {0, 0x7f00, 0},
+      {0, 0x7800, 0}, {0, 0x7800, 0}, {0, 0x6200, 0x3000}, {0, 0x6200, 0x3200}};
+  void rangeCases() throws Exception {
+    fresh();
+    StringBuilder bad = new StringBuilder();
+    long cr = sym.get("cfo_range");
+    for (long a : RANGE_SITES) if (rdn(a, 4) != cr) bad.append(String.format(" [0x%08x does not point at cfo_range]", a));
+    wr(SET, VT, 4);
+    wr(VT + 0x28, VFN, 4);
+    wr(VFN, 0x203cL, 2); wr(VFN + 2, SND, 4); wr(VFN + 6, 0x4e75L, 2);	// movel #SND,%d0 ; rts
+    for (int mach : new int[] {5, 0, 4}) {
+      wr(SND + 0x7e, mach, 1);
+      for (int id = 106; id <= 117; id++) {
+        wr(DEST, 0x5a5a5a5aL, 4); wr(DEST + 4, 0x5a5a5a5aL, 4); wr(DEST + 8, 0x5a5a5a5aL, 4);
+        long sp = SP0;
+        sp -= 4; wr(sp, id, 4); sp -= 4; wr(sp, RET, 4);
+        emu.writeRegister("SP", sp); emu.writeRegister("PC", cr);
+        emu.writeRegister("A0", DEST); emu.writeRegister("A2", SET); emu.writeRegister("D2", 0x2222L);
+        boolean done = false;
+        for (int s = 0; s < 400; s++) {
+          if (emu.getExecutionAddress().getOffset() == RET) { done = true; break; }
+          if (!emu.step(monitor)) { bad.append(" [FAULT " + emu.getLastError() + "]"); break; }
+        }
+        boolean ours = mach == 5 && id >= 108 && id <= 115;
+        long rec = 0x401aa09cL + 0x34L * id + 8;
+        for (int f = 0; f < 3; f++) {
+          long want = ours ? CFOO_RANGES[id - 108][f] : rdn(rec + 4 * f, 4);
+          if (done && rdn(DEST + 4 * f, 4) != want)
+            bad.append(String.format(" [machine %d id %d field %d: 0x%x, want 0x%x]", mach, id, f, rdn(DEST + 4 * f, 4), want));
+        }
+        if (!done) bad.append(" [machine " + mach + " id " + id + ": no return]");
+        else {
+          if (rd("SP") != sp + 4) bad.append(" [SP]");
+          if (rd("A2") != SET || rd("D2") != 0x2222L) bad.append(" [%a2/%d2 not kept]");
+          if (rd("D0") != DEST) bad.append(" [%d0 is not the destination]");
+        }
+        if (bad.length() > 300) break;
+      }
+    }
+    println(String.format("  %-64s %s%s", "ranges: CFOO's own for ids 108-115 on machine 5, stock otherwise", bad.length() == 0 ? "OK" : "**FAIL**", bad));
+    if (bad.length() != 0) fails++;
+  }
+
   /** machine 5 mode: FUN_400657cc (with the layout hook from the load file) for machines 0..7. */
   void layoutCases() throws Exception {
     StringBuilder bad = new StringBuilder();
@@ -416,6 +531,11 @@ public class EmuCfoOscillator extends GhidraScript {
         secAddr.add(new long[] {Long.parseLong(p[0], 16)}); secData.add(b);
       }
     }
+    boolean knobs = m5 && sym.containsKey("cfo_range");
+    if (knobs) {
+      CFOO_SHORT = new String[] {"WAV1", "FMSR", "WAV2", "WAV3", "MIX", "FM", "DET2", "DET3"};
+      CFOO_LONG = new String[] {"OSC1 Wave", "FM Source", "OSC2 Wave", "OSC3 Wave", "Osc Mix", "FM Amount", "OSC2 Detune", "OSC3 Detune"};
+    }
     fresh();
     for (int i = 0; i < pitchTab.length; i++) pitchTab[i] = rd32s(PITCH + 4L * i);
     emu.readMemory(toAddr(WAVES), 1024);
@@ -430,6 +550,8 @@ public class EmuCfoOscillator extends GhidraScript {
     int[] notes = {60, 48, 72, 36, 84, 60, 67, 30};
     int MAX = 0x7fffffff;
 
+    if (knobs) knobCases(none, noSlot, zero, c4, notes, MAX);
+    else {
     run("no synth track: every block untouched", 3, none, noSlot, c4, 0x4000, 0, 0, 0, 0, 0, MAX);
     run("ONESHOT with a sample: untouched", 3, zero, noSlot, c4, 0x4000, 0, 0, 0, 0, 0, MAX);
     run("tracks 0, 1, 6 synth (ONESHOT, SAMP OFF), others not", 40, oneSynth, oneSlot, notes, 0x4000, 3, 0, 0, 0, 0, MAX);
@@ -468,16 +590,19 @@ public class EmuCfoOscillator extends GhidraScript {
     seedLevels = 0xdeadbeefL;
     run("level RAM not set at boot: no ramp on the first tick", 3, zero, zero, notes, 0x4000, 3, 85, 60, 30, 60, MAX);
     seedLevels = 0;
+    }
     if (names) nameCases();
     if (icon) iconCases();
     if (m5) {
       layoutCases();
       polyVoiceCase();
       if (sym.containsKey("slot_machine") || slots) slotCases();
+      if (knobs) rangeCases();
       remap = false;
       run("machine 5: ONESHOT with SAMP OFF is left alone", 3, zero, zero, c4, 0x4000, 3, 0, 0, 0, 0, MAX);
       remap = true;
     }
+    if (knobs) K = new int[] {4, 0, 0, 0, 0, 0, 48, 50};	// CFOO's defaults: OSC1 SIN alone
     run("extreme pitch: note 0 and 127 clamp", 10, zero, zero, new int[] {0, 127, 0, 127, 0, 127, 0, 127}, 0x4000, 1, 100, 120, 120, 120, MAX);
 
     // absolute pitch and level: OSC1 SIN, note 60, track 0, 200 ticks
