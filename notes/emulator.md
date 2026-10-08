@@ -137,6 +137,10 @@ then in the test, not in the pad.
 - **EMAC arithmetic is approximate:** no MACSR flags, no saturation, 32-bit accumulators
   ([scripts/ghidra_ext/README.md](../scripts/ghidra_ext/README.md)). Pads stepped as plain integer code
   are unaffected.
+- **`mvs`, `mvz` and `mov3q` leave the condition codes alone in the emulator.** Ghidra's 68000 spec
+  writes the register and nothing else, while on ColdFire `mvs`/`mvz` set N and Z and clear V and C. A
+  branch on their flags takes the previous instruction's in the emulator. Patch code follows them with
+  `tst` before a branch, which is right on both.
 - **No peripherals and no DMA.** eDMA transfers never happen, so, for example, the sample fetch buffer
   at `0x800013a0` (OS 1.52A) never receives sample data.
 - **C++ state built at construction is out of practical reach.** The machine list's cursor-navigation

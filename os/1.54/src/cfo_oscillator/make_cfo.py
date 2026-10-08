@@ -32,6 +32,12 @@ Stages, written to out/1.54/stages/ (only with --stages):
   S19  S18 + CFOO's ranges, cell pictures and cell texts find the machine through the parameter set's
        sound holder, and the validity test, the reset to default, MIDI CC and the all-tracks edit take
        CFOO's ranges
+  S20  S19 + the pure waves and the four mixes exactly at 0, 42, 85 and 127; the name and range tables
+       move to the .rodata padding after the icon, so the pad holds code only
+  S21  S20 + [FUNC] + knob steps A, C, D, E to 0, 42, 85, 127 and G, H to -24, -17, -12, -5, 0, +7,
+       +12, +19, +24 semitones
+  S22  S21 + the [TRK] popup shows POLY and CFOO without a sample name
+  S23  S22 + CFOO's names as LFO destinations, on the DEST knob and in the destination list
 patch.json is not changed: the feature is a prototype."""
 import json, os, shutil, subprocess, sys, tempfile
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -58,6 +64,7 @@ PADS = {
 }
 RODATA = (0x40252724, 0x40252b50)               # the free .rodata padding below the icons
 RODATA2 = (0x40252c2c, 0x40253000)              # the free .rodata padding after Chain Recording's strings
+NAMES_RO = 0x40252c80                           # S20 on: the name and range tables, after the icon
 # S14: CFOO's icon. Expected bytes: the build's (the POLY edits of the mapper bound and the icon range,
 # and the pad's selector-table pointer).
 ICON_EDITS = [
@@ -90,6 +97,18 @@ RANGE_SITES = [0x4000f536, 0x4000ff22, 0x400100c6, 0x40010156, 0x4002213a]
 # MachineParameterPageView::vfunc_23 (jsr). Expected bytes: stock.
 RANGE_SITES2 = [(0x4000f5fe, "cfo_range9"), (0x4000ffae, "cfo_range4"), (0x40010d52, "cfo_range"),
                 (0x400326ac, "cfo_range_a3")]
+# S21 on: operands pointed at this build's routines, each applied when its symbol is in the assembly:
+# (operand address, stock bytes, symbol). ParameterSet::vfunc_11's lea of FUN_40065794 into %a4 (the
+# display object whose +0x44 callable [FUNC] + knob uses); the [TRK] popup's call of FUN_40093ab0; the
+# LFO DEST picture's std::string of the destination's group.
+OPERAND_SITES = [(0x40010054, "40065794", "cfo_fobj"), (0x4003bd6c, "40093ab0", "cfo_trkpop"),
+                 (0x40065dee, "4017af20", "cfo_lfogrp")]
+# S23 on: instructions replaced by a jsr to this build's routine plus a tail, each applied when its symbol
+# is in the assembly: (address, stock bytes, symbol, tail). The LFO DEST picture's short-name push, and
+# the destination list's long-name and short-name pushes.
+REPL_SITES = [(0x40065e5e, "70344c0038002f303830", "cfo_lfocell", "2f004e71"),
+              (0x400a44d0, "2f3308282f06", "cfo_lfolist", ""),
+              (0x400a454c, "2f3328302f06", "cfo_lfolist2", "")]
 
 
 def fill(lo, hi):
@@ -105,13 +124,16 @@ def run(*cmd):
 
 
 def assemble(ld, tmp, inert=False, machine5=False, names=False, icon=False, slots=False, knobs=False,
-             displays=False, knobs2=False, sets=False):
+             displays=False, knobs2=False, sets=False, pure=False, snap=False, trkpop=False, lfonames=False):
     run(sys.executable, os.path.join(HERE, "make_waves.py"), os.path.join(tmp, "waves.inc"))
     src = os.path.join(HERE, "cfo.s")
     defs = (["--defsym", "MACHINE5=1"] if machine5 else []) + (["--defsym", "NAMES=1"] if names else []) + \
         (["--defsym", "ICON=1"] if icon else []) + (["--defsym", "SLOTS=1"] if slots else []) + \
         (["--defsym", "KNOBS=1"] if knobs else []) + (["--defsym", "DISPLAYS=1"] if displays else []) + \
-        (["--defsym", "KNOBS2=1"] if knobs2 else []) + (["--defsym", "SETS=1"] if sets else [])
+        (["--defsym", "KNOBS2=1"] if knobs2 else []) + (["--defsym", "SETS=1"] if sets else []) + \
+        (["--defsym", "PURE=1"] if pure else []) + (["--defsym", "SNAP=1"] if snap else []) + \
+        (["--defsym", "TRKPOP=1"] if trkpop else []) + (["--defsym", "LFONAMES=1"] if lfonames else [])
+    ldefs = ["--section-start=.cfo_names=0x%08x" % NAMES_RO] if pure else []
     if inert:
         src = os.path.join(tmp, "inert.s")
         with open(src, "w") as f:
@@ -119,7 +141,7 @@ def assemble(ld, tmp, inert=False, machine5=False, names=False, icon=False, slot
                     "cfo_pad:\n\tjmp\t0x40072478\n")
     o, e = os.path.join(tmp, "cfo.o"), os.path.join(tmp, "cfo.elf")
     run(PFX + "as", "-mcpu=5475", "-I", tmp, *defs, "-o", o, src)
-    run(PFX + "ld", "-T", ld, "-o", e, o)
+    run(PFX + "ld", "-T", ld, *ldefs, "-o", e, o)
     secs = {}
     for line in run(PFX + "objdump", "-h", e).splitlines():
         p = line.split()
@@ -185,6 +207,53 @@ def apply_icon(img, syms):
     return img
 
 
+# The stages from S16 on, each on top of S15's assembly flags (machine5, names, icon, slots): the stage,
+# its load-file suffix (<placement>_m5<suffix>.load) and its own flags.
+KNOB_STAGES = [
+    ("S16", "k", dict(knobs=True)),
+    ("S17", "d", dict(knobs=True, displays=True)),
+    ("S18", "e", dict(knobs=True, displays=True, knobs2=True)),
+    ("S19", "f", dict(knobs=True, displays=True, knobs2=True, sets=True)),
+    ("S20", "g", dict(knobs=True, displays=True, knobs2=True, sets=True, pure=True)),
+    ("S21", "h", dict(knobs=True, displays=True, knobs2=True, sets=True, pure=True, snap=True)),
+    ("S22", "i", dict(knobs=True, displays=True, knobs2=True, sets=True, pure=True, snap=True, trkpop=True)),
+    ("S23", "j", dict(knobs=True, displays=True, knobs2=True, sets=True, pure=True, snap=True, trkpop=True,
+                      lfonames=True)),
+]
+
+
+def apply_operands(img, syms):
+    """S21 on: the operand sites whose symbol the assembly has; S23 on: the replaced instructions."""
+    for addr, want, sym in OPERAND_SITES:
+        if sym in syms:
+            off = addr - BASE
+            assert img[off:off + 4].hex() == want, "0x%08x holds %s, expected %s" % (addr, img[off:off + 4].hex(), want)
+            img[off:off + 4] = syms[sym].to_bytes(4, "big")
+    for addr, want, sym, tail in REPL_SITES:
+        if sym in syms:
+            off, n = addr - BASE, len(want) // 2
+            assert img[off:off + n].hex() == want, "0x%08x holds %s, expected %s" % (addr, img[off:off + n].hex(), want)
+            new = bytes.fromhex("4eb9%08x" % syms[sym] + tail)
+            assert len(new) == n, "0x%08x: the replacement is not %d B" % (addr, n)
+            img[off:off + n] = new
+    return img
+
+
+def apply_later(img, syms):
+    """S16 on: the renames, the icon, the range calls and the operand sites."""
+    return apply_operands(apply_ranges(apply_icon(apply_renames(img, syms), syms), syms), syms)
+
+
+def later_sites(syms):
+    """S16 on: the patched stretches outside the hooks, for the emulator load file."""
+    sites = [LABEL_PADS] + ICON_CODE + [(a - 2, a + 4) for a in RANGE_SITES]
+    if "set_machine" in syms:
+        sites += [(a - 2, a + 4) for a, _s in RANGE_SITES2]
+    sites += [(a - 2, a + 4) for a, _w, s in OPERAND_SITES if s in syms]
+    sites += [(a, a + len(w) // 2) for a, w, s, _t in REPL_SITES if s in syms]
+    return sites
+
+
 def main():
     if len(sys.argv) < 2:
         sys.exit(__doc__)
@@ -206,28 +275,19 @@ def main():
         secs5n, syms5n = assemble(ld, tmp, machine5=True, names=True)
         secs5i, syms5i = assemble(ld, tmp, machine5=True, names=True, icon=True)
         secs5s, syms5s = assemble(ld, tmp, machine5=True, names=True, icon=True, slots=True)
-        secs5k, syms5k = assemble(ld, tmp, machine5=True, names=True, icon=True, slots=True, knobs=True)
-        secs5d, syms5d = assemble(ld, tmp, machine5=True, names=True, icon=True, slots=True, knobs=True,
-                                  displays=True)
-        secs5e, syms5e = assemble(ld, tmp, machine5=True, names=True, icon=True, slots=True, knobs=True,
-                                  displays=True, knobs2=True)
-        secs5f, syms5f = assemble(ld, tmp, machine5=True, names=True, icon=True, slots=True, knobs=True,
-                                  displays=True, knobs2=True, sets=True)
+        later = [(st, suf, assemble(ld, tmp, machine5=True, names=True, icon=True, slots=True, **fl))
+                 for st, suf, fl in KNOB_STAGES]
         used = []
-        allsecs = list(secs.items()) + [("m5" + k, v) for k, v in secs5.items()] + \
-            [("mn" + k, v) for k, v in secs5n.items()] + [("mi" + k, v) for k, v in secs5i.items()] + \
-            [("ms" + k, v) for k, v in secs5s.items()] + [("mk" + k, v) for k, v in secs5k.items()] + \
-            [("md" + k, v) for k, v in secs5d.items()] + [("me" + k, v) for k, v in secs5e.items()] + \
-            [("mf" + k, v) for k, v in secs5f.items()]
+        groups = [secs, secs5, secs5n, secs5i, secs5s] + [ss for _st, _suf, (ss, _sy) in later]
+        allsecs = [(k, v) for g in groups for k, v in g.items()]
         for name, (vma, data) in sorted(allsecs, key=lambda x: x[1][0]):
-            name = name[2:] if name[:2] in ("m5", "mn", "mi", "ms", "mk", "md", "me", "mf") else name
             end = vma + len(data)
             if name in HOOKS:
                 a, disp = HOOKS[name]
                 assert vma == a and len(data) == len(disp) // 2, "%s is not %d B at 0x%08x" % (name, len(disp) // 2, a)
                 assert stock[vma - BASE:end - BASE] == bytes.fromhex(disp), "%s: the site is not stock" % name
                 assert not any(x in owner for x in range(vma, end)), "another feature patches %s" % name
-            elif name.startswith(".cfo_data") or name == ".cfo_icon":
+            elif name.startswith(".cfo_data") or name == ".cfo_icon" or (name == ".cfo_names" and RODATA2[0] <= vma < RODATA2[1]):
                 rng = RODATA if name.startswith(".cfo_data") else RODATA2
                 assert rng[0] <= vma and end <= rng[1], "%s outside the .rodata padding" % name
                 assert stock[vma - BASE:end - BASE] == bytes(len(data)), ".rodata padding not zero in stock"
@@ -252,31 +312,17 @@ def main():
         pads15 = dict(pads13)
         for k, (lo, hi) in enumerate(ICON_CODE):
             pads15[".icon_code%d" % k] = (lo, bytes(im15[lo - BASE:hi - BASE]))
-        im16 = apply_ranges(apply_icon(apply_renames(bytearray(img), syms5k), syms5k), syms5k)
-        pads16 = {}
-        for k, (lo, hi) in enumerate([LABEL_PADS] + ICON_CODE + [(a - 2, a + 4) for a in RANGE_SITES]):
-            pads16[".site%d" % k] = (lo, bytes(im16[lo - BASE:hi - BASE]))
-        im17 = apply_ranges(apply_icon(apply_renames(bytearray(img), syms5d), syms5d), syms5d)
-        pads17 = {}
-        for k, (lo, hi) in enumerate([LABEL_PADS] + ICON_CODE + [(a - 2, a + 4) for a in RANGE_SITES]):
-            pads17[".site%d" % k] = (lo, bytes(im17[lo - BASE:hi - BASE]))
-        im18 = apply_ranges(apply_icon(apply_renames(bytearray(img), syms5e), syms5e), syms5e)
-        pads18 = {}
-        for k, (lo, hi) in enumerate([LABEL_PADS] + ICON_CODE + [(a - 2, a + 4) for a in RANGE_SITES]):
-            pads18[".site%d" % k] = (lo, bytes(im18[lo - BASE:hi - BASE]))
-        im19 = apply_ranges(apply_icon(apply_renames(bytearray(img), syms5f), syms5f), syms5f)
-        pads19 = {}
-        for k, (lo, hi) in enumerate([LABEL_PADS] + ICON_CODE + [(a - 2, a + 4) for a in RANGE_SITES]
-                                     + [(a - 2, a + 4) for a, _s in RANGE_SITES2]):
-            pads19[".site%d" % k] = (lo, bytes(im19[lo - BASE:hi - BASE]))
-        for path, (ss, sy) in ((load, (secs, syms)), (os.path.join(out, stem + "_m5.load"), (secs5, syms5)),
-                               (os.path.join(out, stem + "_m5n.load"), (dict(secs5n, **pads13), syms5n)),
-                               (os.path.join(out, stem + "_m5i.load"), (dict(secs5i, **pads14), syms5i)),
-                               (os.path.join(out, stem + "_m5s.load"), (dict(secs5s, **pads15), syms5s)),
-                               (os.path.join(out, stem + "_m5k.load"), (dict(secs5k, **pads16), syms5k)),
-                               (os.path.join(out, stem + "_m5d.load"), (dict(secs5d, **pads17), syms5d)),
-                               (os.path.join(out, stem + "_m5e.load"), (dict(secs5e, **pads18), syms5e)),
-                               (os.path.join(out, stem + "_m5f.load"), (dict(secs5f, **pads19), syms5f))):
+        loads = [(load, (secs, syms)), (os.path.join(out, stem + "_m5.load"), (secs5, syms5)),
+                 (os.path.join(out, stem + "_m5n.load"), (dict(secs5n, **pads13), syms5n)),
+                 (os.path.join(out, stem + "_m5i.load"), (dict(secs5i, **pads14), syms5i)),
+                 (os.path.join(out, stem + "_m5s.load"), (dict(secs5s, **pads15), syms5s))]
+        for _st, suf, (ss, sy) in later:
+            im = apply_later(bytearray(img), sy)
+            pads = {}
+            for k, (lo, hi) in enumerate(later_sites(sy)):
+                pads[".site%d" % k] = (lo, bytes(im[lo - BASE:hi - BASE]))
+            loads.append((os.path.join(out, stem + "_m5" + suf + ".load"), (dict(ss, **pads), sy)))
+        for path, (ss, sy) in loads:
             with open(path, "w") as f:
                 for name, (vma, data) in ss.items():
                     f.write("%08x %s\n" % (vma, data.hex()))
@@ -313,26 +359,15 @@ def main():
         for _n, (vma, data) in secs5s.items():
             im[vma - BASE:vma - BASE + len(data)] = data
         built["S15"] = bytes(apply_icon(apply_renames(apply_edits(im, syms5s), syms5s), syms5s))
-        im = bytearray(img1)
-        for _n, (vma, data) in secs5k.items():
-            im[vma - BASE:vma - BASE + len(data)] = data
-        built["S16"] = bytes(apply_ranges(apply_icon(apply_renames(apply_edits(im, syms5k), syms5k), syms5k), syms5k))
-        im = bytearray(img1)
-        for _n, (vma, data) in secs5d.items():
-            im[vma - BASE:vma - BASE + len(data)] = data
-        built["S17"] = bytes(apply_ranges(apply_icon(apply_renames(apply_edits(im, syms5d), syms5d), syms5d), syms5d))
-        im = bytearray(img1)
-        for _n, (vma, data) in secs5e.items():
-            im[vma - BASE:vma - BASE + len(data)] = data
-        built["S18"] = bytes(apply_ranges(apply_icon(apply_renames(apply_edits(im, syms5e), syms5e), syms5e), syms5e))
-        im = bytearray(img1)
-        for _n, (vma, data) in secs5f.items():
-            im[vma - BASE:vma - BASE + len(data)] = data
-        built["S19"] = bytes(apply_ranges(apply_icon(apply_renames(apply_edits(im, syms5f), syms5f), syms5f), syms5f))
+        for st, _suf, (ss, sy) in later:
+            im = bytearray(img1)
+            for _n, (vma, data) in ss.items():
+                im[vma - BASE:vma - BASE + len(data)] = data
+            built[st] = bytes(apply_later(apply_edits(im, sy), sy))
         dest = os.path.join(ROOT, "out", "1.54", "stages")
         os.makedirs(dest, exist_ok=True)
         syx, tool = build.DEFAULT_SYX, build.DEFAULT_TOOL
-        for name in ("S9", "S10", "S11", "S12", "S13", "S14", "S15", "S16", "S17", "S18", "S19"):
+        for name in ["S9", "S10", "S11", "S12", "S13", "S14", "S15"] + [st for st, _suf, _a in later]:
             p3 = built[name]
             sel, i = [], 0
             while i < len(stock):

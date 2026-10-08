@@ -81,10 +81,22 @@ public class EmuCfoOscillator extends GhidraScript {
     int idx = ns / 384;
     return (pitchTab[idx] >>> 13) * 357;
   }
-  int[] wave(int w) { int p = 3 * w; return new int[] {(p >> 7) * 256, ((p >> 7) + 1) * 256, (p & 127) * 2}; }
+  // S20 (sym segfrac): the four waves and the four mixes exactly at 0, 42, 85, 127, linear between, the
+  // fraction rounded to 1/256: segment s, round((v - P[s]) x 256 / (P[s+1] - P[s])). Before: 3v / 128.
+  boolean pure = false;
+  static final int[] PURE_PTS = {0, 42, 85, 127};
+  static int[] segfrac(int v) {
+    int s = v >= 85 ? 2 : v >= 42 ? 1 : 0;
+    return new int[] {s, (int) Math.floor((v - PURE_PTS[s]) * 256.0 / (PURE_PTS[s + 1] - PURE_PTS[s]) + 0.5)};
+  }
+  int[] wave(int w) {
+    if (pure) { int[] sf = segfrac(w); return new int[] {sf[0] * 256, (sf[0] + 1) * 256, sf[1]}; }
+    int p = 3 * w; return new int[] {(p >> 7) * 256, ((p >> 7) + 1) * 256, (p & 127) * 2};
+  }
   int samp(int[] wv, int acc) { int i = acc >>> 24; int a = waves[wv[0] + i], b = waves[wv[1] + i]; return a + (((b - a) * wv[2]) >> 8); }
   int[] gains(int v) {
     int p = 3 * v, s = p >> 7, fr = (p & 127) * 2; int[] g = new int[3];
+    if (pure) { int[] sf = segfrac(v); s = sf[0]; fr = sf[1]; }
     for (int k = 0; k < 3; k++) { int a = mix[s * 3 + k], b = mix[s * 3 + 3 + k]; g[k] = a + (((b - a) * fr) >> 8); }
     return g;
   }
@@ -917,6 +929,214 @@ public class EmuCfoOscillator extends GhidraScript {
     if (bad.length() != 0) fails++;
   }
 
+  /** S20: wave and gains for every value 0..127 against the model (segfrac above): the two tables and
+   *  the fraction, the three gains; and at 0, 42, 85, 127 one wave or one mix alone. */
+  void pureCases() throws Exception {
+    fresh();
+    StringBuilder bad = new StringBuilder();
+    long frame = 0x439d4600L;
+    for (int v = 0; v <= 127 && bad.length() < 400; v++) {
+      int[] wm = wave(v);
+      if (!runReal(sym.get("wave"), new long[] {RET}, new String[] {"D0"}, new long[] {v}, new long[] {}, bad, "wave " + v)) continue;
+      if (rd("A0") != WAVES + wm[0] || rd("A1") != WAVES + wm[1] || rd("D5") != wm[2])
+        bad.append(String.format(" [wave %d: a0 +%d a1 +%d d5 %d, want +%d +%d %d]", v, rd("A0") - WAVES, rd("A1") - WAVES, rd("D5"), wm[0], wm[1], wm[2]));
+      for (int i = 0; i < KEEP.length; i++)
+        if (!KEEP[i].equals("D5") && rd(KEEP[i]) != 0x5a5a0000L + i) { bad.append(" [wave: " + KEEP[i] + " not kept]"); break; }
+      int[] gm = gains(v);
+      if (!runReal(sym.get("gains"), new long[] {RET}, new String[] {"D0", "A6"}, new long[] {v, frame}, new long[] {}, bad, "gains " + v)) continue;
+      for (int k = 0; k < 3; k++)
+        if ((short) rdn(frame + 128 + 2 * k, 2) != gm[k]) bad.append(String.format(" [gains %d G%d: %d, want %d]", v, k + 1, (short) rdn(frame + 128 + 2 * k, 2), gm[k]));
+    }
+    // the corners: one wave, one mix
+    int[][] corner = {{0, 0, 0}, {42, 1, 0}, {85, 2, 0}, {127, 2, 256}};
+    for (int[] c : corner) {
+      int[] wm = wave(c[0]);
+      if (wm[0] != c[1] * 256 || wm[2] != c[2]) bad.append(" [model: " + c[0] + " is not a pure wave]");
+      int[] gm = gains(c[0]);
+      int[] want = c[0] == 0 ? new int[] {256, 0, 0} : c[0] == 42 ? new int[] {128, 128, 0} : c[0] == 85 ? new int[] {85, 85, 86} : new int[] {0, 128, 128};
+      if (!Arrays.equals(gm, want)) bad.append(" [model: " + c[0] + " is not a corner mix]");
+    }
+    println(String.format("  %-64s %s%s", "S20 pure points: wave and gains, 0..127; corners 0, 42, 85, 127", bad.length() == 0 ? "OK" : "**FAIL**", bad));
+    if (bad.length() != 0) fails++;
+  }
+
+  /** S21 (sym cfo_fobj): [FUNC] + knob. The agreed points: A, C, D (the pure waves) and E (the four
+   *  mixes) 0, 42, 85, 127; G, H -24, -17, -12, -5, 0, +7, +12, +19, +24 semitones; a turn up goes to the
+   *  first point above the value, down to the last below it, and past the last point it stays. B and F
+   *  keep their own. */
+  static final int[] SNAP_W = {0, 0x2a00, 0x5500, 0x7f00};
+  static final int[] SNAP_D = {0x2800, 0x2f00, 0x3400, 0x3b00, 0x4000, 0x4700, 0x4c00, 0x5300, 0x5800};
+  static long snapTo(int[] pts, long v, long d) {
+    long r = v;
+    if (d > 0) { for (int p : pts) if (p > v) { r = p; break; } }
+    else if (d < 0) { for (int p : pts) if (p < v) r = p; }
+    return r;
+  }
+  void snapCases() throws Exception {
+    fresh();
+    StringBuilder bad = new StringBuilder();
+    if (rdn(0x40010054L, 4) != sym.get("cfo_fobj")) bad.append(" [0x40010052 does not lea cfo_fobj]");
+    // 1. the display object cfo_fobj gives, by machine and id
+    for (long mach : new long[] {5, 0, 4}) {
+      realSets(mach);
+      for (int id = 104; id <= 120; id++) {
+        if (!runReal(sym.get("cfo_fobj"), new long[] {RET, id}, new String[] {"A2"}, new long[] {HSET}, new long[] {0x40065794L}, bad, "fobj " + id)) continue;
+        int k = id - 108;
+        boolean ours = mach == 5 && k >= 0 && k <= 7 && k != 1 && k != 5;
+        long[] stock = lastCall(0x40065794L);
+        if (ours) {
+          long want = (k >= 6 ? sym.get("snap_dets") : sym.get("snap_waves")) - 0x44;
+          if (stock != null || rd("D0") != want) bad.append(String.format(" [fobj machine %d id %d: 0x%x, want 0x%x]", mach, id, rd("D0"), want));
+        } else if (stock == null || stock[1] != id) bad.append(String.format(" [fobj machine %d id %d: not the stock object]", mach, id));
+        for (int i = 0; i < KEEP.length; i++) {
+          long w = KEEP[i].equals("A2") ? HSET : 0x5a5a0000L + i;
+          if (rd(KEEP[i]) != w) { bad.append(" [fobj: " + KEEP[i] + " not kept]"); break; }
+        }
+      }
+    }
+    // 2. end to end: ParameterSet::vfunc_11(set, id, delta, track, FUNC, out, 1, 1) on a CFOO sound
+    long OUT = 0x439d4700L;
+    int n = 0;
+    realSets(5);
+    for (int id = 108; id <= 115; id++) {
+      int k = id - 108;
+      if (k == 1 || k == 5) continue;
+      int[] pts = k >= 6 ? SNAP_D : SNAP_W;
+      long idx = rdn(0x401aa09cL + 0x34L * id + 4, 4);
+      long[] curs = k >= 6 ? new long[] {0x2800, 0x2801, 0x2f00, 0x3e80, 0x4000, 0x4001, 0x5300, 0x57ff, 0x5800, 0x0000, 0x7f00}
+                           : new long[] {0, 0x100, 0x2900, 0x2a00, 0x2b00, 0x5480, 0x5500, 0x7e00, 0x7f00};
+      for (long cur : curs) for (long d : new long[] {1, 0x100, -1, -0x100}) {
+        if (bad.length() > 600) break;
+        wr(HSND + 0x14 + 2 * idx, cur, 2); wr(OUT, 0x5a, 1);
+        String what = String.format("FUNC id %d from 0x%x by %d", id, cur, d);
+        if (!runReal(0x40010026L, new long[] {RET, HSET, id, d & 0xffffffffL, 0, 1, OUT, 1, 1}, new String[] {}, new long[] {},
+                     new long[] {WRITE, NOTICE}, bad, what)) continue;
+        long want = snapTo(pts, cur, d);
+        long[] r = rangeOf(5, id);
+        want = Math.max(r[0], Math.min(r[1], want));		// the setter clamps (only a value left outside)
+        long[] w = lastCall(WRITE);
+        if (w == null) bad.append(" [" + what + ": no write]");
+        else if (w[3] != want) bad.append(String.format(" [%s: wrote 0x%x, want 0x%x]", what, w[3], want));
+        if (rdn(OUT, 1) != 1) bad.append(" [" + what + ": the special-action flag not set]");
+        n++;
+      }
+    }
+    println(String.format("  %-64s %s%s", "S21 FUNC + knob: objects by machine and id, " + n + " snaps end to end", bad.length() == 0 ? "OK" : "**FAIL**", bad));
+    if (bad.length() != 0) fails++;
+  }
+
+  /** S22 (sym cfo_trkpop): the [TRK] popup. FUN_40093ab0(popup, "%s: %.16s", name, sample) with the
+   *  machine in %d5: for POLY (4) and CFOO (5) the format becomes "%s", for every other machine (and -1,
+   *  no sound) it stays; the other arguments, the stack and the kept registers unchanged. */
+  void trkCases() throws Exception {
+    fresh();
+    StringBuilder bad = new StringBuilder();
+    long pop = 0x40093ab0L, fmt = 0x401c41c0L;
+    if (rdn(0x4003bd6aL, 2) != 0x4eb9L || rdn(0x4003bd6cL, 4) != sym.get("cfo_trkpop")) bad.append(" [0x4003bd6a is not jsr cfo_trkpop]");
+    if (!cstr(sym.get("s_name_only")).equals("%s")) bad.append(" [the format is not %s]");
+    if (!cstr(fmt).equals("%s: %.16s")) bad.append(" [0x401c41c0 is not the stock format]");
+    for (long m : new long[] {-1, 0, 1, 2, 3, 4, 5, 6}) {
+      long[] stack = {RET, 0x439d4800L, fmt, 0x401c6f07L, 0x439d4900L, m & 0xffffffffL, 0x2222, 0x3333};
+      if (!runReal(sym.get("cfo_trkpop"), stack, new String[] {"D5"}, new long[] {m & 0xffffffffL}, new long[] {pop}, bad, "trk machine " + m)) continue;
+      long[] c = lastCall(pop);
+      long want = m == 4 || m == 5 ? sym.get("s_name_only") : fmt;
+      if (c == null) { bad.append(" [machine " + m + ": FUN_40093ab0 not reached]"); continue; }
+      if (c[1] != 0x439d4800L || c[2] != want || c[3] != 0x401c6f07L || c[4] != 0x439d4900L)
+        bad.append(String.format(" [machine %d: args 0x%x 0x%x 0x%x 0x%x]", m, c[1], c[2], c[3], c[4]));
+      if (rdn(spAt + 20, 4) != (m & 0xffffffffL) || rdn(spAt + 24, 4) != 0x2222) bad.append(" [machine " + m + ": the caller's stack changed]");
+      for (int i = 0; i < KEEP.length; i++) {
+        long w = KEEP[i].equals("D5") ? m & 0xffffffffL : 0x5a5a0000L + i;
+        if (rd(KEEP[i]) != w) { bad.append(" [machine " + m + ": " + KEEP[i] + " not kept]"); break; }
+      }
+    }
+    println(String.format("  %-64s %s%s", "S22 TRK popup: machine name alone for POLY and CFOO", bad.length() == 0 ? "OK" : "**FAIL**", bad));
+    if (bad.length() != 0) fails++;
+  }
+
+  /** S23 (sym cfo_lfocell): CFOO's names as LFO destinations. cur_machine with the project lookups
+   *  stubbed and the stock FUN_4000d9c8 / FUN_4002200a run on a holder at the kit's +0x60 + 200 x track;
+   *  then each of the four routines with cur_machine stubbed to 5 and to 0, for ids 106..117 (and 0):
+   *  "CFOO" and CFOO's short or long name only for 108..115 on 5, the descriptor's otherwise; and the
+   *  four sites in place. */
+  void lfoCases() throws Exception {
+    fresh();
+    StringBuilder bad = new StringBuilder();
+    long CM = sym.get("cur_machine"), DESC = 0x401aa09cL;
+    long PROJ = 0x439d4a00L, XO = 0x439d4a40L, KIT = 0x439d5000L;
+    long cs = sym.get("cfoo_short"), csn = sym.get("cfoo_short_names"), cln = sym.get("cfoo_long_names");
+    // the sites
+    if (rdn(0x40065deeL, 4) != sym.get("cfo_lfogrp")) bad.append(" [0x40065dec does not call cfo_lfogrp]");
+    if (rdn(0x40065e5eL, 2) != 0x4eb9L || rdn(0x40065e60L, 4) != sym.get("cfo_lfocell") || rdn(0x40065e64L, 4) != 0x2f004e71L) bad.append(" [0x40065e5e]");
+    if (rdn(0x400a44d0L, 2) != 0x4eb9L || rdn(0x400a44d2L, 4) != sym.get("cfo_lfolist")) bad.append(" [0x400a44d0]");
+    if (rdn(0x400a454cL, 2) != 0x4eb9L || rdn(0x400a454eL, 4) != sym.get("cfo_lfolist2")) bad.append(" [0x400a454c]");
+    if (!cstr(cs).equals("CFOO")) bad.append(" [cfoo_short is not CFOO]");
+    // 1. cur_machine
+    long[] projStubs = {0x40138882L, 0x40014d86L, 0x4001d24eL, 0x40014d92L};
+    for (long m : new long[] {5, 0}) for (long t : new long[] {0, 3, 7, 8}) {
+      realSets(m);
+      stubRet.clear();
+      stubRet.put(0x40138882L, PROJ); stubRet.put(0x40014d86L, XO); stubRet.put(0x4001d24eL, t); stubRet.put(0x40014d92L, KIT);
+      if (t <= 7) wr(KIT + 0x60 + 200 * t, HVT, 4);
+      if (!runReal(CM, new long[] {RET}, new String[] {}, new long[] {}, projStubs, bad, "cur_machine track " + t)) continue;
+      long want = t <= 7 ? m : 0xffffffffL;
+      if (rd("D0") != want) bad.append(String.format(" [cur_machine machine %d track %d: 0x%x]", m, t, rd("D0")));
+      long[] a = lastCall(0x40014d86L), b = lastCall(0x4001d24eL), c = lastCall(0x40014d92L);
+      if (a == null || a[1] != PROJ || b == null || b[1] != XO || c == null || c[1] != PROJ) bad.append(" [cur_machine: the lookups' arguments]");
+      if (t <= 7 && !machArgs.equals(Collections.singletonList(KIT + 0x60 + 200 * t))) bad.append(" [cur_machine: FUN_4002200a got " + machArgs + "]");
+      for (int i = 0; i < KEEP.length; i++) if (rd(KEEP[i]) != 0x5a5a0000L + i) { bad.append(" [cur_machine: " + KEEP[i] + " not kept]"); break; }
+    }
+    stubRet.clear();
+    // 2. the four routines, cur_machine stubbed
+    int n = 0;
+    for (long m : new long[] {5, 0}) {
+      stubRet.put(CM, m);
+      for (int id = 106; id <= 118 && bad.length() < 600; id++) {
+        int idc = id == 118 ? 0 : id;			// 118 stands for an id clamped to 0
+        boolean ours = m == 5 && idc >= 108 && idc <= 115;
+        int k = idc - 108;
+        long sname = ours ? rdn(csn + 4L * k, 4) : rdn(DESC + 52L * idc + 0x30, 4);
+        long lname = ours ? rdn(cln + 4L * k, 4) : rdn(DESC + 52L * idc + 0x28, 4);
+        String w = "machine " + m + " id " + idc;
+        // the picture's group
+        if (runReal(sym.get("cfo_lfogrp"), new long[] {RET, 0x439d4b00L, 0x401c6e7eL, 0x439d4b40L}, new String[] {"D3"}, new long[] {idc},
+                    new long[] {CM, 0x4017af20L}, bad, "grp " + w)) {
+          long[] c = lastCall(0x4017af20L);
+          if (c == null || c[1] != 0x439d4b00L || c[2] != (ours ? cs : 0x401c6e7eL) || c[3] != 0x439d4b40L) bad.append(" [grp " + w + ": the string's arguments]");
+          if (rd("D3") != idc) bad.append(" [grp: d3 not kept]");
+        }
+        // the picture's name
+        if (runReal(sym.get("cfo_lfocell"), new long[] {RET}, new String[] {"D3", "A0"}, new long[] {idc, DESC}, new long[] {CM}, bad, "cell " + w)) {
+          if (rd("D0") != sname) bad.append(String.format(" [cell %s: 0x%x, want 0x%x]", w, rd("D0"), sname));
+          for (int i = 0; i < KEEP.length; i++) {
+            long want = KEEP[i].equals("D3") ? idc : 0x5a5a0000L + i;
+            if (rd(KEEP[i]) != want) { bad.append(" [cell: " + KEEP[i] + " not kept]"); break; }
+          }
+        }
+        // the list: long name, then the short-name fallback
+        for (int which = 0; which < 2; which++) {
+          String r = which == 0 ? "cfo_lfolist" : "cfo_lfolist2";
+          String[] rn = which == 0 ? new String[] {"D0", "D2", "A3", "D6", "A0"} : new String[] {"D2", "A3", "D6", "A0"};
+          long[] rv = which == 0 ? new long[] {52L * idc, idc, DESC, 0x401c6f07L, 0x439d4c00L} : new long[] {52L * idc, DESC, 0x401c6f07L, 0x439d4c00L};
+          if (!runReal(sym.get(r), new long[] {RET}, rn, rv, new long[] {CM}, bad, r + " " + w)) continue;
+          long q = rd("SP");
+          long wantName = which == 0 ? lname : sname;
+          if (q != spAt - 4 || rdn(q, 4) != (ours ? cs : 0x401c6f07L) || rdn(q + 4, 4) != wantName)
+            bad.append(String.format(" [%s %s: sp %d, prefix 0x%x name 0x%x, want 0x%x]", r, w, q - spAt, rdn(q, 4), rdn(q + 4, 4), wantName));
+          if (rd("A0") != 0x439d4c00L) bad.append(" [" + r + ": a0 not kept]");
+          for (int i = 0; i < KEEP.length; i++) {
+            String kk = KEEP[i];
+            long want = kk.equals("D2") ? (which == 0 ? idc : 52L * idc) : kk.equals("A3") ? DESC : kk.equals("D6") ? 0x401c6f07L : 0x5a5a0000L + i;
+            if (rd(kk) != want) { bad.append(" [" + r + ": " + kk + " not kept]"); break; }
+          }
+        }
+        n++;
+      }
+    }
+    stubRet.clear();
+    println(String.format("  %-64s %s%s", "S23 LFO destinations: cur_machine, picture and list, " + n + " ids", bad.length() == 0 ? "OK" : "**FAIL**", bad));
+    if (bad.length() != 0) fails++;
+  }
+
   /** S19: the objects behind a sound's parameter set, laid out as the firmware has them. A
    *  SoundParameterSet (the stock vtable 0x4017ee58) keeps its sound holder at +0x10; the holder's method
    *  at +0x28 returns the sound (here a stub, movel #HSND,%d0 ; rts); the sound holds its values (16 bit)
@@ -949,6 +1169,7 @@ public class EmuCfoOscillator extends GhidraScript {
    *  away. KEEP registers start as 0x5a5a0000 + i unless named. */
   List<long[]> calls = new ArrayList<>();
   List<Long> machArgs = new ArrayList<>();	// FUN_4002200a's argument at each entry (not stubbed)
+  Map<Long, Long> stubRet = new HashMap<>();	// what a stubbed PC returns in %d0 (0 if not listed)
   long spAt = 0;
   boolean runReal(long pc, long[] stack, String[] rn, long[] rv, long[] stubs, StringBuilder bad, String what) throws Exception {
     long sp = SP0 - 4L * stack.length;
@@ -967,7 +1188,7 @@ public class EmuCfoOscillator extends GhidraScript {
       if (stub) {
         long q = rd("SP");
         calls.add(new long[] {p, rdn(q + 4, 4), rdn(q + 8, 4), rdn(q + 12, 4), rdn(q + 16, 4)});
-        emu.writeRegister("D0", 0); emu.writeRegister("PC", rdn(q, 4)); emu.writeRegister("SP", q + 4);
+        emu.writeRegister("D0", stubRet.getOrDefault(p, 0L)); emu.writeRegister("PC", rdn(q, 4)); emu.writeRegister("SP", q + 4);
         continue;
       }
       if (!emu.step(monitor)) { bad.append(" [" + what + ": FAULT " + emu.getLastError() + " at 0x" + Long.toHexString(p) + "]"); return false; }
@@ -1134,6 +1355,7 @@ public class EmuCfoOscillator extends GhidraScript {
     boolean knobs = m5 && sym.containsKey("cfo_range");
     v2 = knobs && sym.containsKey("cfo_encobj");
     realSets = knobs && (sym.containsKey("set_machine") || Arrays.asList(args).contains("realsets"));
+    pure = sym.containsKey("segfrac");
     if (knobs) {
       CFOO_SHORT = new String[] {"WAV1", "FMSR", "WAV2", "WAV3", "MIX", "FM", "DET2", "DET3"};
       CFOO_LONG = new String[] {"OSC1 Wave", "FM Source", "OSC2 Wave", "OSC3 Wave", "Osc Mix", "FM Amount", "OSC2 Detune", "OSC3 Detune"};
@@ -1205,6 +1427,10 @@ public class EmuCfoOscillator extends GhidraScript {
       if (v2) displayCases2();
       else if (knobs && sym.containsKey("cfo_text")) displayCases();
       if (realSets) editCases3();
+      if (pure) pureCases();
+      if (sym.containsKey("cfo_fobj")) snapCases();
+      if (sym.containsKey("cfo_trkpop")) trkCases();
+      if (sym.containsKey("cfo_lfocell")) lfoCases();
       remap = false;
       run("machine 5: ONESHOT with SAMP OFF is left alone", 3, zero, zero, c4, 0x4000, 3, 0, 0, 0, 0, MAX);
       remap = true;

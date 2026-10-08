@@ -455,6 +455,41 @@ pitch:
 | Clobbers %d0, %d1.
 
 	.section .cfo_wave,"ax"
+.ifdef PURE
+| (S20) The waves are pure at 0 (SIN), 42 (TRI), 85 (SAW) and 127 (SQR), linear between them; before,
+| 3w/128 put TRI and SAW between two knob values and 127 at 98 % SQR. Out: %a0, %a1 the two tables,
+| %d5 the fraction of %a1, 0..256. Clobbers %d0, %d1.
+wave:
+	bsrw	segfrac
+	movel	%d0,%d5
+	lsll	#8,%d1
+	lea	waves,%a0
+	adda.l	%d1,%a0
+	lea	%a0@(256),%a1
+	rts
+| segfrac: %d0 = 0..127 -> %d1 = the segment (0 from 0, 1 from 42, 2 from 85), %d0 = how far into it,
+| 0..256, rounded: (d x 512 + L) / 2L for d = %d0 - its start and L = 42, 43, 42.
+segfrac:
+	moveq	#0,%d1
+	cmpil	#42,%d0
+	bcss	2f			| 0..41
+	moveq	#2,%d1
+	subil	#85,%d0
+	bccs	2f			| 85..127
+	addil	#43,%d0			| 42..84: d = %d0 - 42
+	moveq	#1,%d1
+	lsll	#8,%d0
+	addl	%d0,%d0
+	addil	#43,%d0
+	divuw	#86,%d0
+	bras	3f
+2:	lsll	#8,%d0
+	addl	%d0,%d0
+	addil	#42,%d0
+	divuw	#84,%d0
+3:	mvzw	%d0,%d0
+	rts
+.else
 wave:
 	movel	%d0,%d1
 	addl	%d0,%d0
@@ -469,23 +504,30 @@ wave:
 	andl	%d0,%d5
 	addl	%d5,%d5
 	rts
+.endif
 
 | ---- gains: %d0 = 0..127 -> G1, G2, G3: OSC1 -> OSC1+2 -> OSC1+2+3 -> OSC2+3, crossfaded.
-| Clobbers %d0-%d3, %a0, %a1.
+| (S20: the four mixes exactly at 0, 42, 85 and 127, as the pure waves.) Clobbers %d0-%d3, %a0, %a1.
 
 	.section .cfo_gains,"ax"
 gains:
+.ifdef PURE
+	bsrw	segfrac
+.else
 	movel	%d0,%d1
 	addl	%d0,%d0
 	addl	%d1,%d0
 	movel	%d0,%d1
 	lsrl	#7,%d1
+.endif
 	mulu.w	#6,%d1
 	lea	mixpts,%a0
 	adda.l	%d1,%a0
+.ifndef PURE
 	moveq	#127,%d1
 	andl	%d1,%d0
 	addl	%d0,%d0
+.endif
 	lea	%a6@(G1),%a1
 	moveq	#2,%d3
 1:	mvsw	%a0@,%d1
@@ -1187,6 +1229,211 @@ cfo_samptest:
 8:	moveq	#-17,%d0
 	moveq	#111,%d1
 	rts
+
+.ifdef SNAP
+| cfo_fobj(id), %a2 = the parameter set (S21): with [FUNC] held, ParameterSet::vfunc_11 calls the
+| +0x44 callable of the knob's display object, which it takes through %a4 (lea at 0x40010052, two
+| calls) with (value, delta, min, max, default) and stores what it returns. For A, C, D, E, G and H on
+| a CFOO sound it gets a display object of this build whose callable steps to the next point in the
+| turn's direction; B, F and everything else get FUN_40065794's object as before. Only +0x44..+0x53 of
+| the returned object are read: the callable's storage, manager and invoker.
+cfo_fobj:
+	movel	%sp@(4),%d0
+	subil	#108,%d0
+	moveq	#7,%d1
+	cmpl	%d0,%d1
+	bcss	9f			| not an SRC parameter
+	moveq	#-35,%d1		| 0xdd: A, C, D, E, G, H
+	btst	%d0,%d1
+	beqs	9f
+	movel	%d0,%sp@-
+	movel	%a2,%sp@-
+	jsr	set_machine
+	addql	#4,%sp
+	movel	%sp@+,%d1
+	subql	#CFOO,%d0
+	bnes	9f
+	lea	snap_waves-0x44,%a0	| A, C, D: the pure waves; E: the four mixes
+	moveq	#6,%d0
+	cmpl	%d0,%d1
+	bcss	1f
+	lea	snap_dets-0x44,%a0	| G, H: the detune points
+1:	movel	%a0,%d0
+	rts
+9:	jmp	0x40065794
+
+| snap_inv(storage, value, delta, min, max, default) -> the value [FUNC] + knob goes to: the first point
+| above the value for a turn up, the last below it for a turn down, the value itself past the last
+| point or for no turn. The storage holds the points: 8.8, ascending, -1 after the last.
+snap_inv:
+	moveal	%sp@(4),%a0
+	moveal	%a0@,%a0
+	movel	%sp@(8),%d0
+	tstl	%sp@(12)
+	beqs	9f
+	bmis	4f
+1:	mvsw	%a0@+,%d1		| up
+	tstl	%d1			| (not mvs's own flags: Ghidra's emulator does not set them)
+	bmis	9f
+	cmpl	%d0,%d1
+	bles	1b
+	movel	%d1,%d0
+9:	rts
+4:	moveal	%d0,%a1			| down
+5:	mvsw	%a0@+,%d1
+	tstl	%d1
+	bmis	9b
+	cmpl	%a1,%d1
+	bges	9b
+	movel	%d1,%d0
+	bras	5b
+| snap_mgr: the callable's manager, which nothing here calls; a function, so not 0
+snap_mgr:
+	moveq	#0,%d0
+	rts
+
+	.section .cfo_names,"a"
+	.balign	4
+snap_waves:				| a display object's +0x44 callable: storage (8 B), manager, invoker
+	.long	snap_wpts, 0, snap_mgr, snap_inv
+snap_dets:
+	.long	snap_dpts, 0, snap_mgr, snap_inv
+snap_wpts:				| 0 SIN / OSC1, 42 TRI / 1+2, 85 SAW / 1+2+3, 127 SQR / 2+3
+	.word	0x0000, 0x2a00, 0x5500, 0x7f00, -1
+snap_dpts:				| -24, -17, -12, -5, 0, +7, +12, +19, +24 semitones
+	.word	0x2800, 0x2f00, 0x3400, 0x3b00, 0x4000, 0x4700, 0x4c00, 0x5300, 0x5800, -1
+	.section .cfo_display,"ax"
+.endif
+
+.ifdef TRKPOP
+| cfo_trkpop (S22): the [TRK] popup, FUN_4003bbfe, shows FUN_40093ab0(popup, "%s: %.16s", the machine's
+| short name, the sample name of SAMP's slot) at 0x4003bd6a, with the track's machine in %d5
+| (FUN_4002200a, -1 for none) and %d0, %d1 dead. POLY (4) and CFOO (5) play no sample of their own: for
+| them the format is "%s", the machine's name alone. Everything else goes on unchanged.
+cfo_trkpop:
+	movel	%d5,%d0
+	subql	#4,%d0
+	moveq	#1,%d1
+	cmpl	%d0,%d1
+	bcss	1f			| not 4 or 5
+	lea	s_name_only,%a0
+	movel	%a0,%sp@(8)		| the format
+1:	jmp	0x40093ab0
+
+	.section .cfo_names,"a"
+s_name_only: .asciz "%s"
+	.section .cfo_display,"ax"
+.endif
+
+.ifdef LFONAMES
+| (S23) CFOO's names as LFO destinations. A CFOO track's SRC destinations are ONESHOT's ids 108..115
+| (FUN_40078f44, S15), and two places read their names from the descriptors: the DEST knob's picture
+| (0x40065d3e: the group "Sample" at +0x2c, uppercased to 4 letters, over the short name at +0x30) and
+| the destination list's labels (the lambda at 0x400a4448: "%.16s:%.32s" of the page's prefix,
+| FUN_4007914c, and the long name at +0x28, or the short name at +0x30 when that is too wide). Both
+| show the current track's destinations: the picture finds its set from the current track, the list is
+| opened from its LFO page. For ids 108..115 on a CFOO track they get "CFOO" and CFOO's names.
+|
+| cur_machine: -> %d0 = the current track's machine, -1 above track 7: FUN_4000d9c8(the project's kit,
+| FUN_4001d24e(FUN_40014d86(project))), as the picture finds the track and the stock layout lookup
+| (MachineParameterPageView::vfunc_23) its machine. Clobbers %d0, %d1, %a0, %a1.
+cur_machine:
+	movel	%d2,%sp@-
+	jsr	0x40138882		| the project
+	movel	%d0,%sp@-
+	jsr	0x40014d86
+	movel	%d0,%sp@
+	jsr	0x4001d24e		| the current track
+	movel	%d0,%d2
+	jsr	0x40138882
+	movel	%d0,%sp@
+	jsr	0x40014d92		| the kit
+	movel	%d2,%sp@-
+	movel	%d0,%sp@-
+	jsr	0x4000d9c8		| the track's machine
+	lea	%sp@(12),%sp
+	movel	%sp@+,%d2
+	rts
+| lfo_src: %d0 = an id -> %d0 = the knob 0..7 for ids 108..115 on a CFOO track, else -1. Clobbers %d1,
+| %a0, %a1.
+lfo_src:
+	subil	#108,%d0
+	moveq	#7,%d1
+	cmpl	%d0,%d1
+	bcss	8f
+	movel	%d0,%sp@-
+	bsrw	cur_machine
+	subql	#CFOO,%d0
+	bnes	7f
+	movel	%sp@+,%d0
+	rts
+7:	addql	#4,%sp
+8:	moveq	#-1,%d0
+	rts
+
+| cfo_lfogrp: the picture's std::string(this, group, alloc) at 0x40065dec, the destination's id in %d3.
+cfo_lfogrp:
+	movel	%d3,%d0
+	bsrw	lfo_src
+	tstl	%d0
+	bmis	1f
+	lea	cfoo_short,%a0		| "CFOO" for "SAMP"
+	movel	%a0,%sp@(8)
+1:	jmp	0x4017af20
+
+| cfo_lfocell: 0x40065e5e, in place of 'moveq #52,%d0 ; mulsl %d0,%d3 ; movel %a0@(0x30,%d3:l),%sp@-'
+| (followed by 'movel %d0,%sp@- ; nop'): %d3 = the id (0 above 163) -> %d0 = its short name. %d3 is not
+| read again.
+cfo_lfocell:
+	movel	%d3,%d0
+	bsrw	lfo_src
+	tstl	%d0
+	bmis	1f
+	lea	cfoo_short_names,%a0
+	movel	%a0@(0,%d0:l:4),%d0
+	rts
+1:	movel	%d3,%d0
+	moveq	#52,%d1
+	mulsl	%d1,%d0
+	lea	0x401aa09c,%a0
+	movel	%a0@(0x30,%d0:l),%d0
+	rts
+
+| cfo_lfolist: 0x400a44d0, in place of 'movel %a3@(0x28,%d0:l),%sp@- ; movel %d6,%sp@-' (the long name and
+| the prefix for the label): %d0 = 52 x the id, %d2 = the id. cfo_lfolist2: 0x400a454c, in place of
+| 'movel %a3@(0x30,%d2:l),%sp@- ; movel %d6,%sp@-' (the short name, when the long one is too wide): %d2 =
+| 52 x the id, %a0 = the result string, which the formatter after it takes and which is kept here.
+cfo_lfolist:
+	moveal	%sp@+,%a1
+	movel	%a3@(0x28,%d0:l),%sp@-	| as stock
+	movel	%d6,%sp@-
+	movel	%a1,%sp@-
+	movel	%a0,%sp@-
+	movel	%d2,%d0
+	lea	cfoo_long_names,%a0
+	bras	1f
+cfo_lfolist2:
+	moveal	%sp@+,%a1
+	movel	%a3@(0x30,%d2:l),%sp@-	| as stock
+	movel	%d6,%sp@-
+	movel	%a1,%sp@-
+	movel	%a0,%sp@-
+	movel	%d2,%d0
+	divuw	#52,%d0
+	mvzw	%d0,%d0
+	lea	cfoo_short_names,%a0
+1:	movel	%a0,%sp@-		| the stack: CFOO's names, %a0, the return, the prefix, the name
+	bsrw	lfo_src
+	moveal	%sp@+,%a0
+	tstl	%d0
+	bmis	2f
+	movel	%a0@(0,%d0:l:4),%d0
+	movel	%d0,%sp@(12)		| CFOO's name
+	lea	cfoo_short,%a0
+	movel	%a0,%sp@(8)		| the prefix "CFOO"
+2:	moveal	%sp@+,%a0
+	rts
+.endif
 
 	.section .hook_encobj,"ax"	| 0x40032b74: jsr FUN_40065794
 	jsr	cfo_encobj

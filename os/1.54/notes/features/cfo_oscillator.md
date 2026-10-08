@@ -234,9 +234,9 @@ the pad's 2,372. The routes:
 
 ## Testing on the unit
 
-`make_cfo.py lz4_stream.ld --stages` builds eleven images on top of the reference build (section 3
+`make_cfo.py lz4_stream.ld --stages` builds fifteen images on top of the reference build (section 3
 `efc90606…`, `.syx` `3fd4b0a3`), each adding one step to the stage named in its row. They are meant to
-be flashed in order, S9 to S19:
+be flashed in order, S9 to S23:
 
 | Stage | `.syx` | Section 3 | Contents |
 |---|---|---|---|
@@ -251,6 +251,10 @@ be flashed in order, S9 to S19:
 | S17 | `6f42dd47` | `b7ac2008…` | S16 + CFOO's own value displays: the knob pictures, the cell's text and the encoder popup ([below](#cfoos-own-value-displays-in-s17)) |
 | S18 | `78cda1e3` | `97f6f22a…` | S17 + CFOO's knobs as agreed after S17: whole steps, three FM sources, ±24 semitone detunes, no sample picker, pitches above the stock table's top ([below](#cfoos-knobs-as-agreed-in-s18)) |
 | S19 | `a069de54` | `3351306e…` | S18 + the ranges, pictures and cell texts find the machine through the set's sound holder; the validity test, the reset to default, MIDI CC and the all-tracks edit take CFOO's ranges ([below](#the-sound-behind-a-parameter-set-in-s19)) |
+| S20 | `ee3c06ab` | `208a4972…` | S19 + the pure waves and the four mixes exactly at 0, 42, 85 and 127; the tables move to the .rodata padding ([below](#pure-points-in-s20)) |
+| S21 | `23ad0daf` | `a87695d0…` | S20 + [FUNC] + knob steps between those points, and between nine detunes ([below](#func--knob-in-s21)) |
+| S22 | `0e302722` | `3fd1a030…` | S21 + the [TRK] popup shows POLY and CFOO without a sample name ([below](#the-trk-popup-in-s22)) |
+| S23 | `3d72e125` | `5c3ebf10…` | S22 + CFOO's names as LFO destinations ([below](#cfoo-as-an-lfo-destination-in-s23)) |
 
 Checked on the built images (S12's own checks are [below](#cfoo-machine-5-in-s12)):
 - the build's own checks;
@@ -363,6 +367,22 @@ What to check:
   On a ONESHOT track (and SLICE, POLY): TUNE, PLAY, BR, SAMP, STRT, LEN, LOOP and LEV with their own
   names, pictures, values and ranges, as stock, wherever the pattern's values sit. If a ONESHOT track
   still shows any of CFOO's names, a screen dump of it would show where.
+- **S20:** on a CFOO track, a wave knob (A, C, D) at 0, 42, 85 and 127 plays a pure SIN, TRI, SAW and
+  SQR, and the mix (E) at the same four values plays OSC1 alone, 1+2, 1+2+3 and 2+3. In between the
+  morph is as before, its corners moved by under one step. CFOO's names, the machine list and every
+  page read as in S19 (the tables now sit elsewhere).
+- **S21:** on a CFOO track, hold [FUNC] and turn a knob:
+  - A, C, D and E step to the next of 0, 42, 85, 127 in the turn's direction, and stay at the end;
+  - G and H step through −24, −17, −12, −5, 0, +7, +12, +19, +24 semitones;
+  - B and F do what [FUNC] did for them before.
+
+  Without [FUNC] every knob turns as in S20. On a ONESHOT track [FUNC] + knob behaves as stock.
+- **S22:** [TRK] + a track key: a POLY or CFOO track shows only POLY or CFOO; a ONESHOT, WERP, REPITCH
+  or SLICE track still shows its machine and sample name.
+- **S23:** on a CFOO track's LFO page, DEST: the knob's picture shows CFOO over the destination's short
+  name (WAV1 … DET3), and the destination list reads `CFOO:OSC1 Wave` … `CFOO:OSC3 Detune` (or the
+  short names where a long one is too wide). The FILTER, AMP and other destinations, and every other
+  machine's list, are unchanged.
 - **S17:** on a CFOO track all eight cells are plain knobs, each turning over its own range: A, C, D over
   the waves, B in four steps, E and F to 120, G and H to 98 with unison at the top. The encoder popup
   (and the cell's text, where the page shows one) reads, for example, `OSC1 Wave=0`, `FM Source=OFF`,
@@ -939,6 +959,98 @@ holder's test removed calls through address 0; the all-tracks entry reading `%a2
 
 ⚠️ Still ONESHOT's ranges: the randomiser (SLICE's for slots 17–24, as before) and the modulation
 paths. Not traced: which set a parameter lock on an SRC knob goes through.
+
+## Pure points, in S20
+
+Built with `--defsym PURE=1` on top of S19. `wave` and `gains` mapped a knob value v (0–127) to a
+crossfade by 3v/128: segment 3v >> 7, fraction 3v & 127. SIN is pure at 0, but TRI and SAW fall
+between two values (42.67, 85.33) and 127 is 98 % SQR; the mix's corners (OSC1, 1+2, 1+2+3, 2+3) the
+same. S20's `segfrac` puts the four points at 0, 42, 85 and 127, segments of 42, 43 and 42 values,
+the fraction (v − start) × 256 / length rounded, exactly ((v − start) × 512 + length) / (2 × length) by
+`divu.w`, so 0..256 with 256 the next table alone (for 127 the last). The two pieces of code
+(`osc32`'s and `osc1_mix`'s crossfade, `gains`' loop) take a fraction up to 256 unchanged.
+
+The name, range and display tables (`.cfo_names`, 465 B) move from the pad to the zero .rodata
+padding after the icon, `0x40252c80`: `make_cfo.py` places them there with `ld --section-start` from
+S20 on, and the pad holds code only (576 B left in S20).
+
+**Checked:** `wave` and `gains` for every value 0–127 against a model written from the points (tables,
+fraction, the three gains), and the model gives one wave and one mix alone at the four points; the
+synth cases, now against that model; names and everything else as S19, on S20's own bytes. Control:
+the middle segment's rounding term removed fails the point cases and every synth case that plays a
+value in it. Worst tick: 18,185 instructions (the divides).
+
+## [FUNC] + knob, in S21
+
+Built with `--defsym SNAP=1` on top of S20. ✅ Read in the code (objdump, decompile):
+`ParameterPageView::vfunc_17` passes `FUN_400d399c(1) != 0` (key 1 held; ⚠️ [FUNC], from the effect)
+to the page's write and on to `ParameterSet::vfunc_11` as its flag. With the flag, `vfunc_11` takes the
+knob's display object (`FUN_40065794` through `%a4`, loaded at `0x40010052`) and, if its `+0x44`
+callable is set (`+0x4c` not 0), stores what that returns for (value, delta, min, max, default)
+instead of value + delta. The stock callables of this kind (`0x4005f7ec..0x4005f89a`) go by the
+delta's sign to an end, to the default, to the middle or by ±12 semitones; which id has which is not
+read.
+
+S21 points that `lea` at `cfo_fobj`: for A, C, D, E, G and H on a CFOO sound (`set_machine(%a2)`) it
+returns a display object of this build, of which only the callable (`+0x44..+0x53`) exists, in
+.rodata; for anything else FUN_40065794's. Its invoker, `snap_inv`, goes to the first point above the
+value on a turn up, the last below on a turn down, and stays past the last point:
+
+| Knob | Points (8.8) |
+|---|---|
+| A, C, D | 0, 42, 85, 127: SIN, TRI, SAW, SQR |
+| E | 0, 42, 85, 127: OSC1, 1+2, 1+2+3, 2+3 |
+| G, H | −24, −17, −12, −5, 0, +7, +12, +19, +24 semitones |
+
+B and F keep PLAY's and LEN's callables.
+
+**Checked:** `cfo_fobj` for ids 104–120 on machines 5, 0 and 4: this build's objects only for A, C, D,
+E, G, H on 5, FUN_40065794 with the id unchanged otherwise, registers kept; and end to end through the
+stock `ParameterSet::vfunc_11` with the flag on a sound's set (S19's objects), from 9 to 11 starting
+values per knob by ±1 and ±256 (232 edits): each writes the next point, or stays, and sets the
+special-action flag. Control: one wave point moved fails those edits. ⚠️ Ghidra's emulator does not
+set the condition codes after `mvs`/`mvz` ([emulator.md](../../../../notes/emulator.md)); the routine
+tests the value itself.
+
+## The [TRK] popup, in S22
+
+Built with `--defsym TRKPOP=1` on top of S21. ✅ Read in the code (objdump): `FUN_4003bbfe(track)`
+(callers `0x4003c56e` and `0x4002898e`; shown while key 2 is held, `0x4003bcd4`, ⚠️ [TRK]) formats
+`FUN_40093ab0(popup, "%s: %.16s", the machine's short name, the sample name of SAMP's slot)` at
+`0x4003bd6a`, the track's machine in `%d5` (`FUN_4002200a`, −1 for none), whatever the machine. S22
+points that call at `cfo_trkpop`, which gives POLY (4) and CFOO (5) the format `"%s"`: the machine's
+name alone.
+
+**Checked:** `cfo_trkpop` for machines −1 to 6: `"%s"` only for 4 and 5, the other arguments, the
+stack and the kept registers unchanged. Control: the test shifted by one machine fails it.
+
+⚠️ Two other places use the same format: `SamplePageView::vfunc_2` (`0x4003b512`) and `FUN_4003a638`
+(`0x4003a6ce`, the text `SamplePageView::vfunc_19` returns). What they show for POLY and CFOO is not
+checked.
+
+## CFOO as an LFO destination, in S23
+
+Built with `--defsym LFONAMES=1` on top of S22. A CFOO track's SRC destinations are ids 108–115
+(`FUN_40078f44`, S15). ✅ Read in the code (objdump):
+- the DEST parameters are ids 55 and 64 (flags `+0x24` `0x20000` and `0x10000`); their value is a slot;
+- the DEST knob's picture, `0x40065d3e`, finds the current track's set (project, `FUN_4001d24e`,
+  `FUN_4000d19c`), maps the slot to an id (the set's `vfunc_20`), and draws the descriptor's group
+  (`+0x2c`, std::string at `0x40065dec`, 4 letters uppercased: SAMP) over its short name (`+0x30`,
+  `0x40065e5e`);
+- the destination list's label, the lambda `0x400a4448` (installed at `0x400a4c2a`), formats
+  `"%.16s:%.32s"` of the page's prefix (`FUN_4007914c`, SAMP) and the long name (`+0x28`,
+  `0x400a44d0`), or the short name (`+0x30`, `0x400a454c`) when that is too wide.
+
+S23 hooks those four places. `cur_machine` finds the current track's machine as the picture finds the
+track and the stock layout lookup its machine (`FUN_4000d9c8`, the holder at the kit's
+`+0x60 + 200 × track`); for ids 108–115 on CFOO the group and prefix become `CFOO` and the names
+CFOO's (short on the knob and in the fallback, long in the list).
+
+**Checked:** `cur_machine` with the project lookups stubbed and the stock `FUN_4000d9c8` and
+`FUN_4002200a` run on a holder (tracks 0, 3, 7; −1 for 8); the four routines for ids 106–117 and 0
+with the machine 5 and 0: CFOO's strings only for 108–115 on 5, the descriptor's otherwise, the list's
+stack (prefix, name) and its kept `%a0`; the four sites in place. Controls: the fallback's divide off
+by one, and the kit lookup replaced by the wrong one, each fail their own cases.
 
 ## Related notes
 
