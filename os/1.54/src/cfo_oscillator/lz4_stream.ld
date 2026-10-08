@@ -9,6 +9,8 @@ SECTIONS
   .hook_popup 0x40032d16 : { *(.hook_popup) }
   .hook_pic   0x4000f2bc : { *(.hook_pic) }
   .hook_ctext 0x4000f324 : { *(.hook_ctext) }
+  .hook_encobj 0x40032b74 : { *(.hook_encobj) }
+  .hook_samp  0x4003b5a0 : { *(.hook_samp) }
   .cfo_code   0x400f77da : { *(.cfo_main) *(.cfo_track) *(.cfo_pitch) *(.cfo_wave) *(.cfo_gains) *(.cfo_osc) *(.cfo_mix) *(.cfo_layout) *(.cfo_rename) *(.cfo_slots) *(.cfo_range) *(.cfo_display) }
   .cfo_names  ALIGN(4) : { *(.cfo_names) }
   .cfo_data   0x40252724 : { *(.cfo_data) }

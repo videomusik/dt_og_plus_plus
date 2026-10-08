@@ -140,6 +140,90 @@ public class EmuCfoOscillator extends GhidraScript {
     return out;
   }
 
+  // knobs mode, S18 (sym cfo_encobj): K holds the raw 8.8 slot values. A, C, D the waves 0..127; B the
+  // FM source 0 OSC2, 1 OSC2+3, 2 OSC3 (above 2 as 2); E the mix 0..127; F the FM amount 0..127; G, H the
+  // detunes, 40.0..88.0 = -24..+24 semitones around 64.0, fraction included; above the stock pitch
+  // table's top (note sum 0x570000) the pitch is taken down by octaves and the step doubled back, at
+  // most 0x7fffffff. Written from the agreed knob table, not from the code.
+  boolean v2 = false;
+  int pitch2(int ns) {
+    if (ns < 0) ns = 0;
+    int k = 0;
+    while (ns > 0x570000) { ns -= 0xc0000; k++; }
+    long st = ((long) (pitchTab[ns / 384] >>> 13)) * 357;
+    for (; k > 0; k--) st = st >= 0x40000000L ? 0x7fffffffL : st * 2;
+    return (int) st;
+  }
+  static int det24(int v) { v = Math.max(0x2800, Math.min(v & 0xffff, 0x5800)); return (v - 0x4000) << 8; }
+  static int byte8(int v) { return (v >> 8) & 0xff; }
+  int[] modelK2(int t, int note, int[] k, int level) {
+    int ns = (note << 16) + 0x30000;
+    int st1 = pitch2(ns), st2 = pitch2(ns + det24(k[6])), st3 = pitch2(ns + det24(k[7]));
+    int fms = (st1 >>> 13) * byte8(k[5]);
+    int b = Math.min(byte8(k[1]), 2);
+    int m2 = b <= 1 ? -1 : 0, m3 = b >= 1 ? -1 : 0;
+    int[] g = gains(Math.min(byte8(k[4]), 127));
+    int now = level >>> 16, last = mprev[t];
+    if (Integer.compareUnsigned(last, 0x7fff) > 0) last = now;
+    mprev[t] = now;
+    int cur = last << 5, step = now - last;
+    int[] w1 = wave(Math.min(byte8(k[0]), 127)), w2 = wave(Math.min(byte8(k[2]), 127)), w3 = wave(Math.min(byte8(k[3]), 127));
+    int[] s2 = new int[32], s3 = new int[32], out = new int[32];
+    for (int i = 0; i < 32; i++) { ph[t][1] += st2; s2[i] = samp(w2, ph[t][1]); }
+    for (int i = 0; i < 32; i++) { ph[t][2] += st3; s3[i] = samp(w3, ph[t][2]); }
+    for (int i = 0; i < 32; i++) {
+      int fm = (s2[i] & m2) + (s3[i] & m3);
+      ph[t][0] += st1 + fm * fms;
+      int s1 = samp(w1, ph[t][0]);
+      cur += step;
+      out[i] = (s1 * g[0] + s2[i] * g[1] + s3[i] * g[2]) * (cur >> 5);
+    }
+    return out;
+  }
+  void knobCases2(int[] none, int[] noSlot, int[] zero, int[] c4, int[] notes, int MAX) throws Exception {
+    int U = 0x4000;
+    int[] def = {0, 0, 0, 0, 0, 0, U, U};
+    runK("S18 knobs: no synth track, every block untouched", 3, none, noSlot, c4, def);
+    runK("S18 knobs: defaults (OSC1 SIN alone), all 8 tracks", 40, zero, zero, notes, def);
+    runK("S18 knobs: A 42, C 64, D 127 (waves)", 20, zero, zero, notes, new int[] {0x2a00, 0, 0x4000, 0x7f00, 0x5500, 0, U, U});
+    runK("S18 knobs: A 127, mix E 127 (OSC2+3)", 20, zero, zero, notes, new int[] {0x7f00, 0, 0x2000, 0x6000, 0x7f00, 0, U, U});
+    runK("S18 knobs: mix E 42, 85", 20, zero, zero, notes, new int[] {0, 0, 0x5000, 0x2000, 0x2a00, 0, U, U});
+    runK("S18 knobs: FM B 0 (OSC2), F 60", 30, zero, zero, notes, new int[] {0, 0, 0, 0, 0, 0x3c00, 0x3400, U});
+    runK("S18 knobs: FM B 1 (OSC2+3), F 127", 30, zero, zero, notes, new int[] {0x2000, 0x100, 0x1400, 0x4600, 0x3c00, 0x7f00, 0x3800, 0x4700});
+    runK("S18 knobs: FM B 2 (OSC3), F 90", 30, zero, zero, notes, new int[] {0, 0x200, 0, 0, 0, 0x5a00, U, 0x4c00});
+    runK("S18 knobs: FM B 3 (above the range: as 2)", 20, zero, zero, notes, new int[] {0, 0x300, 0, 0, 0, 0x5a00, U, 0x4c00});
+    runK("S18 knobs: G -24 st, H +24 st", 20, zero, zero, notes, new int[] {0, 0, 0, 0, 0x5500, 0, 0x2800, 0x5800});
+    runK("S18 knobs: G -0.5 st, H +7.25 st (fractions)", 20, zero, zero, notes, new int[] {0, 0, 0, 0, 0x5500, 0, 0x3f80, 0x4740});
+    runK("S18 knobs: G, H out of range (clamp to -24, +24)", 20, zero, zero, notes, new int[] {0, 0, 0, 0, 0x5500, 0, 0x1000, 0x7000});
+    runK("S18 knobs: A, C, D, E, F above 127 (clamp)", 10, zero, zero, notes, new int[] {0xc000, 0x200, 0xff00, 0x9000, 0xa000, 0x7f00, U, U});
+    runK("S18 knobs: high notes, +24 st (pitch above the table's top)", 20, zero, zero,
+         new int[] {84, 96, 108, 120, 127, 100, 90, 85}, new int[] {0, 0x100, 0x4000, 0x7f00, 0x5500, 0x7f00, 0x5800, 0x5800});
+    runK("S18 knobs: extreme notes", 10, zero, zero, new int[] {0, 127, 0, 127, 0, 127, 0, 127}, new int[] {0x7f00, 0x200, 0x7f00, 0x7f00, 0x3c00, 0x7f00, 0x2800, 0x5800});
+    K = def;
+    activeMask = 0xff; trigMask = 0x0a;
+    run("S18 knobs: de-click", 5, zero, zero, notes, 0, 0, 0, 0, 0, 0, MAX);
+    activeMask = 0; trigMask = 0;
+    seedLevels = 0xdeadbeefL;
+    run("S18 knobs: level RAM not set at boot", 3, zero, zero, notes, 0, 0, 0, 0, 0, 0, MAX);
+    seedLevels = 0;
+    run("S18 knobs: half level", 10, zero, zero, notes, 0, 0, 0, 0, 0, 0, 0x40000000);
+    // the pitch extension alone: pitch() against pitch2() for note sums across the whole range
+    StringBuilder bad = new StringBuilder();
+    for (int ns = -0x10000; ns <= 0xa00000 && bad.length() < 300; ns += 0x1357) {
+      long sp = SP0 - 4;
+      wr(sp, RET, 4);
+      emu.writeRegister("SP", sp); emu.writeRegister("PC", sym.get("pitch")); emu.writeRegister("D0", ns & 0xffffffffL);
+      boolean done = false;
+      for (int s = 0; s < 200; s++) {
+        if (emu.getExecutionAddress().getOffset() == RET) { done = true; break; }
+        if (!emu.step(monitor)) break;
+      }
+      if (!done || (int) rd("D0") != pitch2(ns)) bad.append(String.format(" [ns 0x%x: 0x%x, want 0x%x]", ns, (int) rd("D0"), pitch2(ns)));
+    }
+    println(String.format("  %-64s %s%s", "S18 knobs: pitch above the table's top, note sums 0..0xa00000", bad.length() == 0 ? "OK" : "**FAIL**", bad));
+    if (bad.length() != 0) fails++;
+  }
+
   // ---- one case: several ticks with fixed settings
   static final String[] KEEP = {"D2","D3","D4","D5","D6","D7","A2","A3","A4","A5","A6"};
 
@@ -174,7 +258,7 @@ public class EmuCfoOscillator extends GhidraScript {
       long e = ENGINE + t * 0x6a;
       wr(e + 0x34, tune, 2); wr(e + 0x36, play << 8, 2); wr(e + 0x38, br << 8, 2); wr(e + 0x3a, slot[t] << 8, 2);
       wr(e + 0x3c, strt << 8, 2); wr(e + 0x3e, len << 8, 2); wr(e + 0x40, loop << 8, 2);
-      if (K != null) for (int j = 0; j < 8; j++) wr(e + 0x34 + 2 * j, (K[j] & 0xff) << 8, 2);
+      if (K != null) for (int j = 0; j < 8; j++) wr(e + 0x34 + 2 * j, v2 ? K[j] & 0xffff : (K[j] & 0xff) << 8, 2);
       wr(NOTES + 4 * t, (long) note[t] << 16, 4);
       if (K == null) wr(e + 0x42, LEVW, 2);
       wr(VELS + 2 * t, X0 + t, 2);
@@ -218,7 +302,8 @@ public class EmuCfoOscillator extends GhidraScript {
       if (done && levelCalls[t] != (synth ? 1 : 0))
         bad.append(String.format(" [track %d: %d level calls, want %d]", t, levelCalls[t], synth ? 1 : 0));
       int lv = ((activeMask & trigMask) >> t & 1) != 0 ? 0 : level;	// the de-click
-      int[] want = !synth ? null : K != null ? modelK(t, note[t], K, lv) : model(t, note[t], tune, play, br, strt, len, loop, lv);
+      int[] want = !synth ? null : K != null ? (v2 ? modelK2(t, note[t], K, lv) : modelK(t, note[t], K, lv))
+          : model(t, note[t], tune, play, br, strt, len, loop, lv);
       for (int i = 0; i < 32; i++) {
         int got = rd32s(A18 + t * 0x80 + 4 * i);
         int exp = synth ? want[i] : (int) (0x11110000L + t * 0x100 + i);
@@ -440,6 +525,8 @@ public class EmuCfoOscillator extends GhidraScript {
    *  the five call sites pointing at it. */
   static final long SET = 0x439d3a00L, VT = 0x439d3a40L, VFN = 0x439d3b00L, SND = 0x439d3c00L, DEST = 0x439d3d00L;
   static final long[] RANGE_SITES = {0x4000f536L, 0x4000ff22L, 0x400100c6L, 0x40010156L, 0x4002213aL};
+  static final long[][] CFOO_RANGES2 = {{0, 0x7f00, 0}, {0, 0x200, 0}, {0, 0x7f00, 0}, {0, 0x7f00, 0},
+      {0, 0x7f00, 0}, {0, 0x7f00, 0}, {0x2800, 0x5800, 0x4000}, {0x2800, 0x5800, 0x4000}};
   static final long[][] CFOO_RANGES = {{0x400, 0x5800, 0x400}, {0, 0x300, 0}, {0, 0x7f00, 0}, {0, 0x7f00, 0},
       {0, 0x7800, 0}, {0, 0x7800, 0}, {0, 0x6200, 0x3000}, {0, 0x6200, 0x3200}};
   void rangeCases() throws Exception {
@@ -466,7 +553,7 @@ public class EmuCfoOscillator extends GhidraScript {
         boolean ours = mach == 5 && id >= 108 && id <= 115;
         long rec = 0x401aa09cL + 0x34L * id + 8;
         for (int f = 0; f < 3; f++) {
-          long want = ours ? CFOO_RANGES[id - 108][f] : rdn(rec + 4 * f, 4);
+          long want = ours ? (v2 ? CFOO_RANGES2 : CFOO_RANGES)[id - 108][f] : rdn(rec + 4 * f, 4);
           if (done && rdn(DEST + 4 * f, 4) != want)
             bad.append(String.format(" [machine %d id %d field %d: 0x%x, want 0x%x]", mach, id, f, rdn(DEST + 4 * f, 4), want));
         }
@@ -516,6 +603,7 @@ public class EmuCfoOscillator extends GhidraScript {
     emu.writeRegister("SP", sp); emu.writeRegister("PC", pc);
     for (int i = 0; i < KEEP.length; i++) emu.writeRegister(KEEP[i], 0x5a5a0000L + i);
     emu.writeRegister("A2", DPAGE);
+    if (initD0 >= 0) emu.writeRegister("D0", initD0);
     for (int s = 0; s < 3000; s++) {
       long p = emu.getExecutionAddress().getOffset();
       if (p == RET || p == stopAt) return true;
@@ -660,6 +748,169 @@ public class EmuCfoOscillator extends GhidraScript {
     if (bad.length() != 0) fails++;
   }
 
+  /** S18: the agreed texts. A, C, D, E, F the number, at most 127; B OSC2, 2+3, OSC3 (above 2 as 2);
+   *  G, H the semitones from unison, two decimals (a hundredth a cent, rounded), -24.00..+24.00, 0.00 at
+   *  unison. And each knob's range for the picture, {min, span} in 8.8. */
+  static String agreedText2(int k, int raw) {
+    int n = (raw >> 8) & 0xff;
+    if (k == 1) return new String[] {"OSC2", "2+3", "OSC3"}[Math.min(n, 2)];
+    if (k >= 6) {
+      int v = Math.max(0x2800, Math.min(raw & 0xffff, 0x5800)) - 0x4000;
+      if (v == 0) return "0.00";
+      int c = (Math.abs(v) * 100 + 128) >> 8;
+      return (v < 0 ? "-" : "+") + (c / 100) + "." + String.format("%02d", c % 100);
+    }
+    return String.valueOf(Math.min(n, 127));
+  }
+  static final int[][] KRANGE2 = {{0, 0x7f00}, {0, 0x200}, {0, 0x7f00}, {0, 0x7f00}, {0, 0x7f00}, {0, 0x7f00}, {0x2800, 0x3000}, {0x2800, 0x3000}};
+  static final int[] STEP_IDS = {110, 109, 110, 110, 110, 110, 108, 108};
+  long initD0 = -1;
+  List<Integer> values2(int k) {
+    List<Integer> v = new ArrayList<>();
+    if (k < 6) for (int n = 0; n < 256; n++) v.add((n << 8) | 0x80);
+    else {
+      for (int r = 0x2000; r <= 0x6000; r += 0x0d) v.add(r);
+      for (int r : new int[] {0x2800, 0x27ff, 0x2801, 0x3fff, 0x4000, 0x4001, 0x3f80, 0x4740, 0x57ff, 0x5800, 0x5801, 0x0000, 0xffff}) v.add(r);
+    }
+    return v;
+  }
+  void displayCases2() throws Exception {
+    fresh();
+    long popup = sym.get("cfo_popup");
+    // 1. texts, popup and cell, against the agreed table
+    StringBuilder bad = new StringBuilder();
+    int checked = 0;
+    for (long mach : new long[] {5, 0, 4}) {
+      machine = mach;
+      for (int id = 106; id <= 117; id++) {
+        boolean ours = mach == 5 && id >= 108 && id <= 115;
+        List<Integer> vals = ours ? values2(id - 108) : java.util.Arrays.asList(0x0080, 0x4000, 0x7f00);
+        for (int raw : vals) {
+          if (bad.length() > 400) break;
+          long value = raw & 0xffffL;
+          String want = ours ? agreedText2(id - 108, raw) : null;
+          wr(POPBUF, 0x5a5a5a5a5a5a5a5aL, 8); wr(POPBUF + 8, 0x5a5a5a5aL, 4);
+          if (callTo(popup, new long[] {RET, id, value}, FMT, bad, "popup id " + id)) {
+            long pc = emu.getExecutionAddress().getOffset();
+            if (ours) {
+              String got = cstr(POPBUF);
+              if (pc != RET) bad.append(" [popup id " + id + ": went to the stock formatter]");
+              else if (!got.equals(want)) bad.append(String.format(" [popup id %d value 0x%x: '%s', want '%s']", id, raw, got, want));
+              else if (rd("D0") != POPBUF || rd("SP") != SP0 - 8) bad.append(" [popup: %d0 or SP]");
+              else regsKept(bad, "popup");
+            } else if (pc != FMT || rdn(SP0 - 8, 4) != id || rdn(SP0 - 4, 4) != value) bad.append(" [popup machine " + mach + " id " + id + ": stock call changed]");
+          }
+          wr(DBUF, 0x5a5a5a5a5a5a5a5aL, 8); wr(DBUF + 8, 0x5a5a5a5aL, 4);
+          if (callTo(0x4000f324L, new long[] {RET, DSET, id, value, DBUF}, 0x4000f32cL, bad, "cell text id " + id)) {
+            long pc = emu.getExecutionAddress().getOffset();
+            if (ours) {
+              String got = cstr(DBUF);
+              if (pc != RET || !got.equals(want)) bad.append(String.format(" [cell text id %d value 0x%x: '%s', want '%s']", id, raw, got, want));
+              else regsKept(bad, "cell text");
+            } else if (pc != 0x4000f32cL || rdn(rd("SP") + 28, 4) != id) bad.append(" [cell text machine " + mach + " id " + id + ": stock call changed]");
+          }
+          checked++;
+        }
+      }
+    }
+    machine = 5;
+    println(String.format("  %-64s %s%s", "S18 displays: popup and cell text, " + checked + " values", bad.length() == 0 ? "OK" : "**FAIL**", bad));
+    if (bad.length() != 0) fails++;
+
+    // 2. the picture: STRT's knob, the 8.8 value rescaled from the knob's range onto 0..120.0
+    bad = new StringBuilder();
+    for (long mach : new long[] {5, 0, 4}) {
+      machine = mach;
+      for (int id = 106; id <= 117; id++) {
+        boolean ours = mach == 5 && id >= 108 && id <= 115;
+        List<Integer> vals = ours ? values2(id - 108) : java.util.Arrays.asList(0x0080, 0x4000);
+        for (int raw : vals) {
+          if (bad.length() > 400) break;
+          long value = raw & 0xffffL;
+          if (!callTo(0x4000f2bcL, new long[] {RET, DSET, id, value, 0x11, 0x22, 0x33, 0x44}, 0x4000f2c4L, bad, "picture id " + id)) continue;
+          long q = rd("SP");
+          long wantId = id, wantVal = value;
+          if (ours) {
+            int[] r = KRANGE2[id - 108];
+            long rel = Math.min(Math.max(raw - r[0], 0), r[1]);
+            wantId = 112; wantVal = rel * 0x7800 / r[1];
+          }
+          if (emu.getExecutionAddress().getOffset() != 0x4000f2c4L || q != SP0 - 52) bad.append(" [picture id " + id + ": frame]");
+          else if (rdn(q + 28, 4) != wantId || rdn(q + 32, 4) != wantVal)
+            bad.append(String.format(" [picture machine %d id %d value 0x%x: id %d 0x%x, want id %d 0x%x]", mach, id, raw, rdn(q + 28, 4), rdn(q + 32, 4), wantId, wantVal));
+        }
+      }
+    }
+    machine = 5;
+    println(String.format("  %-64s %s%s", "S18 displays: picture = STRT's knob over each knob's range", bad.length() == 0 ? "OK" : "**FAIL**", bad));
+    if (bad.length() != 0) fails++;
+
+    // 3. G and H: the synth's detune24 against det24, and the text against the offset (half a cent)
+    bad = new StringBuilder();
+    for (int raw : values2(6)) {
+      if (bad.length() > 300) break;
+      long sp = SP0 - 4;
+      wr(sp, RET, 4);
+      emu.writeRegister("SP", sp); emu.writeRegister("PC", sym.get("detune24")); emu.writeRegister("D0", raw & 0xffffL);
+      boolean done = false;
+      for (int s = 0; s < 100; s++) {
+        if (emu.getExecutionAddress().getOffset() == RET) { done = true; break; }
+        if (!emu.step(monitor)) break;
+      }
+      int got = (int) rd("D0");
+      String t = agreedText2(6, raw);
+      String[] p = t.replace("+", "").split("\\.");
+      int cents = Integer.parseInt(p[0].replace("-", "")) * 100 + Integer.parseInt(p[1]);
+      if (t.startsWith("-")) cents = -cents;
+      long implied = Math.round(cents * 65536.0 / 100.0);
+      if (!done || got != det24(raw)) bad.append(String.format(" [detune24 0x%x: 0x%x, want 0x%x]", raw, got, det24(raw)));
+      else if (Math.abs(implied - got) > 330) bad.append(String.format(" [0x%x: text '%s' is %d, the synth %d]", raw, t, implied, got));
+    }
+    println(String.format("  %-64s %s%s", "S18 displays: G, H text = the synth's detune to half a cent", bad.length() == 0 ? "OK" : "**FAIL**", bad));
+    if (bad.length() != 0) fails++;
+
+    // 4. the encoder's display object: the step of BR, PLAY or TUNE for CFOO, the knob's own otherwise
+    bad = new StringBuilder();
+    for (long mach : new long[] {5, 0, 4}) {
+      machine = mach;
+      for (int id = 104; id <= 120; id++) {
+        if (!callTo(sym.get("cfo_encobj"), new long[] {RET, id}, 0x40065794L, bad, "encoder id " + id)) continue;
+        long want = mach == 5 && id >= 108 && id <= 115 ? STEP_IDS[id - 108] : id;
+        if (emu.getExecutionAddress().getOffset() != 0x40065794L) bad.append(" [encoder id " + id + ": not at FUN_40065794]");
+        else if (rd("SP") != SP0 - 8 || rdn(SP0 - 8, 4) != RET) bad.append(" [encoder: SP]");
+        else if (rdn(SP0 - 4, 4) != want) bad.append(String.format(" [encoder machine %d id %d: %d, want %d]", mach, id, rdn(SP0 - 4, 4), want));
+        else regsKept(bad, "encoder");
+      }
+    }
+    machine = 5;
+    if (rdn(0x40032b74L, 2) != 0x4eb9L || rdn(0x40032b76L, 4) != sym.get("cfo_encobj")) bad.append(" [0x40032b74 is not jsr cfo_encobj]");
+    println(String.format("  %-64s %s%s", "S18 encoder: BR's step for A, C-F, PLAY's for B, TUNE's for G, H", bad.length() == 0 ? "OK" : "**FAIL**", bad));
+    if (bad.length() != 0) fails++;
+
+    // 5. the Sample Slot test: for id 111 on a CFOO page it fails; everything else as stock
+    bad = new StringBuilder();
+    for (long mach : new long[] {5, 0, 4}) {
+      machine = mach;
+      for (int id : new int[] {108, 110, 111, 112, 115, 119, 127, 135}) {
+        initD0 = id;
+        boolean ok = callTo(sym.get("cfo_samptest"), new long[] {RET}, -1, bad, "sample test id " + id);
+        initD0 = -1;
+        if (!ok) continue;
+        long wantD0 = mach == 5 && id == 111 ? 0 : 0xffffffefL;
+        if (rd("D0") != wantD0 || rd("D1") != 111 || rd("D2") != id || rd("SP") != SP0)
+          bad.append(String.format(" [machine %d id %d: d0 0x%x d1 %d d2 %d]", mach, id, rd("D0"), rd("D1"), rd("D2")));
+        for (int i = 1; i < KEEP.length; i++) {
+          long want2 = KEEP[i].equals("A2") ? DPAGE : 0x5a5a0000L + i;
+          if (rd(KEEP[i]) != want2) { bad.append(" [sample test: " + KEEP[i] + " not kept]"); break; }
+        }
+      }
+    }
+    machine = 5;
+    if (rdn(0x4003b5a0L, 2) != 0x4eb9L || rdn(0x4003b5a2L, 4) != sym.get("cfo_samptest")) bad.append(" [0x4003b5a0 is not jsr cfo_samptest]");
+    println(String.format("  %-64s %s%s", "S18 sample picker: off for D on CFOO, stock otherwise", bad.length() == 0 ? "OK" : "**FAIL**", bad));
+    if (bad.length() != 0) fails++;
+  }
+
   /** machine 5 mode: FUN_400657cc (with the layout hook from the load file) for machines 0..7. */
   void layoutCases() throws Exception {
     StringBuilder bad = new StringBuilder();
@@ -709,6 +960,7 @@ public class EmuCfoOscillator extends GhidraScript {
       }
     }
     boolean knobs = m5 && sym.containsKey("cfo_range");
+    v2 = knobs && sym.containsKey("cfo_encobj");
     if (knobs) {
       CFOO_SHORT = new String[] {"WAV1", "FMSR", "WAV2", "WAV3", "MIX", "FM", "DET2", "DET3"};
       CFOO_LONG = new String[] {"OSC1 Wave", "FM Source", "OSC2 Wave", "OSC3 Wave", "Osc Mix", "FM Amount", "OSC2 Detune", "OSC3 Detune"};
@@ -727,7 +979,8 @@ public class EmuCfoOscillator extends GhidraScript {
     int[] notes = {60, 48, 72, 36, 84, 60, 67, 30};
     int MAX = 0x7fffffff;
 
-    if (knobs) knobCases(none, noSlot, zero, c4, notes, MAX);
+    if (v2) knobCases2(none, noSlot, zero, c4, notes, MAX);
+    else if (knobs) knobCases(none, noSlot, zero, c4, notes, MAX);
     else {
     run("no synth track: every block untouched", 3, none, noSlot, c4, 0x4000, 0, 0, 0, 0, 0, MAX);
     run("ONESHOT with a sample: untouched", 3, zero, noSlot, c4, 0x4000, 0, 0, 0, 0, 0, MAX);
@@ -775,12 +1028,14 @@ public class EmuCfoOscillator extends GhidraScript {
       polyVoiceCase();
       if (sym.containsKey("slot_machine") || slots) slotCases();
       if (knobs) rangeCases();
-      if (knobs && sym.containsKey("cfo_text")) displayCases();
+      if (v2) displayCases2();
+      else if (knobs && sym.containsKey("cfo_text")) displayCases();
       remap = false;
       run("machine 5: ONESHOT with SAMP OFF is left alone", 3, zero, zero, c4, 0x4000, 3, 0, 0, 0, 0, MAX);
       remap = true;
     }
-    if (knobs) K = new int[] {4, 0, 0, 0, 0, 0, 48, 50};	// CFOO's defaults: OSC1 SIN alone
+    if (v2) K = new int[] {0, 0, 0, 0, 0, 0, 0x4000, 0x4000};	// S18's defaults: OSC1 SIN alone
+    else if (knobs) K = new int[] {4, 0, 0, 0, 0, 0, 48, 50};	// CFOO's defaults: OSC1 SIN alone
     run("extreme pitch: note 0 and 127 clamp", 10, zero, zero, new int[] {0, 127, 0, 127, 0, 127, 0, 127}, 0x4000, 1, 100, 120, 120, 120, MAX);
 
     // absolute pitch and level: OSC1 SIN, note 60, track 0, 200 ticks

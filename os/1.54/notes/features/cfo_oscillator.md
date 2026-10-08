@@ -234,9 +234,9 @@ the pad's 2,372. The routes:
 
 ## Testing on the unit
 
-`make_cfo.py lz4_stream.ld --stages` builds nine images on top of the reference build (section 3
+`make_cfo.py lz4_stream.ld --stages` builds ten images on top of the reference build (section 3
 `efc90606…`, `.syx` `3fd4b0a3`), each adding one step to the stage named in its row. They are meant to
-be flashed in order, S9 to S17:
+be flashed in order, S9 to S18:
 
 | Stage | `.syx` | Section 3 | Contents |
 |---|---|---|---|
@@ -249,6 +249,7 @@ be flashed in order, S9 to S17:
 | S15 | `7a8d8397` | `fafd7963…` | S14 + a machine change to CFOO reaches the engine at once ([below](#a-machine-change-to-cfoo-in-s15)) |
 | S16 | `60f12e59` | `d6cc95c2…` | S15 + CFOO's own knobs: map, ranges, defaults, detune, names ([below](#cfoos-own-knobs-in-s16)) |
 | S17 | `6f42dd47` | `b7ac2008…` | S16 + CFOO's own value displays: the knob pictures, the cell's text and the encoder popup ([below](#cfoos-own-value-displays-in-s17)) |
+| S18 | `78cda1e3` | `97f6f22a…` | S17 + CFOO's knobs as agreed after S17: whole steps, three FM sources, ±24 semitone detunes, no sample picker, pitches above the stock table's top ([below](#cfoos-knobs-as-agreed-in-s18)) |
 
 Checked on the built images (S12's own checks are [below](#cfoo-machine-5-in-s12)):
 - the build's own checks;
@@ -281,6 +282,15 @@ Results on the unit, OS 1.54, each stage flashed on the one before from S8:
   and G, PLAY's picture for B, SAMP's box for D and LEV's fader for H. G's unison (48) sits at 40 % of
   LOOP's 0–120 sweep. That is what S16 leaves to ONESHOT ([below](#cfoos-own-knobs-in-s16)); S17 gives
   CFOO its own displays.
+- ⚠️ **S17:** as reported. FMSR works. WAV2 steps through every number. A (WAV1) skips 2, 5, 8, 11,
+  14, 17 and on: the 85 steps of TUNE's 4–88, shown as (A − 4) × 1.5. D (WAV3) looks right, but turning
+  it opens the sample picker, while the waveform changes underneath. H (DET3) still looks like LEV's
+  fader, though it controls the detune; at the bottom it shows the right values and the popup the right
+  labels, and above a certain amount every tone sounds the same. The detunes step in fine fractions.
+  ⚠️ H's picture is not explained by the code: H's cell gets the same parameter set and goes through the
+  same hooked picture method as D's (the set resolver `FUN_400191fe` sorts by descriptor page, 0 for
+  every SRC id). "Every tone the same" fits the stock pitch table, which saturates at note 84: OSC3 above
+  about 1 kHz stays at about 1 kHz. Both are taken up in S18.
 
 What to check:
 - **S9:** nothing changes anywhere. A live caller of the pad would now get 0 at once.
@@ -317,6 +327,17 @@ What to check:
   3, G and H at 98, E and F at 120). The detunes follow the table below: G down in semitones and up in
   cents, H down in cents and up in semitones. LEV is gone: the level follows velocity, and the AMP page
   sets the volume. The values still show as ONESHOT's numbers or pictures.
+- **S18:** on a CFOO track:
+  - A, C, D, E, F step in whole numbers from 0 to 127, every number shown, at the speed of BR;
+  - B steps OSC2, 2+3, OSC3, at the speed of PLAY;
+  - G and H step in fine steps, at the speed of TUNE, from -24.00 to +24.00 semitones, a hundredth a
+    cent, with 0.00 (unison) in the middle and the knob at the top;
+  - turning D changes OSC3's wave without opening the sample picker;
+  - high notes and upward detunes keep rising above about 1 kHz (note 84) instead of sticking there;
+  - all eight cells are plain knobs. ⚠️ If H still looks like LEV's fader, a screen dump of it would
+    show what draws it.
+
+  A ONESHOT track's SRC page, its sample picker on SAMP and its knobs behave as before.
 - **S17:** on a CFOO track all eight cells are plain knobs, each turning over its own range: A, C, D over
   the waves, B in four steps, E and F to 120, G and H to 98 with unison at the top. The encoder popup
   (and the cell's text, where the page shows one) reads, for example, `OSC1 Wave=0`, `FM Source=OFF`,
@@ -655,15 +676,17 @@ default gets it from `FUN_40078f0c(id)` (36 callers), or from its copy `FUN_4007
 project loader), which copy the 12 B `{min, max, default}` from descriptor `+0x08` to `%a0`, given only
 the id. Five callers hold the parameter set in `%a2` (loaded in their prologues, not changed before the
 call): `ParameterSet::vfunc_8` (`0x4000f534`), the value setter `FUN_4000fef6` (`0x4000ff20`),
-`ParameterSet::vfunc_11` (`0x400100c4`), `ParameterSet::vfunc_25` (`0x40010154`, the knob edit, reached
-from `SoundParameterSet::vfunc_25`) and the machine-change reset `FUN_400220fc` (`lea` into `%a5` at
-`0x40022138`). S16 points those five operands at `cfo_range`: for ids 108–115 on a set whose machine
+`ParameterSet::vfunc_11` (`0x400100c4`, the knob edit), `ParameterSet::vfunc_25` (`0x40010154`, a
+14-bit outside value) and the machine-change reset `FUN_400220fc` (`lea` into `%a5` at `0x40022138`).
+S16 points those five operands at `cfo_range`: for ids 108–115 on a set whose machine
 (`FUN_4002200a`, which keeps `%a2`) is 5 it copies CFOO's record, and anything else goes on to
-`FUN_40078f0c` untouched. Each of CFOO's ranges lies inside ONESHOT's for the same slot (TUNE 4–88,
-PLAY 0–3, BR and SAMP 0–127, STRT, LEN and LOOP 0–120, LEV 0–127), so the readers that are not hooked,
-which clamp to ONESHOT's ranges (the project loader, MIDI and modulation among them), cannot move a
-stored CFOO value out of the slot. A value beyond CFOO's range can still arrive through them (a MIDI CC
-scaled to 0–120 on G, for example): the synth clamps every knob itself.
+`FUN_40078f0c` untouched. S16 also keeps each of CFOO's ranges inside ONESHOT's for the same slot (TUNE
+4–88, PLAY 0–3, BR and SAMP 0–127, STRT, LEN and LOOP 0–120, LEV 0–127), on the assumption that the
+readers not hooked would clamp a stored value to ONESHOT's range. ⛔ That assumption does not hold for
+the project loader: its six range reads only fill defaults for fields of older formats, with fixed ids
+none of which is an SRC parameter, and it copies stored values unchanged (S18,
+[below](#cfoos-knobs-as-agreed-in-s18)). MIDI CC still clamps to ONESHOT's range on the way in, and the
+synth clamps every knob itself.
 
 **Checked:**
 - `EmuCfoOscillator` in knobs mode (a load with `cfo_range`) runs 21 synth cases against a model written
@@ -749,6 +772,75 @@ cross-check and the S16 synth cases that play OSC2.
   A below 4 and above 88.
 - **The all-tracks edit**, `MachineParameterPageView::vfunc_23`, steps with ONESHOT's range and stores
   through the hooked setter.
+
+## CFOO's knobs as agreed, in S18
+
+Built with `--defsym KNOBS2=1` on top of S17. The knob table after S17 (the knobs keep their places
+and ids 108–115, so their slots):
+
+| Knob | Range (8.8) | Default | Step like | Text | What the synth does |
+|---|---|---|---|---|---|
+| A | 0–127 | 0 | BR | `0`…`127` | OSC1's wave |
+| B | 0–2 | 0 | PLAY | `OSC2`, `2+3`, `OSC3` | the FM source; above 2 as 2 |
+| C, D | 0–127 | 0 | BR | `0`…`127` | OSC2's, OSC3's wave |
+| E | 0–127 | 0 | BR | `0`…`127` | the mix, OSC1 → 1+2 → 1+2+3 → 2+3 |
+| F | 0–127 | 0 | BR | `0`…`127` | the FM amount |
+| G, H | 40.0–88.0 | 64.0 | TUNE | `-24.00`…`0.00`…`+24.00` | OSC2's, OSC3's detune: (v − 64.0) semitones, fraction included |
+
+The synth clamps every knob to its range (a wave, the mix and FM to 127, B to 2, a detune to
+40.0–88.0). A detune is the stock TUNE formula, `(v − 0x4000) × 256` on the note sum. A text's two
+decimals are hundredths of a semitone, rounded: one is a cent.
+
+✅ Read in the code (objdump, decompile) for S18:
+- **The step.** `ParameterPageView::vfunc_17` is the encoder handler. It takes the knob's display object
+  (`FUN_40065794` at `0x40032b74`), copies the 28 B step profile its template points to, and has
+  `FUN_400c06ae` turn the encoder's ticks into a delta: whole steps (× 256) when the profile says so,
+  fine steps (1/256) otherwise, with acceleration. TUNE, STRT, LEN, LOOP and LEV share one fine profile;
+  BR, SAMP and PLAY have their own. The page then stores value + delta (`ParameterSet::vfunc_11`, then
+  `vfunc_8`), clamped to the range S16's `cfo_range` gives. S18 hooks the call at `0x40032b74`: on a CFOO
+  page the encoder takes the display object of BR (110) for A and C–F, of PLAY (109) for B and of TUNE
+  (108) for G and H. The pushed id is not used again.
+- **The sample picker.** The SRC page's own handler, `SamplePageView::vfunc_17`, opens the sample picker
+  for the four machines' Sample Slot ids (111, 119, 127, 135; the test at `0x4003b5a0..0x4003b5be`).
+  S18 replaces its first three instructions (6 B) with a call that replays them, except that for id 111
+  on a CFOO page the test fails: D then takes the page's ordinary path, redraw included.
+- **The pitch.** The stock pitch table ends at index 14,848 (note sum `0x570000`, note 84, about 1 kHz),
+  where it saturates. S18's `pitch` takes a higher note sum down by octaves, looks it up, and doubles
+  the step back up for each octave, at most `0x7fffffff` (half the sample rate). Below note 84 nothing
+  changes.
+- **The stored ranges.** ⛔ S16's limit, each CFOO range inside ONESHOT's for the slot, is not needed:
+  - the project loader's range reads only fill defaults for fields of older formats, with fixed ids
+    none of which is an SRC parameter (`FUN_4007b682`, `FUN_4007b81e`, `FUN_4007bc9c`, `FUN_4007bd86`,
+    `FUN_4007be72`, `FUN_4007bf58`);
+  - `FUN_40074b9e`, which turns each track's values into the engine block the synth reads, only smooths
+    them (EMAC, one pole), with no range;
+  - `FUN_4001c85c` and its neighbours handle global settings (ids 95–107), not SRC parameters.
+
+  MIDI CC (`ParameterSet::vfunc_26`) still clamps to ONESHOT's range before CFOO's: on A a CC reaches
+  4–88, on E and F 0–120, and on G and H CC 40–88 are the semitones −24 … +24.
+
+**Checked** (`EmuCfoOscillator`, S18 mode, against a model of the table above):
+- 19 synth cases: defaults, the waves, the mix points, each FM source and B above its range, the
+  detunes at their ends, with fractions and beyond, values above 127, high notes with +24 semitones,
+  extreme notes, the de-click, the level RAM at boot, half level; and `pitch` against the model for
+  note sums across `0..0xa00000`;
+- texts in the popup and the cell for every knob (A–F at every value, G and H every 0x0d across
+  `0x2000..0x6000` and at their edges, 4,168 cases), on machines 5, 0 and 4: the stock code untouched
+  for every other id and machine;
+- the picture: the 8.8 value rescaled onto STRT's knob;
+- the G and H texts against `detune24`, within half a cent;
+- the encoder's display object for ids 104–120 on machines 5, 0 and 4, and the Sample Slot test for
+  ids 108, 110–112, 115, 119, 127 and 135 on the same machines, with the registers kept;
+- names, icon, layout, slots, ranges, the POLY voice; the image bytes, the window, `EmuMachineList` and
+  every other harness on S18's own bytes. S9–S17 rebuild byte for byte.
+
+Controls, each a copy of S18's code or tables with one change: the octave doubling removed fails the
+high-note cases and the pitch sweep; the detune centre one semitone off fails every case that plays
+OSC2 or OSC3 and the text cross-check; B with BR's step fails only the encoder case; a picker test that
+never fails fails only the picker case; the cents truncated instead of rounded fail only the text
+cases.
+
+Worst tick: 18,001 instructions (all eight tracks on the synth), plus the stubbed level call.
 
 ## Related notes
 

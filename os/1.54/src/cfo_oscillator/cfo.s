@@ -115,6 +115,27 @@ track:
 	mvzb	%a5@(0x3e),%d1
 	mulsl	%d1,%d0
 	movel	%d0,%a6@(FMS)
+.ifdef KNOBS2
+	mvzb	%a5@(0x36),%d0		| B: 0 OSC2, 1 OSC2+3, 2 OSC3 (above 2 as 2)
+	moveq	#2,%d1
+	cmpl	%d0,%d1
+	bccs	1f
+	movel	%d1,%d0
+1:	moveq	#2,%d1			| FM from OSC2 for 0 and 1
+	cmpl	%d1,%d0
+	scs	%d1
+	extbl	%d1
+	movel	%d1,%a6@(M2)
+	subql	#1,%d0			| from OSC3 for 1 and 2
+	moveq	#2,%d1
+	cmpl	%d1,%d0
+	scs	%d1
+	extbl	%d1
+	movel	%d1,%a6@(M3)
+	mvzb	%a5@(0x3c),%d0		| E: the mix, 0..127
+	jsr	clamp127
+	jsr	gains
+.else
 	mvzb	%a5@(0x36),%d0		| B: FM from OSC2 for 1 and 2, from OSC3 for 2 and 3
 	subql	#1,%d0
 	moveq	#2,%d1
@@ -137,6 +158,7 @@ track:
 	bccs	1f
 	movel	%d1,%d0
 1:	jsr	gains
+.endif
 	movel	#0x7f00,%sp@-		| the level, Q31 >> 16: LEVEL(x, 127), velocity only
 	movel	%a6@(TRK),%d0
 	lea	VELS,%a0
@@ -169,6 +191,33 @@ track:
 	movel	%d2,%a6@(LSTEP)
 	lsll	#5,%d1
 	movel	%d1,%a6@(LCUR)
+.ifdef KNOBS2
+	mvzw	%a5@(0x40),%d0		| OSC2: G, 40.0..88.0 = -24..+24 semitones (8.8); wave C
+	jsr	detune24
+	addl	%a6@(NSUM),%d0
+	jsr	pitch
+	movel	%d0,%d6
+	mvzb	%a5@(0x38),%d0
+	jsr	clamp127
+	jsr	wave
+	lea	%a4@(4),%a2
+	lea	%a6@(S2),%a3
+	jsr	osc32
+	mvzw	%a5@(0x42),%d0		| OSC3: H, the same; wave D
+	jsr	detune24
+	addl	%a6@(NSUM),%d0
+	jsr	pitch
+	movel	%d0,%d6
+	mvzb	%a5@(0x3a),%d0
+	jsr	clamp127
+	jsr	wave
+	lea	%a4@(8),%a2
+	lea	%a6@(S3),%a3
+	jsr	osc32
+	mvzb	%a5@(0x34),%d0		| OSC1: A, the wave 0..127, with FM, into the buffer
+	jsr	clamp127
+	jsr	wave
+.else
 	mvzb	%a5@(0x40),%d0		| OSC2: G, -48..-1 st, unison at 48, +1..+50 cents; wave C
 	jsr	detune_lo
 	addl	%a6@(NSUM),%d0
@@ -198,6 +247,7 @@ track:
 	addl	%d1,%d0
 	lsrl	#1,%d0
 	jsr	wave
+.endif
 	movel	%a6@(STEP1),%d6
 	movel	%a6@(TRK),%d0
 	lsll	#7,%d0
@@ -229,6 +279,27 @@ clamp98:
 	bccs	1f
 	movel	%d1,%d0
 1:	rts
+.ifdef KNOBS2
+| detune24: %d0 = G or H (8.8, 0x2800..0x5800, clamped to it) -> %d0 = the note-sum offset, (v - 64.0)
+| x 256: a semitone is 0x10000, the fraction gives 1/256 semitone. Clobbers %d1.
+detune24:
+	cmpil	#0x2800,%d0
+	bges	1f
+	movel	#0x2800,%d0
+1:	cmpil	#0x5800,%d0
+	bles	2f
+	movel	#0x5800,%d0
+2:	subil	#0x4000,%d0
+	lsll	#8,%d0
+	rts
+| clamp127: %d0 = at most 127. Clobbers %d1.
+clamp127:
+	moveq	#127,%d1
+	cmpl	%d0,%d1
+	bccs	1f
+	movel	%d1,%d0
+1:	rts
+.endif
 .else
 track:
 	movel	%a6@(TRK),%d0		| its three phases
@@ -336,13 +407,26 @@ track:
 | Clobbers %d1, %a0.
 
 	.section .cfo_pitch,"ax"
+| With KNOBS2 a note sum above the table's top (0x570000, note 84, about 1 kHz, where the table
+| saturates) is taken down by octaves first, and the step doubled back up for each, at most 0x7fffffff
+| (half the sample rate). Then it clobbers %a1 as well.
 pitch:
 	tstl	%d0
 	bpls	1f
 	moveq	#0,%d0
-1:	cmpil	#0x570000,%d0
+1:
+.ifdef KNOBS2
+	suba.l	%a1,%a1			| octaves above the table's top
+3:	cmpil	#0x570000,%d0
+	bles	2f
+	subil	#0xc0000,%d0
+	addql	#1,%a1
+	bras	3b
+.else
+	cmpil	#0x570000,%d0
 	bles	2f
 	movel	#0x570000,%d0
+.endif
 2:	movel	#384,%d1
 	divul	%d1,%d0
 	lea	PITCH,%a0
@@ -351,6 +435,18 @@ pitch:
 	lsrl	%d1,%d0
 	movel	#357,%d1
 	mulsl	%d1,%d0
+.ifdef KNOBS2
+4:	movel	%a1,%d1			| an octave up, each
+	beqs	5f
+	cmpil	#0x40000000,%d0
+	bcss	6f
+	movel	#0x7fffffff,%d0
+	rts
+6:	addl	%d0,%d0
+	subql	#1,%a1
+	bras	4b
+5:
+.endif
 	rts
 
 | ---- wave: %d0 = 0..127 -> %a0 = table, %a1 = the next table, %d5 = how far towards it, 0..254.
@@ -666,6 +762,17 @@ cfo_range:
 
 	.section .cfo_names,"a"
 	.balign	4
+.ifdef KNOBS2
+cfoo_ranges:				| {min, max, default}, 8.8, knobs A..H (S18)
+	.long	0x0000, 0x7f00, 0x0000	| A OSC1 wave: SIN
+	.long	0x0000, 0x0200, 0x0000	| B FM source: 0 OSC2, 1 OSC2+3, 2 OSC3
+	.long	0x0000, 0x7f00, 0x0000	| C OSC2 wave
+	.long	0x0000, 0x7f00, 0x0000	| D OSC3 wave
+	.long	0x0000, 0x7f00, 0x0000	| E mix: OSC1 alone
+	.long	0x0000, 0x7f00, 0x0000	| F FM amount: 0
+	.long	0x2800, 0x5800, 0x4000	| G OSC2 detune: -24.00..+24.00 semitones, unison at 64.0
+	.long	0x2800, 0x5800, 0x4000	| H OSC3 detune: the same
+.else
 cfoo_ranges:				| {min, max, default}, 8.8, knobs A..H (ONESHOT's slot range)
 	.long	0x0400, 0x5800, 0x0400	| A OSC1 wave: SIN..SQR in 85 steps    (TUNE 4..88)
 	.long	0x0000, 0x0300, 0x0000	| B FM source: off                      (PLAY 0..3)
@@ -675,6 +782,7 @@ cfoo_ranges:				| {min, max, default}, 8.8, knobs A..H (ONESHOT's slot range)
 	.long	0x0000, 0x7800, 0x0000	| F FM amount: 0                        (LEN 0..120)
 	.long	0x0000, 0x6200, 0x3000	| G OSC2 detune 0..98: unison at 48     (LOOP 0..120)
 	.long	0x0000, 0x6200, 0x3200	| H OSC3 detune 0..98: unison at 50     (LEV 0..127)
+.endif
 .endif
 
 | ---- CFOO's own value displays (--defsym DISPLAYS=1, with KNOBS). A parameter's value shows in two
@@ -718,6 +826,18 @@ cfo_pic:
 	addl	%d1,%d0
 	lea	cfoo_ranges,%a0
 	adda.l	%d0,%a0
+.ifdef KNOBS2
+	movel	%sp@(12),%d1		| the value (8.8) - min, clamped to 0..span
+	andil	#0xffff,%d1
+	subl	%a0@,%d1
+	bpls	1f
+	moveq	#0,%d1
+1:	movel	%a0@(4),%d0
+	subl	%a0@,%d0		| span, 8.8
+	cmpl	%d1,%d0
+	bccs	2f
+	movel	%d0,%d1
+.else
 	movel	%sp@(12),%d1		| the value's integer part, as the synth reads it
 	andil	#0xffff,%d1
 	lsrl	#8,%d1
@@ -732,6 +852,7 @@ cfo_pic:
 	cmpl	%d1,%d0
 	bccs	2f
 	movel	%d0,%d1
+.endif
 2:	moveal	%d0,%a1
 	movel	#0x7800,%d0		| x 120.0 / span: STRT's knob, whose drawer scales by 120.0
 	mulsl	%d0,%d1
@@ -792,6 +913,18 @@ cfo_popup:
 | Clobbers %d0, %d1, %a0, %a1.
 cfo_text:
 	andil	#0xffff,%d1
+.ifdef KNOBS2
+	cmpil	#6,%d0			| (S18) G and H: semitones and cents, from the 8.8 value
+	bccw	t2_det
+	lsrl	#8,%d1
+	cmpil	#1,%d0
+	beqw	t2_b
+	moveq	#127,%d0		| A, C, D, E, F: the number, at most 127, as the synth
+	cmpl	%d1,%d0
+	bccw	t_num
+	movel	%d0,%d1
+	braw	t_num
+.endif
 	lsrl	#8,%d1			| the integer part, as the synth reads it
 	tstl	%d0
 	beqs	t_a
@@ -893,8 +1026,115 @@ t_putnum:
 	moveb	%d1,%a0@+
 	rts
 
+.ifdef KNOBS2
+| (S18) B: OSC2, 2+3, OSC3; above 2 as 2, as the synth.
+t2_b:	moveq	#2,%d0
+	cmpl	%d1,%d0
+	bccs	1f
+	movel	%d0,%d1
+1:	lea	fmsr2_names,%a1
+	moveal	%a1@(0,%d1:l:4),%a1
+	braw	t_copy
+| (S18) G, H: the 8.8 value, 40.0..88.0 (clamped, as the synth), as semitones from unison with two
+| decimals, a hundredth being a cent: -24.00 .. 0.00 .. +24.00.
+t2_det:	cmpil	#0x2800,%d1
+	bges	1f
+	movel	#0x2800,%d1
+1:	cmpil	#0x5800,%d1
+	bles	2f
+	movel	#0x5800,%d1
+2:	subil	#0x4000,%d1		| semitones, 8.8, signed
+	bnes	3f
+	lea	s_zero2,%a1		| unison
+	braw	t_copy
+3:	bpls	4f
+	moveb	#45,%a0@+		| '-'
+	negl	%d1
+	bras	5f
+4:	moveb	#43,%a0@+		| '+'
+5:	moveq	#100,%d0		| in cents, rounded: (v x 100 + 128) / 256
+	mulsl	%d0,%d1
+	addil	#128,%d1
+	lsrl	#8,%d1
+	moveq	#0,%d0			| whole semitones, and the cents left
+6:	cmpil	#100,%d1
+	bcss	7f
+	subil	#100,%d1
+	addql	#1,%d0
+	bras	6b
+7:	moveal	%d1,%a1
+	movel	%d0,%d1
+	jsr	t_putnum
+	moveb	#46,%a0@+		| '.'
+	movel	%a1,%d1
+	moveq	#47,%d0			| two digits of cents
+8:	addql	#1,%d0
+	subil	#10,%d1
+	bpls	8b
+	addil	#10,%d1
+	moveb	%d0,%a0@+
+	addil	#48,%d1
+	moveb	%d1,%a0@+
+	clrb	%a0@
+	rts
+
+| cfo_encobj(id), the page in %a2: the encoder handler's display object (ParameterPageView::vfunc_17
+| at 0x40032b74), whose template sets the step: for a CFOO page, BR's for the integer knobs (whole
+| steps), PLAY's for B (a selector), TUNE's for G and H (fine steps). The pushed id is not used again.
+cfo_encobj:
+	movel	%sp@(4),%d0
+	subil	#108,%d0
+	moveq	#7,%d1
+	cmpl	%d0,%d1
+	bcss	9f
+	movel	%a2,%sp@-
+	jsr	0x4002b5d4		| the machine the page shows
+	addql	#4,%sp
+	subql	#CFOO,%d0
+	bnes	9f
+	movel	%sp@(4),%d0
+	subil	#108,%d0
+	lea	step_ids,%a0
+	movel	%a0@(0,%d0:l:4),%d0
+	movel	%d0,%sp@(4)
+9:	jmp	0x40065794
+
+| cfo_samptest: at 0x4003b5a0 in SamplePageView::vfunc_17, %d0 = the knob's id, the page in %a2. Replays
+| 'moveq #111,%d1 ; movel %d0,%d2 ; moveq #-17,%d0', the start of its test for a Sample Slot parameter
+| (which opens the sample picker), except that for id 111 on a CFOO page %d0 is 0, so the test fails.
+cfo_samptest:
+	movel	%d0,%d2
+	moveq	#111,%d1
+	cmpl	%d2,%d1
+	bnes	8f
+	movel	%a2,%sp@-
+	jsr	0x4002b5d4
+	addql	#4,%sp
+	subql	#CFOO,%d0
+	bnes	8f
+	moveq	#0,%d0			| (0 & id) is no Sample Slot id
+	moveq	#111,%d1
+	rts
+8:	moveq	#-17,%d0
+	moveq	#111,%d1
+	rts
+
+	.section .hook_encobj,"ax"	| 0x40032b74: jsr FUN_40065794
+	jsr	cfo_encobj
+	.section .hook_samp,"ax"	| 0x4003b5a0: moveq #111,%d1 ; movel %d0,%d2 ; moveq #-17,%d0
+	jsr	cfo_samptest
+.endif
+
 	.section .cfo_names,"a"
 	.balign	4
+.ifdef KNOBS2
+fmsr2_names:
+	.long	s_osc2, s_osc23, s_osc3
+step_ids:				| the parameter whose step each knob takes, A..H
+	.long	110, 109, 110, 110, 110, 110, 108, 108
+s_zero2: .asciz	"0.00"
+	.balign	4
+.endif
 fmsr_names:
 	.long	s_off, s_osc2, s_osc23, s_osc3
 s_off:	.asciz	"OFF"
