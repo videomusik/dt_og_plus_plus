@@ -234,9 +234,9 @@ the pad's 2,372. The routes:
 
 ## Testing on the unit
 
-`make_cfo.py lz4_stream.ld --stages` builds ten images on top of the reference build (section 3
+`make_cfo.py lz4_stream.ld --stages` builds eleven images on top of the reference build (section 3
 `efc90606…`, `.syx` `3fd4b0a3`), each adding one step to the stage named in its row. They are meant to
-be flashed in order, S9 to S18:
+be flashed in order, S9 to S19:
 
 | Stage | `.syx` | Section 3 | Contents |
 |---|---|---|---|
@@ -250,6 +250,7 @@ be flashed in order, S9 to S18:
 | S16 | `60f12e59` | `d6cc95c2…` | S15 + CFOO's own knobs: map, ranges, defaults, detune, names ([below](#cfoos-own-knobs-in-s16)) |
 | S17 | `6f42dd47` | `b7ac2008…` | S16 + CFOO's own value displays: the knob pictures, the cell's text and the encoder popup ([below](#cfoos-own-value-displays-in-s17)) |
 | S18 | `78cda1e3` | `97f6f22a…` | S17 + CFOO's knobs as agreed after S17: whole steps, three FM sources, ±24 semitone detunes, no sample picker, pitches above the stock table's top ([below](#cfoos-knobs-as-agreed-in-s18)) |
+| S19 | `a069de54` | `3351306e…` | S18 + the ranges, pictures and cell texts find the machine through the set's sound holder; the validity test, the reset to default, MIDI CC and the all-tracks edit take CFOO's ranges ([below](#the-sound-behind-a-parameter-set-in-s19)) |
 
 Checked on the built images (S12's own checks are [below](#cfoo-machine-5-in-s12)):
 - the build's own checks;
@@ -281,16 +282,30 @@ Results on the unit, OS 1.54, each stage flashed on the one before from S8:
   CFOO's defaults, each value drawn as ONESHOT's parameter in that slot draws it: knobs for A, C, E, F
   and G, PLAY's picture for B, SAMP's box for D and LEV's fader for H. G's unison (48) sits at 40 % of
   LOOP's 0–120 sweep. That is what S16 leaves to ONESHOT ([below](#cfoos-own-knobs-in-s16)); S17 gives
-  CFOO its own displays.
+  CFOO its own displays. ✅ The ranges are explained by the code (S19,
+  [below](#the-sound-behind-a-parameter-set-in-s19)): `cfo_range`'s machine test failed at every edit
+  site, so the knobs kept ONESHOT's ranges; only the machine-change reset, which passes a sound holder,
+  gave CFOO's record, hence CFOO's defaults.
 - ⚠️ **S17:** as reported. FMSR works. WAV2 steps through every number. A (WAV1) skips 2, 5, 8, 11,
   14, 17 and on: the 85 steps of TUNE's 4–88, shown as (A − 4) × 1.5. D (WAV3) looks right, but turning
   it opens the sample picker, while the waveform changes underneath. H (DET3) still looks like LEV's
   fader, though it controls the detune; at the bottom it shows the right values and the popup the right
   labels, and above a certain amount every tone sounds the same. The detunes step in fine fractions.
-  ⚠️ H's picture is not explained by the code: H's cell gets the same parameter set and goes through the
-  same hooked picture method as D's (the set resolver `FUN_400191fe` sorts by descriptor page, 0 for
-  every SRC id). "Every tone the same" fits the stock pitch table, which saturates at note 84: OSC3 above
-  about 1 kHz stays at about 1 kHz. Both are taken up in S18.
+  "Every tone the same" fits the stock pitch table, which saturates at note 84: OSC3 above about 1 kHz
+  stays at about 1 kHz; S18 takes it up. ✅ H's picture is explained by the code (S19,
+  [below](#the-sound-behind-a-parameter-set-in-s19)): the picture and text hooks' machine test depends
+  on the cell's row, not on the machine, and failed for the bottom row. A's skips are S17's text,
+  (A − 4) × 1.5, over the stored range 4–88 that the failing range test left in place.
+- ⚠️ **S18:** as reported, with a screen recording of a CFOO track's SRC page. B (FMSR) works. The
+  popups show CFOO's names and values for every knob, the G and H popups `-24.00` … `+24.00`. The
+  stored values keep ONESHOT's ranges: A 4–88, F 0–120 (LEN's), G 0–120 (LOOP's, `OFF` at 0) and H
+  0–127 (LEV's), and the popups' detunes stop at ±24 while the value goes on. Under the bottom row's
+  knobs the value shows as ONESHOT shows it (E `44.00`, F `47.39`, G `OFF`, `0.06` … `120.00`, H `0.00`
+  … `127.00`), G with LOOP's knob and H with LEV's fader; the top row shows CFOO's (A `88`, B `OSC3`).
+  A ONESHOT track shows CFOO's pictures and labels. ✅ The ranges, the pictures and the values under
+  the knobs are the machine test above (S19), which can pass on a ONESHOT track as well. ⚠️ The names
+  under the knobs come from S13's hook, which asks the page for its machine (`FUN_4002b5d4`); if a
+  ONESHOT track's names change too, that is not explained.
 
 What to check:
 - **S9:** nothing changes anywhere. A live caller of the pad would now get 0 at once.
@@ -338,6 +353,16 @@ What to check:
     show what draws it.
 
   A ONESHOT track's SRC page, its sample picker on SAMP and its knobs behave as before.
+- **S19:** on a CFOO track, everything listed for S18, and:
+  - all eight cells are plain knobs, H included, each turning over its whole range;
+  - the value under each knob, where the page shows one, is CFOO's (`127`, `OSC3`, `-12.50`), never
+    ONESHOT's (`44.00`, `OFF`, `0.06`);
+  - A, C, D, E, F reach both 0 and 127; G and H stop at −24.00 and +24.00, the stored value with them;
+  - values left outside these ranges by S18 come back in on the first turn.
+
+  On a ONESHOT track (and SLICE, POLY): TUNE, PLAY, BR, SAMP, STRT, LEN, LOOP and LEV with their own
+  names, pictures, values and ranges, as stock, wherever the pattern's values sit. If a ONESHOT track
+  still shows any of CFOO's names, a screen dump of it would show where.
 - **S17:** on a CFOO track all eight cells are plain knobs, each turning over its own range: A, C, D over
   the waves, B in four steps, E and F to 120, G and H to 98 with unison at the top. The encoder popup
   (and the cell's text, where the page shows one) reads, for example, `OSC1 Wave=0`, `FM Source=OFF`,
@@ -680,7 +705,9 @@ call): `ParameterSet::vfunc_8` (`0x4000f534`), the value setter `FUN_4000fef6` (
 14-bit outside value) and the machine-change reset `FUN_400220fc` (`lea` into `%a5` at `0x40022138`).
 S16 points those five operands at `cfo_range`: for ids 108–115 on a set whose machine
 (`FUN_4002200a`, which keeps `%a2`) is 5 it copies CFOO's record, and anything else goes on to
-`FUN_40078f0c` untouched. S16 also keeps each of CFOO's ranges inside ONESHOT's for the same slot (TUNE
+`FUN_40078f0c` untouched. ⛔ `FUN_4002200a` takes a sound holder, not a parameter set: the test works
+only at `FUN_400220fc`, whose `%a2` is a holder, and fails at the four others, so S16–S18 kept
+ONESHOT's ranges in every edit (S19, [below](#the-sound-behind-a-parameter-set-in-s19)). S16 also keeps each of CFOO's ranges inside ONESHOT's for the same slot (TUNE
 4–88, PLAY 0–3, BR and SAMP 0–127, STRT, LEN and LOOP 0–120, LEV 0–127), on the assumption that the
 readers not hooked would clamp a stored value to ONESHOT's range. ⛔ That assumption does not hold for
 the project loader: its six range reads only fill defaults for fields of older formats, with fixed ids
@@ -695,7 +722,9 @@ synth clamps every knob itself.
   the de-click, the level RAM at boot, half level. A pure SIN at note 60 measures 261.47 Hz.
 - It runs `cfo_range` against a fake parameter set whose sound carries machine 5, 0 or 4, for ids
   106–117: CFOO's record only for 108–115 on machine 5, the stock record otherwise, `%a2`, `%d2` and the
-  stack kept; and it checks that all five call operands point at `cfo_range`.
+  stack kept; and it checks that all five call operands point at `cfo_range`. ⛔ The fake set was laid
+  out as a sound holder (its `+0x28` method returned the sound), so this case could not catch the
+  fault above; S19's cases use the firmware's layout.
 - The names case expects the new names; layout, icon, slots and the POLY voice pass; the image bytes,
   the window and every other harness pass on S16's own bytes. S9–S15 rebuild byte for byte.
 - Control: OSC2's detune through OSC3's table fails exactly the cases in which OSC2 is heard.
@@ -723,7 +752,8 @@ decompile):
 
 S17 hooks the two methods at their first 8 B (a `lea` and a `moveml`, which the hook routines replay)
 and the popup at its call operand. For ids 108–115 on a CFOO sound (`FUN_4002200a(set)` for the cell,
-`FUN_4002b5d4(page)` for the popup, as S13's names do):
+`FUN_4002b5d4(page)` for the popup, as S13's names do; ⛔ the cell's test does not work, as for S16's
+ranges, and passes or fails by the cell's row: S19):
 - **The picture** is STRT's knob for every knob, the value rescaled from the knob's own range
   (`cfoo_ranges`, the S16 table) to 0–120.0, so each knob turns over its whole range: B in four steps,
   G and H with unison just left and right of the top.
@@ -746,7 +776,8 @@ and the popup at its call operand. For ids 108–115 on a CFOO sound (`FUN_40022
 - `EmuCfoOscillator`'s displays mode, against a model of the knob table written in the harness: the
   popup routine and the cell's text hook for ids 106–117, values 0–255 with a fraction, on machines 5,
   0 and 4 (2,132 cases): CFOO's text only for 108–115 on machine 5, and otherwise the stock code reached
-  with its stack, arguments and saved registers as they would be;
+  with its stack, arguments and saved registers as they would be (the machine query stubbed: ⛔ see
+  S16's checks);
 - the picture hook for the same ids and values: STRT's id and the rescaled value only for CFOO, the
   replayed frame and the other arguments unchanged;
 - G and H across: for every value 0–255, `detune_lo` and `detune_hi` give exactly the semitones
@@ -760,7 +791,8 @@ Controls, each a copy of S17's code with one instruction changed: G's text offse
 text cases; the picture's id 112 → 113 fails the picture cases; `detune_lo`'s 48 → 47 fails the
 cross-check and the S16 synth cases that play OSC2.
 
-⚠️ Still ONESHOT's, not changed by S16 or S17 (objdump, decompile):
+⚠️ Still ONESHOT's, not changed by S16 or S17 (objdump, decompile; S19 hooks the reset, MIDI CC and
+the all-tracks edit):
 - **A reset to a parameter's default**, `ParameterSet::vfunc_4` (`0x4000ff9a`), takes ONESHOT's
   default (`FUN_40078f0c` at `0x4000ffac`, the set not in `%a2`) and stores it through the hooked setter,
   which clamps it into CFOO's range: A 64, B 3, C 0, D 0, E 0, F 120, G 0 (−48 st), H 98 (+48 st). What
@@ -817,7 +849,7 @@ decimals are hundredths of a semitone, rounded: one is a cent.
   - `FUN_4001c85c` and its neighbours handle global settings (ids 95–107), not SRC parameters.
 
   MIDI CC (`ParameterSet::vfunc_26`) still clamps to ONESHOT's range before CFOO's: on A a CC reaches
-  4–88, on E and F 0–120, and on G and H CC 40–88 are the semitones −24 … +24.
+  4–88, on E and F 0–120, and on G and H CC 40–88 are the semitones −24 … +24 (S19 changes this).
 
 **Checked** (`EmuCfoOscillator`, S18 mode, against a model of the table above):
 - 19 synth cases: defaults, the waves, the mix points, each FM source and B above its range, the
@@ -841,6 +873,72 @@ never fails fails only the picker case; the cents truncated instead of rounded f
 cases.
 
 Worst tick: 18,001 instructions (all eight tracks on the synth), plus the stubbed level call.
+
+## The sound behind a parameter set, in S19
+
+Built with `--defsym SETS=1` on top of S18. On the unit, S18 kept ONESHOT's ranges, drew some knobs
+and values as ONESHOT's and some as CFOO's, and gave a ONESHOT track CFOO's pictures. ✅ Read in the
+code (objdump, decompile) and reproduced in the emulator on S18's bytes:
+- `FUN_4002200a(object)` calls the object's method at `+0x28` with no other argument and takes the
+  signed byte at `+0x7e` of what it returns as the machine. The stock callers read pass a per-track
+  sound holder (`FUN_4000d7be(… + 0xec, track)`; the [ledger](../function_ledger.md) lists which). A
+  parameter set is not one: in `SoundParameterSet`'s vtable
+  (`0x4017ee58`) `+0x28` is the value getter `vfunc_10(set, id)`. Given a set, `FUN_4002200a` reads the
+  value of the parameter whose id is whatever its caller holds in `%a2` (`FUN_40078d80` maps an id
+  above 163 to entry 0, which has none: value 0, machine −1), and takes the byte at that value +
+  `0x7e` for the machine.
+- In the cell drawer, `MachineParameterPageView::vfunc_37`, `%a2` holds the cell's y coordinate. So the
+  picture and text hooks' result depends on the row and on the sound's values, not on its machine:
+  CFOO's top row passed and its bottom row failed, and a ONESHOT track could pass. At `cfo_range`'s four
+  set sites `%a2` holds the set itself, so the test failed every time. Only `FUN_400220fc`, the
+  machine-change reset, passes a holder.
+- `SoundParameterSet` keeps its holder at `+0x10` and reaches its sound through it (`vfunc_10`, and
+  `vfunc_20`, which maps a slot to its id by the sound's machine).
+- The setter `FUN_4000fef6` stores a value only if the set's `vfunc_9` accepts it. For every SRC id that
+  is `ParameterSet::vfunc_9`, a range test through `FUN_40078f0c` (`SoundParameterSet::vfunc_9` tests
+  bits 16 and 17 of the descriptor's flags at `+0x24`, which are `0xe00` for these ids). With CFOO's
+  range in the clamp alone, A still could not leave 4–88.
+
+S19:
+- `set_machine(object)`: for a `SoundParameterSet`, its holder's machine; for the other four
+  parameter-set classes (vtables `0x4017edd8`, `0x4017eed8`, `0x4017ef58`, `0x4017efd8`, 0x80 B apart,
+  Trig's among them), none; anything else is taken for a holder, as `FUN_400220fc` passes. `cfo_range`,
+  the picture and the cell text use it.
+- Four more range reads go to `cfo_range`, each to an entry for where its caller keeps the set:
+  `ParameterSet::vfunc_9` (`0x4000f5fc`, a `lea` into `%a2`, the set at `%sp@(36)`), the reset to the
+  default `ParameterSet::vfunc_4` (`0x4000ffac`, `%sp@(28)`), MIDI CC `ParameterSet::vfunc_26`
+  (`0x40010d50`, `%a2`) and the all-tracks edit `MachineParameterPageView::vfunc_23` (`0x400326aa`,
+  `%a3`). A CC spans CFOO's range, a reset gives CFOO's default.
+- S16's and S17's text and detune routines, which S18 no longer reaches, are left out: the code is 138 B
+  smaller, and the pad has 149 B left.
+
+**Checked** (`EmuCfoOscillator`; with `set_machine` in the load it builds a sound's parameter set as the
+firmware lays it out: the stock vtable, the holder at `+0x10`, the sound with its values from `+0x14`
+and its machine at `+0x7e`; only the holder's accessor is a stub, and the stock code runs unstubbed):
+- `cfo_range` by each entry on a sound's set, the holder, Trig's set and a set without a holder, on
+  machines 5, 0 and 4, ids 106–117 (468 calls): CFOO's record only for 108–115 on a CFOO sound;
+  `FUN_4002200a` gets the holder once, and never another set; registers and the caller's stack kept;
+  the nine operands point at their entries;
+- S18's display cases on such a set, the machine read by the stock `FUN_4002200a`;
+- end to end through the stock code on machines 5 and 0, ids 107–116: the validity test
+  (`SoundParameterSet::vfunc_9`, 265 values), the encoder's edit (`ParameterSet::vfunc_11` →
+  `vfunc_8` → `FUN_4000fef6`, 840 edits from each range end and inside, by ±1, ±256 and further) and
+  the reset (`ParameterSet::vfunc_4`, 20), with only the value write (`SoundParameterSet::vfunc_29`)
+  and the notice after it (`ParameterSet::vfunc_24`) stubbed: each edit writes the value plus the
+  step clamped to the machine's range, each reset the machine's default;
+- S18's bytes in the same mode (the harness argument `realsets`) fail the range, picture, text and edit
+  cases as the unit did: A clamped to TUNE's 4–88, the cells' text and picture ONESHOT's;
+- the rest as S18; the image bytes, the window, `EmuMachineList` and every other harness on S19's own
+  bytes. S9–S18 rebuild byte for byte. S19 differs from S18 in the four new operands, the code, and
+  the operands that point into the code, which moves.
+
+Controls, each a copy of S19's load with one change: `set_machine` comparing with Fx's vtable fails
+every set case, as S18 does; `vfunc_9`'s `lea` back to the stock function fails the validity and edit
+cases; the parameter-set bound narrowed to one vtable passes Trig's set to `FUN_4002200a`; the empty
+holder's test removed calls through address 0; the all-tracks entry reading `%a2` fails its own cases.
+
+⚠️ Still ONESHOT's ranges: the randomiser (SLICE's for slots 17–24, as before) and the modulation
+paths. Not traced: which set a parameter lock on an SRC knob goes through.
 
 ## Related notes
 

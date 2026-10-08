@@ -32,7 +32,10 @@
 // icon for 3, POLY's for 4, CFOO's for 5, a stock icon for 0..2, and no draw for 6.
 // With 'slots' as well, or a load carrying the SLOTS hook (sym slot_machine), FUN_40078f44 runs for the
 // SRC slots on machines 0..7 with its run-time table seeded: machine 5 must get ONESHOT's ids.
-//   ./scripts/ghidra_emu.sh 1.54 EmuCfoOscillator <file.load> [machine5 [names [icon [slots]]]]
+// A load carrying set_machine (S19), or the argument 'realsets', runs the range, display and edit cases
+// on a sound's parameter set as the firmware lays it out (stock vtable, holder, sound), with the stock
+// FUN_4002200a and parameter-set code unstubbed; only the value write and its change notice are stubbed.
+//   ./scripts/ghidra_emu.sh 1.54 EmuCfoOscillator <file.load> [machine5 [names [icon [slots]]]] [realsets]
 // Runs in Ghidra's emulator only; nothing touches a device. @category dt_og_plus_plus
 import ghidra.app.script.GhidraScript;
 import ghidra.app.emulator.EmulatorHelper;
@@ -595,11 +598,14 @@ public class EmuCfoOscillator extends GhidraScript {
     int v = Integer.parseInt(t.substring(0, t.length() - 2).replace("+", ""));
     return t.endsWith("st") ? v * 0x10000 : v * 655;
   }
-  /** call a routine with the stack given (top first), stubbing the machine queries; null if it ran away */
+  /** call a routine with the stack given (top first), stubbing the machine queries; null if it ran away.
+   *  With realSets (S19, or the realsets argument) the set's machine is not stubbed: DSET is a sound's
+   *  parameter set as the firmware builds it (realSets()), and the stock FUN_4002200a runs. */
   long machine = 5;
   boolean callTo(long pc, long[] stack, long stopAt, StringBuilder bad, String what) throws Exception {
     long sp = SP0 - 4L * stack.length;
     for (int i = 0; i < stack.length; i++) wr(sp + 4L * i, stack[i], 4);
+    if (realSets) { realSets(machine); wr(DSET, SOUNDSET_VT, 4); wr(DSET + 0x10, HHOLD, 4); }
     emu.writeRegister("SP", sp); emu.writeRegister("PC", pc);
     for (int i = 0; i < KEEP.length; i++) emu.writeRegister(KEEP[i], 0x5a5a0000L + i);
     emu.writeRegister("A2", DPAGE);
@@ -607,7 +613,7 @@ public class EmuCfoOscillator extends GhidraScript {
     for (int s = 0; s < 3000; s++) {
       long p = emu.getExecutionAddress().getOffset();
       if (p == RET || p == stopAt) return true;
-      if (p == MACHQ || p == PAGEQ) {
+      if ((p == MACHQ && !realSets) || p == PAGEQ) {
         long q = rd("SP");
         long arg = rdn(q + 4, 4);
         if (arg != (p == MACHQ ? DSET : DPAGE)) bad.append(" [" + what + ": machine query got 0x" + Long.toHexString(arg) + "]");
@@ -911,6 +917,172 @@ public class EmuCfoOscillator extends GhidraScript {
     if (bad.length() != 0) fails++;
   }
 
+  /** S19: the objects behind a sound's parameter set, laid out as the firmware has them. A
+   *  SoundParameterSet (the stock vtable 0x4017ee58) keeps its sound holder at +0x10; the holder's method
+   *  at +0x28 returns the sound (here a stub, movel #HSND,%d0 ; rts); the sound holds its values (16 bit)
+   *  at +0x14 + 2 x the descriptor's index and its machine at +0x7e. FUN_4002200a, SoundParameterSet's
+   *  methods and the stock range code then run unstubbed. OSET is another parameter set (Trig's vtable)
+   *  with the same holder, NSET a SoundParameterSet without one. Before S19 every case here stubbed
+   *  FUN_4002200a and took the set for a holder, which the firmware's sets are not. */
+  static final long SOUNDSET_VT = 0x4017ee58L, TRIGSET_VT = 0x4017ef58L;
+  static final long HSET = 0x439d4100L, HHOLD = 0x439d4140L, HVT = 0x439d4180L, HSTUB = 0x439d4200L,
+      HSND = 0x439d4300L, OSET = 0x439d4400L, NSET = 0x439d4440L, RDEST = 0x439d4480L;
+  static final long WRITE = 0x40010690L, NOTICE = 0x400104f8L;	// SoundParameterSet::vfunc_29, ParameterSet::vfunc_24
+  boolean realSets = false;
+  void realSets(long mach) throws Exception {
+    wr(HSET, SOUNDSET_VT, 4); wr(HSET + 0x10, HHOLD, 4);
+    wr(HHOLD, HVT, 4); wr(HVT + 0x28, HSTUB, 4);
+    wr(HSTUB, 0x203cL, 2); wr(HSTUB + 2, HSND, 4); wr(HSTUB + 6, 0x4e75L, 2);
+    wr(HSND + 0x7e, mach, 1);
+    wr(OSET, TRIGSET_VT, 4); wr(OSET + 0x10, HHOLD, 4);
+    wr(NSET, SOUNDSET_VT, 4); wr(NSET + 0x10, 0, 4);
+  }
+  /** {min, max, default} for an id on a machine: CFOO's table for 108..115 on machine 5, else the
+   *  descriptor's (machine -1: no machine) */
+  long[] rangeOf(long mach, int id) throws Exception {
+    if (mach == 5 && id >= 108 && id <= 115) return CFOO_RANGES2[id - 108];
+    long rec = 0x401aa09cL + 0x34L * id + 8;
+    return new long[] {rdn(rec, 4), rdn(rec + 4, 4), rdn(rec + 8, 4)};
+  }
+  /** run from pc with the stack given (top first) and the registers named, until RET; the PCs in stubs
+   *  return at once with %d0 = 0, their first four arguments kept in calls. false if it faulted or ran
+   *  away. KEEP registers start as 0x5a5a0000 + i unless named. */
+  List<long[]> calls = new ArrayList<>();
+  List<Long> machArgs = new ArrayList<>();	// FUN_4002200a's argument at each entry (not stubbed)
+  long spAt = 0;
+  boolean runReal(long pc, long[] stack, String[] rn, long[] rv, long[] stubs, StringBuilder bad, String what) throws Exception {
+    long sp = SP0 - 4L * stack.length;
+    for (int i = 0; i < stack.length; i++) wr(sp + 4L * i, stack[i], 4);
+    spAt = sp;
+    emu.writeRegister("SP", sp); emu.writeRegister("PC", pc);
+    for (int i = 0; i < KEEP.length; i++) emu.writeRegister(KEEP[i], 0x5a5a0000L + i);
+    for (int i = 0; i < rn.length; i++) emu.writeRegister(rn[i], rv[i]);
+    calls.clear(); machArgs.clear();
+    for (int s = 0; s < 20000; s++) {
+      long p = emu.getExecutionAddress().getOffset();
+      if (p == RET) return true;
+      if (p == MACHQ) machArgs.add(rdn(rd("SP") + 4, 4));
+      boolean stub = false;
+      for (long st : stubs) if (p == st) stub = true;
+      if (stub) {
+        long q = rd("SP");
+        calls.add(new long[] {p, rdn(q + 4, 4), rdn(q + 8, 4), rdn(q + 12, 4), rdn(q + 16, 4)});
+        emu.writeRegister("D0", 0); emu.writeRegister("PC", rdn(q, 4)); emu.writeRegister("SP", q + 4);
+        continue;
+      }
+      if (!emu.step(monitor)) { bad.append(" [" + what + ": FAULT " + emu.getLastError() + " at 0x" + Long.toHexString(p) + "]"); return false; }
+    }
+    bad.append(" [" + what + ": ran away]");
+    return false;
+  }
+  long[] lastCall(long pc) {
+    long[] w = null;
+    for (long[] c : calls) if (c[0] == pc) w = c;
+    return w;
+  }
+
+  /** S19: cfo_range by each entry on the objects above: a sound's set (the machine through its holder),
+   *  FUN_400220fc's holder itself (in %a2), another parameter set and a set without a holder (stock),
+   *  for machines 5, 0, 4 and ids 106..117; and the nine call sites pointing at their entries. */
+  void rangeCases3() throws Exception {
+    fresh();
+    StringBuilder bad = new StringBuilder();
+    String[][] sites = {{"4000f536", "cfo_range"}, {"4000ff22", "cfo_range"}, {"400100c6", "cfo_range"},
+        {"40010156", "cfo_range"}, {"4002213a", "cfo_range"}, {"4000f5fe", "cfo_range9"},
+        {"4000ffae", "cfo_range4"}, {"40010d52", "cfo_range"}, {"400326ac", "cfo_range_a3"}};
+    for (String[] s : sites) {
+      long a = Long.parseLong(s[0], 16);
+      if (!sym.containsKey(s[1])) { bad.append(" [no " + s[1] + "]"); continue; }
+      if (rdn(a, 4) != sym.get(s[1])) bad.append(String.format(" [0x%08x does not point at %s]", a, s[1]));
+    }
+    int n = 0;
+    for (String ent : new String[] {"cfo_range", "cfo_range9", "cfo_range4", "cfo_range_a3"}) {
+      if (!sym.containsKey(ent)) continue;
+      for (long[] ob : new long[][] {{HSET, 1}, {HHOLD, 1}, {OSET, 0}, {NSET, 0}}) {
+        if (ob[0] == HHOLD && !ent.equals("cfo_range")) continue;	// only FUN_400220fc passes a holder
+        for (long mach : new long[] {5, 0, 4}) {
+          realSets(mach);
+          for (int id = 106; id <= 117 && bad.length() < 500; id++) {
+            wr(RDEST, 0x5a5a5a5aL, 4); wr(RDEST + 4, 0x5a5a5a5aL, 4); wr(RDEST + 8, 0x5a5a5a5aL, 4);
+            int len = ent.equals("cfo_range9") ? 10 : ent.equals("cfo_range4") ? 8 : 2;
+            long[] stack = new long[len];
+            for (int i = 0; i < len; i++) stack[i] = 0x11110000L + i;
+            stack[0] = RET; stack[1] = id;
+            if (len > 2) stack[len - 1] = ob[0];		// %sp@(36) or %sp@(28) at the entry
+            long a2 = ent.equals("cfo_range") ? ob[0] : ent.equals("cfo_range9") ? sym.get(ent) : DPAGE;
+            long a3 = ent.equals("cfo_range_a3") ? ob[0] : 0x5a5a0007L;
+            String what = String.format("%s object 0x%x machine %d id %d", ent, ob[0], mach, id);
+            if (!runReal(sym.get(ent), stack, new String[] {"A0", "A2", "A3"}, new long[] {RDEST, a2, a3}, new long[] {}, bad, what)) continue;
+            long[] want = rangeOf(ob[1] == 1 ? mach : -1, id);
+            for (int f = 0; f < 3; f++)
+              if (rdn(RDEST + 4 * f, 4) != want[f]) bad.append(String.format(" [%s field %d: 0x%x, want 0x%x]", what, f, rdn(RDEST + 4 * f, 4), want[f]));
+            if (rd("D0") != RDEST || rd("SP") != spAt + 4) bad.append(" [" + what + ": %d0 or SP]");
+            for (int i = 0; i < KEEP.length; i++) {
+              long w = KEEP[i].equals("A2") ? a2 : KEEP[i].equals("A3") ? a3 : 0x5a5a0000L + i;
+              if (rd(KEEP[i]) != w) { bad.append(" [" + what + ": " + KEEP[i] + " not kept]"); break; }
+            }
+            for (int i = 1; i < len; i++) if (rdn(spAt + 4L * i, 4) != stack[i]) { bad.append(" [" + what + ": caller's stack changed]"); break; }
+            // FUN_4002200a gets the holder, once, for an SRC id on a sound's set or the holder; never otherwise
+            boolean src = id >= 108 && id <= 115;
+            List<Long> wantArgs = src && ob[1] == 1 ? Collections.singletonList(HHOLD) : Collections.<Long>emptyList();
+            if (!machArgs.equals(wantArgs)) bad.append(" [" + what + ": FUN_4002200a got " + machArgs + "]");
+            n++;
+          }
+        }
+      }
+    }
+    println(String.format("  %-64s %s%s", "S19 ranges: " + n + " calls, each entry, real sets and holder", bad.length() == 0 ? "OK" : "**FAIL**", bad));
+    if (bad.length() != 0) fails++;
+  }
+
+  /** S19, end to end through the stock code on a sound's set, machines 5 and 0: the validity test
+   *  (SoundParameterSet::vfunc_9), the encoder's edit (ParameterSet::vfunc_11 -> vfunc_8 ->
+   *  FUN_4000fef6) and the reset to the default (ParameterSet::vfunc_4). Only the value write
+   *  (SoundParameterSet::vfunc_29) and the change notice after it (ParameterSet::vfunc_24) are stubbed;
+   *  the value written is checked against the machine's range. */
+  void editCases3() throws Exception {
+    fresh();
+    StringBuilder bad = new StringBuilder();
+    int nv = 0, ne = 0, nr = 0;
+    for (long mach : new long[] {5, 0}) {
+      realSets(mach);
+      for (int id = 107; id <= 116; id++) {
+        long[] r = rangeOf(mach, id);
+        long idx = rdn(0x401aa09cL + 0x34L * id + 4, 4);
+        String m = "machine " + mach + " id " + id;
+        for (long v : new long[] {r[0] - 1, r[0], r[1], r[1] + 1, 0, 0x300, 0x400, 0x2800, 0x4000, 0x5800, 0x5801, 0x7800, 0x7f00, 0x7f01}) {
+          if (v < 0 || bad.length() > 500) continue;
+          if (!runReal(0x40011576L, new long[] {RET, HSET, id, v}, new String[] {}, new long[] {}, new long[] {}, bad, "validity " + m)) continue;
+          boolean valid = (rd("D0") & 0xff) != 0, want = v >= r[0] && v <= r[1];
+          if (valid != want) bad.append(String.format(" [validity %s value 0x%x: %s]", m, v, valid ? "valid" : "invalid"));
+          nv++;
+        }
+        for (long cur : new long[] {r[0], r[1], 0x0300, 0x2800, 0x4000, 0x5800}) {
+          for (long d : new long[] {-0x100, 0x100, -1, 1, 0x1900, 0x7f00, -0x7f00}) {
+            if (bad.length() > 500) break;
+            wr(HSND + 0x14 + 2 * idx, cur, 2);
+            String what = String.format("edit %s from 0x%x by %d", m, cur, d);
+            if (!runReal(0x40010026L, new long[] {RET, HSET, id, d & 0xffffffffL, 0, 0, 0, 1, 1}, new String[] {}, new long[] {},
+                         new long[] {WRITE, NOTICE}, bad, what)) continue;
+            long want = Math.max(r[0], Math.min(r[1], cur + d));
+            long[] w = lastCall(WRITE);
+            if (w == null) bad.append(" [" + what + ": no write]");
+            else if (w[1] != HSET || w[2] != id || w[3] != want) bad.append(String.format(" [%s: wrote 0x%x, want 0x%x]", what, w[3], want));
+            ne++;
+          }
+        }
+        if (runReal(0x4000ff9aL, new long[] {RET, HSET, id}, new String[] {}, new long[] {}, new long[] {WRITE, NOTICE}, bad, "reset " + m)) {
+          long[] w = lastCall(WRITE);
+          if (w == null) bad.append(" [reset " + m + ": no write]");
+          else if (w[2] != id || w[3] != r[2]) bad.append(String.format(" [reset %s: wrote 0x%x, want 0x%x]", m, w[3], r[2]));
+          nr++;
+        }
+      }
+    }
+    println(String.format("  %-64s %s%s", "S19 edits: " + nv + " validity, " + ne + " encoder, " + nr + " reset, stock code", bad.length() == 0 ? "OK" : "**FAIL**", bad));
+    if (bad.length() != 0) fails++;
+  }
+
   /** machine 5 mode: FUN_400657cc (with the layout hook from the load file) for machines 0..7. */
   void layoutCases() throws Exception {
     StringBuilder bad = new StringBuilder();
@@ -961,6 +1133,7 @@ public class EmuCfoOscillator extends GhidraScript {
     }
     boolean knobs = m5 && sym.containsKey("cfo_range");
     v2 = knobs && sym.containsKey("cfo_encobj");
+    realSets = knobs && (sym.containsKey("set_machine") || Arrays.asList(args).contains("realsets"));
     if (knobs) {
       CFOO_SHORT = new String[] {"WAV1", "FMSR", "WAV2", "WAV3", "MIX", "FM", "DET2", "DET3"};
       CFOO_LONG = new String[] {"OSC1 Wave", "FM Source", "OSC2 Wave", "OSC3 Wave", "Osc Mix", "FM Amount", "OSC2 Detune", "OSC3 Detune"};
@@ -1027,9 +1200,11 @@ public class EmuCfoOscillator extends GhidraScript {
       layoutCases();
       polyVoiceCase();
       if (sym.containsKey("slot_machine") || slots) slotCases();
-      if (knobs) rangeCases();
+      if (realSets) rangeCases3();
+      else if (knobs) rangeCases();
       if (v2) displayCases2();
       else if (knobs && sym.containsKey("cfo_text")) displayCases();
+      if (realSets) editCases3();
       remap = false;
       run("machine 5: ONESHOT with SAMP OFF is left alone", 3, zero, zero, c4, 0x4000, 3, 0, 0, 0, 0, MAX);
       remap = true;

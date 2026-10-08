@@ -256,9 +256,10 @@ track:
 	movea.l	%a4,%a2
 	jmp	osc1_mix
 
+.ifndef SETS
 | detune_lo: %d0 = G (clamped to 0..98) -> %d0 = note-sum offset: below 48 semitones (0x10000 each),
 | above 48 cents (655 each). detune_hi: %d0 = H (0..98): below 50 cents, above 50 semitones.
-| Clobber %d1.
+| Clobber %d1. (With SETS, which comes with KNOBS2, they are left out: KNOBS2 does not use them.)
 detune_lo:
 	bsrs	clamp98
 	subil	#48,%d0
@@ -279,6 +280,7 @@ clamp98:
 	bccs	1f
 	movel	%d1,%d0
 1:	rts
+.endif
 .ifdef KNOBS2
 | detune24: %d0 = G or H (8.8, 0x2800..0x5800, clamped to it) -> %d0 = the note-sum offset, (v - 64.0)
 | x 256: a semitone is 0x10000, the fraction gives 1/256 semitone. Clobbers %d1.
@@ -728,10 +730,34 @@ slot_machine:
 | (FUN_4002200a) is 5, CFOO's record is copied; anything else goes to FUN_40078f0c untouched. Each of
 | CFOO's ranges lies inside ONESHOT's for the same slot, so the readers that are not hooked (they clamp
 | to ONESHOT's ranges) cannot push a CFOO value out of the slot's stored range.
+|
+| FUN_4002200a takes a sound holder, not a parameter set: only FUN_400220fc's %a2 is one. Given a set,
+| it calls the set's value getter as if it were the holder's sound accessor, so the test above fails on
+| the unit. With SETS (S19) the machine comes from set_machine, which finds the holder behind a sound's
+| parameter set, and four more readers come here, each by the entry for where it keeps the set:
+| ParameterSet::vfunc_9 (the validity test that FUN_4000fef6 asks before it writes a value; it calls
+| through %a2, the set is its first argument), ParameterSet::vfunc_4 (reset to the default; first
+| argument), ParameterSet::vfunc_26 (a MIDI CC; %a2) and the edit of one parameter on all eight tracks
+| (MachineParameterPageView::vfunc_23; %a3). CFOO's ranges no longer need to lie inside ONESHOT's.
 
 .ifdef KNOBS
 	.section .cfo_range,"ax"
+.ifdef SETS
+cfo_range9:				| ParameterSet::vfunc_9: its set at %sp@(36)
+	moveal	%sp@(36),%a1
+	bras	1f
+cfo_range4:				| ParameterSet::vfunc_4: its set at %sp@(28)
+	moveal	%sp@(28),%a1
+	bras	1f
+cfo_range_a3:				| the all-tracks edit: the set in %a3
+	moveal	%a3,%a1
+	bras	1f
+.endif
 cfo_range:
+.ifdef SETS
+	moveal	%a2,%a1			| the set in %a2 (FUN_400220fc: a sound holder)
+1:
+.endif
 	movel	%sp@(4),%d0
 	subil	#108,%d0
 	moveq	#7,%d1
@@ -739,8 +765,13 @@ cfo_range:
 	bcss	9f			| not an SRC parameter
 	movel	%a0,%sp@-
 	movel	%d0,%sp@-
+.ifdef SETS
+	movel	%a1,%sp@-
+	jsr	set_machine
+.else
 	movel	%a2,%sp@-
 	jsr	0x4002200a		| the set's machine; keeps %a2
+.endif
 	addql	#4,%sp
 	movel	%sp@+,%d1
 	moveal	%sp@+,%a0
@@ -759,6 +790,30 @@ cfo_range:
 	movel	%a0,%d0
 	rts
 9:	jmp	0x40078f0c
+
+.ifdef SETS
+| set_machine(object) -> %d0 = the machine of its sound, -1 for none. FUN_4002200a takes a sound holder
+| (its method at +0x28 gives the sound, the machine at the sound's +0x7e), as FUN_4000d7be returns it
+| per track. A SoundParameterSet (vtable 0x4017ee58) keeps its holder at +0x10 and reaches its sound
+| through it the same way (SoundParameterSet::vfunc_20). The other four parameter sets (vtables
+| 0x4017edd8, 0x4017eed8, 0x4017ef58, 0x4017efd8, 0x80 B apart) have no sound. Anything else is taken
+| for a holder. Clobbers %d0, %d1, %a0, %a1 and the caller's argument slot, which the caller drops.
+set_machine:
+	moveal	%sp@(4),%a0
+	movel	%a0@,%d0
+	subil	#0x4017ee58,%d0		| SoundParameterSet's vtable
+	beqs	1f
+	addil	#0x80,%d0		| from ParameterSet's
+	cmpil	#0x280,%d0
+	bcss	2f			| another parameter set
+	bras	3f			| a holder
+1:	movel	%a0@(16),%d0		| the set's holder
+	beqs	2f
+	movel	%d0,%sp@(4)
+3:	jmp	0x4002200a
+2:	moveq	#-1,%d0
+	rts
+.endif
 
 	.section .cfo_names,"a"
 	.balign	4
@@ -814,7 +869,11 @@ cfo_pic:
 	cmpl	%d0,%d1
 	bcss	9f			| not an SRC parameter
 	movel	%sp@(4),%sp@-		| the parameter set
+.ifdef SETS
+	jsr	set_machine		| its sound's machine
+.else
 	jsr	0x4002200a		| its sound's machine
+.endif
 	addql	#4,%sp
 	subql	#CFOO,%d0
 	bnes	9f
@@ -873,7 +932,11 @@ cfo_ctext:
 	cmpl	%d0,%d1
 	bcss	9f
 	movel	%sp@(4),%sp@-
+.ifdef SETS
+	jsr	set_machine
+.else
 	jsr	0x4002200a
+.endif
 	addql	#4,%sp
 	subql	#CFOO,%d0
 	bnes	9f
@@ -925,6 +988,7 @@ cfo_text:
 	movel	%d0,%d1
 	braw	t_num
 .endif
+.ifndef SETS				| (S16, S17; with SETS, which comes with KNOBS2, left out)
 	lsrl	#8,%d1			| the integer part, as the synth reads it
 	tstl	%d0
 	beqs	t_a
@@ -979,24 +1043,29 @@ t_e:	movel	%d1,%d0			| the mix: E + E/16, at most 127, as the synth
 	cmpl	%d1,%d0
 	bccs	t_num
 	movel	%d0,%d1
+.endif
 t_num:	jsr	t_putnum
 	clrb	%a0@
 	rts
+.ifndef SETS
 t_b:	moveq	#3,%d0			| above 3 the synth takes no FM source
 	cmpl	%d1,%d0
 	bccs	1f
 	moveq	#0,%d1
 1:	lea	fmsr_names,%a1
 	moveal	%a1@(0,%d1:l:4),%a1
+.endif
 t_copy:	moveb	%a1@+,%a0@+
 	bnes	t_copy
 	rts
+.ifndef SETS
 t_cap98:
 	moveq	#98,%d0
 	cmpl	%d1,%d0
 	bccs	1f
 	movel	%d0,%d1
 1:	rts
+.endif
 | t_putnum: %d1 = -999..999 in decimal at %a0, which it advances. Clobbers %d0, %d1.
 t_putnum:
 	tstl	%d1

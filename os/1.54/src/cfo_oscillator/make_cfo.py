@@ -29,6 +29,9 @@ Stages, written to out/1.54/stages/ (only with --stages):
   S17  S16 + CFOO's own value displays: the cell's picture and text, and the encoder popup's value
   S18  S17 + CFOO's knobs as agreed after S17: integer steps, three FM sources, +-24 semitone detunes,
        no sample picker on D, pitches above the stock table's top
+  S19  S18 + CFOO's ranges, cell pictures and cell texts find the machine through the parameter set's
+       sound holder, and the validity test, the reset to default, MIDI CC and the all-tracks edit take
+       CFOO's ranges
 patch.json is not changed: the feature is a prototype."""
 import json, os, shutil, subprocess, sys, tempfile
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -82,6 +85,11 @@ ICON_CODE = [(0x40029e80, 0x40029f6a), (0x400bee44, 0x400bee54)]   # the mapper,
 # S16: the operands of five calls of FUN_40078f0c made with the parameter set in %a2 (four jsr, one lea
 # into %a5 in FUN_400220fc). Expected bytes: stock, and no feature of the build patches them.
 RANGE_SITES = [0x4000f536, 0x4000ff22, 0x400100c6, 0x40010156, 0x4002213a]
+# S19: four more FUN_40078f0c operands, each to the cfo_range entry for where its caller keeps the set:
+# ParameterSet::vfunc_9 (a lea into %a2), vfunc_4 and vfunc_26 (jsr), the all-tracks edit in
+# MachineParameterPageView::vfunc_23 (jsr). Expected bytes: stock.
+RANGE_SITES2 = [(0x4000f5fe, "cfo_range9"), (0x4000ffae, "cfo_range4"), (0x40010d52, "cfo_range"),
+                (0x400326ac, "cfo_range_a3")]
 
 
 def fill(lo, hi):
@@ -97,13 +105,13 @@ def run(*cmd):
 
 
 def assemble(ld, tmp, inert=False, machine5=False, names=False, icon=False, slots=False, knobs=False,
-             displays=False, knobs2=False):
+             displays=False, knobs2=False, sets=False):
     run(sys.executable, os.path.join(HERE, "make_waves.py"), os.path.join(tmp, "waves.inc"))
     src = os.path.join(HERE, "cfo.s")
     defs = (["--defsym", "MACHINE5=1"] if machine5 else []) + (["--defsym", "NAMES=1"] if names else []) + \
         (["--defsym", "ICON=1"] if icon else []) + (["--defsym", "SLOTS=1"] if slots else []) + \
         (["--defsym", "KNOBS=1"] if knobs else []) + (["--defsym", "DISPLAYS=1"] if displays else []) + \
-        (["--defsym", "KNOBS2=1"] if knobs2 else [])
+        (["--defsym", "KNOBS2=1"] if knobs2 else []) + (["--defsym", "SETS=1"] if sets else [])
     if inert:
         src = os.path.join(tmp, "inert.s")
         with open(src, "w") as f:
@@ -153,11 +161,13 @@ def apply_renames(img, syms):
 
 
 def apply_ranges(img, syms):
-    """S16: the five range calls go to cfo_range."""
-    for addr in RANGE_SITES:
+    """S16: the five range calls go to cfo_range; S19 (a load with set_machine): four more, to their
+    entries."""
+    sites = [(a, "cfo_range") for a in RANGE_SITES] + (RANGE_SITES2 if "set_machine" in syms else [])
+    for addr, sym in sites:
         off = addr - BASE
         assert img[off:off + 4].hex() == "40078f0c", "0x%08x is not a call operand of FUN_40078f0c" % addr
-        img[off:off + 4] = syms["cfo_range"].to_bytes(4, "big")
+        img[off:off + 4] = syms[sym].to_bytes(4, "big")
     return img
 
 
@@ -201,13 +211,16 @@ def main():
                                   displays=True)
         secs5e, syms5e = assemble(ld, tmp, machine5=True, names=True, icon=True, slots=True, knobs=True,
                                   displays=True, knobs2=True)
+        secs5f, syms5f = assemble(ld, tmp, machine5=True, names=True, icon=True, slots=True, knobs=True,
+                                  displays=True, knobs2=True, sets=True)
         used = []
         allsecs = list(secs.items()) + [("m5" + k, v) for k, v in secs5.items()] + \
             [("mn" + k, v) for k, v in secs5n.items()] + [("mi" + k, v) for k, v in secs5i.items()] + \
             [("ms" + k, v) for k, v in secs5s.items()] + [("mk" + k, v) for k, v in secs5k.items()] + \
-            [("md" + k, v) for k, v in secs5d.items()] + [("me" + k, v) for k, v in secs5e.items()]
+            [("md" + k, v) for k, v in secs5d.items()] + [("me" + k, v) for k, v in secs5e.items()] + \
+            [("mf" + k, v) for k, v in secs5f.items()]
         for name, (vma, data) in sorted(allsecs, key=lambda x: x[1][0]):
-            name = name[2:] if name[:2] in ("m5", "mn", "mi", "ms", "mk", "md", "me") else name
+            name = name[2:] if name[:2] in ("m5", "mn", "mi", "ms", "mk", "md", "me", "mf") else name
             end = vma + len(data)
             if name in HOOKS:
                 a, disp = HOOKS[name]
@@ -251,13 +264,19 @@ def main():
         pads18 = {}
         for k, (lo, hi) in enumerate([LABEL_PADS] + ICON_CODE + [(a - 2, a + 4) for a in RANGE_SITES]):
             pads18[".site%d" % k] = (lo, bytes(im18[lo - BASE:hi - BASE]))
+        im19 = apply_ranges(apply_icon(apply_renames(bytearray(img), syms5f), syms5f), syms5f)
+        pads19 = {}
+        for k, (lo, hi) in enumerate([LABEL_PADS] + ICON_CODE + [(a - 2, a + 4) for a in RANGE_SITES]
+                                     + [(a - 2, a + 4) for a, _s in RANGE_SITES2]):
+            pads19[".site%d" % k] = (lo, bytes(im19[lo - BASE:hi - BASE]))
         for path, (ss, sy) in ((load, (secs, syms)), (os.path.join(out, stem + "_m5.load"), (secs5, syms5)),
                                (os.path.join(out, stem + "_m5n.load"), (dict(secs5n, **pads13), syms5n)),
                                (os.path.join(out, stem + "_m5i.load"), (dict(secs5i, **pads14), syms5i)),
                                (os.path.join(out, stem + "_m5s.load"), (dict(secs5s, **pads15), syms5s)),
                                (os.path.join(out, stem + "_m5k.load"), (dict(secs5k, **pads16), syms5k)),
                                (os.path.join(out, stem + "_m5d.load"), (dict(secs5d, **pads17), syms5d)),
-                               (os.path.join(out, stem + "_m5e.load"), (dict(secs5e, **pads18), syms5e))):
+                               (os.path.join(out, stem + "_m5e.load"), (dict(secs5e, **pads18), syms5e)),
+                               (os.path.join(out, stem + "_m5f.load"), (dict(secs5f, **pads19), syms5f))):
             with open(path, "w") as f:
                 for name, (vma, data) in ss.items():
                     f.write("%08x %s\n" % (vma, data.hex()))
@@ -306,10 +325,14 @@ def main():
         for _n, (vma, data) in secs5e.items():
             im[vma - BASE:vma - BASE + len(data)] = data
         built["S18"] = bytes(apply_ranges(apply_icon(apply_renames(apply_edits(im, syms5e), syms5e), syms5e), syms5e))
+        im = bytearray(img1)
+        for _n, (vma, data) in secs5f.items():
+            im[vma - BASE:vma - BASE + len(data)] = data
+        built["S19"] = bytes(apply_ranges(apply_icon(apply_renames(apply_edits(im, syms5f), syms5f), syms5f), syms5f))
         dest = os.path.join(ROOT, "out", "1.54", "stages")
         os.makedirs(dest, exist_ok=True)
         syx, tool = build.DEFAULT_SYX, build.DEFAULT_TOOL
-        for name in ("S9", "S10", "S11", "S12", "S13", "S14", "S15", "S16", "S17", "S18"):
+        for name in ("S9", "S10", "S11", "S12", "S13", "S14", "S15", "S16", "S17", "S18", "S19"):
             p3 = built[name]
             sel, i = [], 0
             while i < len(stock):
