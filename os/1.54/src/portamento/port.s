@@ -17,10 +17,13 @@
 |   OFFTEXT  PORT's value text: OFF for 0
 |   SAVE     PORT and LEG saved with the sound, and their p-locks with the pattern
 |   HOLDAMP  with LEG on, a legato note does not restart the amp envelope
+|   LEGAMP   a note is legato when the track's amp envelope is still in its attack or hold, not when
+|            the gate bit is set: a sequenced trig's LEN ends by a countdown that never clears that bit
 | Assemble with port.ld; make_port.py does it.
 
 	.set	NOTES,	0x80001f28	| stock: the trig's note sum per track (note << 16), 8 longs
 	.set	GATEB,	0x800019f7	| stock: low byte of the gate mask 0x800019f4, bit = track
+	.set	AMPST,	0x4199ed64	| stock: the amp envelope's state per track, stride 8 (2 attack, 1 hold, 0 decay)
 	.set	STATE,	0x439d1180	| this build: the portamento state (40 B, above .bss)
 	.set	CUR,	0		|   8 longs: the note sum each track plays
 	.set	MAGIC,	32		|   long: MAGICV once the block below is initialised
@@ -40,6 +43,18 @@
 | any test.
 	.section .port_on,"ax"
 port_on:
+.ifdef LEGAMP
+| The amp envelope (FUN_400716c0) has not yet seen this note: its state is the last note's. Only the
+| legato bit is set here; port_glide clears it when it takes the new note.
+	bset	%d2,STATE+NEWB		| a new note on this track
+	lea	AMPST,%a1
+	lea	%a1@(0,%d2:l:4),%a1
+	tstl	%a1@(0,%d2:l:4)		| the last note still in its attack or hold?
+	lea	NOTES,%a1
+	beqs	1f
+	bset	%d2,STATE+LEGB		| yes: legato
+1:	rts
+.else
 .ifndef INERT
 	lea	STATE,%a1
 	bset	%d2,%a1@(NEWB)		| a new note on this track
@@ -52,6 +67,7 @@ port_on:
 .endif
 	lea	NOTES,%a1
 	rts
+.endif
 
 .ifdef OFFTEXT
 | ---- PORT's value text: a display callable's invoker, (storage, value 8.8, buffer). For 0 the stock
@@ -113,16 +129,29 @@ port_glide:
 	beqs	1f
 	movel	#MAGICV,%d0		| first call since power-up: no track's CUR is valid yet
 	movel	%d0,%a0@(MAGIC)
+.ifdef LEGAMP
+	clrl	%a0@(NEWB)		| and no new note, legato bit or amp envelope held either
+.else
 .ifdef HOLDAMP
 	clrw	%a0@(VALB)		| and no amp envelope held (HOLDB follows VALB)
 .else
 	clrb	%a0@(VALB)
+.endif
 .endif
 1:	bset	%d5,%a0@(VALB)
 	beqs	snap			| CUR not valid yet: start on the target
 	mvzb	%a2@(PORTD),%d0		| PORT, 0..127
 	bclr	%d5,%a0@(NEWB)
 	beqs	glide			| no new note: keep gliding toward the target
+.ifdef LEGAMP
+	bclr	%d5,%a0@(LEGB)		| take the note's legato bit
+	sne	%d4
+	tstb	%a2@(LEGD)		| LEG off: every new note glides
+	beqs	glide
+	tstb	%d4			| LEG on: a detached note starts on its pitch,
+	beqs	snap
+	bset	%d5,%a0@(HOLDB)		| a legato note glides, its amp envelope not restarted
+.else
 .ifdef HOLDAMP
 	tstb	%a2@(LEGD)		| LEG off: every new note glides
 	beqs	glide
@@ -136,6 +165,7 @@ port_glide:
 	beqs	glide
 	btst	%d5,%a0@(LEGB)		| LEG on: only a legato note glides
 	beqs	snap
+.endif
 .endif
 glide:
 	tstl	%d0			| PORT 0: no glide

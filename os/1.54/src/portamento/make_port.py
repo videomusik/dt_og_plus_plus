@@ -24,6 +24,8 @@ to out/1.54/stages/ (only with --stages):
        writes 48 words, the stored record's spare words carry them, the reader takes them back, and
        the stored-index lookups map them both ways
   S34  S33 + with LEG on, a legato note does not restart the amp envelope
+  S35  S34 + a note is legato when the track's amp envelope is still in its attack or hold (the gate
+       bit S31 to S34 test stays set after a sequenced trig's LEN, so every note was legato)
 patch.json is not changed: the feature is a prototype."""
 import os, re, shutil, subprocess, sys, tempfile
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -87,7 +89,7 @@ CFO_PAD = (0x400f77da, 0x400f811e)
 CFO_NOTE = "41f980001f28" "24300c00"
 # The assembly options of each build: the inert hooks, and the stages from S31 on.
 VARIANTS = {"inert": ["INERT"], "S31": [], "S32": ["OFFTEXT"], "S33": ["OFFTEXT", "SAVE"],
-            "S34": ["OFFTEXT", "SAVE", "HOLDAMP"]}
+            "S34": ["OFFTEXT", "SAVE", "HOLDAMP"], "S35": ["OFFTEXT", "SAVE", "HOLDAMP", "LEGAMP"]}
 
 
 def run(*cmd):
@@ -295,7 +297,7 @@ def main():
         apply_data(s30, syms_i, secs_i)
         built = {"S28": bytes(s28), "S29": bytes(s29), "S30": bytes(s30)}
         prev = s30
-        for v in ("S31", "S32", "S33", "S34"):
+        for v in ("S31", "S32", "S33", "S34", "S35"):
             secs, syms = asm[v]
             for _a, _w, sym, _t in SITES:          # the sites call the same entries
                 assert syms[sym] == syms_i[sym]
@@ -309,6 +311,8 @@ def main():
                 apply_offtext(im, syms, secs)
             if v == "S33":
                 apply_save(im, syms, secs)
+            if v == "S35":
+                place_names(im, secs)
             if v == "S34":
                 place_names(im, secs)
                 for name, (lo, _h) in INPLACE.items():

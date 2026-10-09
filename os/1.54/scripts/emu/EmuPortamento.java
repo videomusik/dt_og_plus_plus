@@ -29,7 +29,7 @@ import java.util.*;
 
 public class EmuPortamento extends GhidraScript {
   static final long NOTES = 0x80001f28L, GATES = 0x800019f4L, COPY = 0x80001502L, MIRROR_TUNE = 0x80002794L;
-  static final long STATE = 0x439d1180L, MAGICV = 0x504f5254L;
+  static final long STATE = 0x439d1180L, MAGICV = 0x504f5254L, AMPST = 0x4199ed64L;
   static final long ON_SITE = 0x400779f6L, ON_END = 0x40077a0aL, HELD = 0x4399ec80L;
   static final long RATE_SITE = 0x40075690L, RATE_END = 0x4007569cL;
   static final long SP0 = 0x40258600L, RET = 0x40001000L;
@@ -88,15 +88,20 @@ public class EmuPortamento extends GhidraScript {
     for (int t = 0; t < 8; t++) valid[t] = ((v >> t) & 1) != 0;
   }
   int holdBits, onMask;		// HOLDAMP: this tick's legato notes with LEG on; this tick's note-ons
-  boolean holdamp;
+  boolean holdamp, legamp;	// S34, S35
   long modelTick(int t) {
     long T = target[t];
-    if (!magic) { magic = true; for (int i = 0; i < 8; i++) valid[i] = false; }
+    if (!magic) {
+      magic = true; for (int i = 0; i < 8; i++) valid[i] = false;
+      if (legamp) { newBits = 0; legBits = 0; }	// S35 clears all four flag bytes
+    }
     if (!valid[t]) { valid[t] = true; cur[t] = T; return T; }
     boolean isNew = ((newBits >> t) & 1) != 0;
     newBits &= ~(1 << t);
+    boolean legato = ((legBits >> t) & 1) != 0;
+    if (isNew && legamp) legBits &= ~(1 << t);		// S35: the glide takes the legato bit
     if (isNew && leg[t] != 0) {
-      if (((legBits >> t) & 1) == 0) { cur[t] = T; return T; }	// LEG on, detached: on its pitch
+      if (!legato) { cur[t] = T; return T; }			// LEG on, detached: on its pitch
       if (holdamp) holdBits |= 1 << t;				// LEG on, legato: amp envelope held
     }
     if (port[t] == 0) { cur[t] = T; return T; }
@@ -111,7 +116,11 @@ public class EmuPortamento extends GhidraScript {
   static final String[] KEEP_RATE = {"D2","D3","D7","A1","A2","A3","A4","A5","A6"};
 
   /** a note-on of note on track t; gateOpen: the track's gate as the last note left it */
-  void noteOn(int t, int note, boolean gateOpen, StringBuilder bad) throws Exception {
+  void noteOn(int t, int note, boolean gateOpen, StringBuilder bad) throws Exception { noteOn(t, note, gateOpen, gateOpen, bad); }
+  /** gateOpen: the gate bit as the last note left it; sounding: the amp envelope's state (attack or
+   *  hold, as FUN_400716c0 leaves it). A sequenced trig whose LEN has run out leaves the gate set. */
+  void noteOn(int t, int note, boolean gateOpen, boolean sounding, StringBuilder bad) throws Exception {
+    wr(AMPST + 8L * t, sounding ? 1 : 0, 4);
     long g = rdn(GATES, 4);
     g = gateOpen ? g | (1L << t) : g & ~(1L << t);
     wr(GATES, g, 4);
@@ -135,7 +144,8 @@ public class EmuPortamento extends GhidraScript {
     target[t] = (long) note << 16;
     newBits |= 1 << t;
     onMask |= 1 << t;
-    legBits = gateOpen ? legBits | (1 << t) : legBits & ~(1 << t);
+    if (legamp) { if (sounding) legBits |= 1 << t; }
+    else legBits = gateOpen ? legBits | (1 << t) : legBits & ~(1 << t);
     wr(GATES, rdn(GATES, 4) | (1L << t), 4);	// the trig opens the gate (0x40077b0c)
   }
   void gateOff(int t) throws Exception { wr(GATES, rdn(GATES, 4) & ~(1L << t), 4); }
@@ -307,6 +317,17 @@ public class EmuPortamento extends GhidraScript {
     ticks(3, bad);
     if (lastAmp != 0) bad.append(" [restarts without note-ons]");
     verdict("LEG on: a legato note does not restart the amp envelope (PORT 0 too); LEG off and detached notes do", bad);
+    if (!legamp) return;
+    // S35: sequenced short notes. A trig's LEN ends by a countdown that releases the amp envelope and
+    // leaves the gate bit set; only the envelope's state tells the last note has ended.
+    begin(); bad = new StringBuilder();
+    setParams(0, 32, 1); setParams(1, 32, 1);
+    noteOn(0, 48, false, false, bad); noteOn(1, 48, false, false, bad); ticks(2, bad);
+    noteOn(0, 55, true, false, bad); noteOn(1, 55, true, true, bad); long[] gs = ticks(1, bad);
+    if (lastAmp != 0x01) bad.append(String.format(" [restarted 0x%02x, want 0x01: the ended note restarts, the sounding one is held]", lastAmp));
+    if (gs[0] != 55L << 16) bad.append(" [ended note glided]");
+    if (gs[1] == 55L << 16) bad.append(" [sounding note did not glide]");
+    verdict("LEG on, gate bit left set by sequenced trigs: a note whose last note ended is detached", bad);
   }
 
   // ---- inert hooks (S29, S30): replay only
@@ -556,6 +577,7 @@ public class EmuPortamento extends GhidraScript {
     feature = sym.containsKey("snap");
     holdamp = sym.containsKey("amp_hook");
     fresh();
+    legamp = holdamp && rdn(sym.get("port_on") + 6, 2) == 0x43f9 && rdn(sym.get("port_on") + 8, 4) == AMPST;
     boolean hooks = rdn(ON_SITE, 2) == 0x4eb9 && rdn(RATE_SITE, 2) == 0x4eb9;
     boolean data = rdn(DESC + 0x34 * 4, 4) == 5;
     println(String.format("EmuPortamento %s: hooks %s, %s, TRIG data %s", args[0], hooks ? "present" : "absent",

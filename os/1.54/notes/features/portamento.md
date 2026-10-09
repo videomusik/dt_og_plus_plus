@@ -14,8 +14,10 @@ Every audio track's TRIG page gets two knobs, G and H, which are empty in stock:
 
 - With PORT above 0 a new note starts from the pitch the track is playing and glides to its own pitch.
   With LEG OFF every note glides. With LEG ON only a legato note glides, one whose trig comes while the
-  last note still sounds (its gate still open, so its LEN reaches the new trig); any other note starts
-  on its own pitch.
+  last note's amp envelope is still in its attack or hold (from S35; with HOLD at NOTE: its LEN reaches
+  the new trig, LEN INF included); any other note starts on its own pitch. S31 to S34 took a note as
+  legato when the track's gate bit was set, which a sequenced trig leaves set after its LEN: there,
+  every note after the first was legato.
 - With LEG ON a legato note also leaves the amp envelope running, as on a mono synth in legato mode
   (from S34): its attack does not restart. That holds whatever PORT is. The filter envelope keeps its
   own control, FLT.T.
@@ -103,17 +105,29 @@ About 2.5 time constants bring an octave's glide within a semitone of its target
 - **Where the note is.** The note-on (`FUN_40077420`, event type 1, flag `0x10000`) stores the trig's
   note sum (note << 16) in `NOTES[track]` (`0x80001f28`), before it sets the track's gate bit
   (`0x800019f4`, at `0x40077b0c`) and before it copies the trig's sound values (`FUN_40077282` at
-  `0x40077b36`, then the p-locks through `FUN_40074b0a`). So at the store the gate bit is still the
-  last note's: set if it is still sounding. A second store (`0x4007787e`, an event with flag bit 0 and
-  no velocity) changes the note without a trig; its flag `0x200` clears the gate.
+  `0x40077b36`, then the p-locks through `FUN_40074b0a`). A second store (`0x4007787e`, an event with
+  flag bit 0 and no velocity) changes the note without a trig; its flag `0x200` clears the gate.
+- **When a note ends.** ⛔ The gate bit does not say whether the last note still sounds. Only the event
+  paths clear it (`0x400778b0`, and a note-off whose stored id and note match, `0x40077c34..0x40077c46`).
+  A sequenced trig's length is a countdown instead: the note-on loads `0x8000196c + 4 × track` (amp)
+  and `0x8000198c + 4 × track` (filter envelope) from the event's `+48`; at the start of each tick the
+  ISR counts both down (`0x400774dc..0x40077532`) and, where one crosses zero, sets the track's bit in
+  the release masks `%fp@(-76)` and `%fp@(-72)`, which reach the amp and the filter envelope. The
+  gate bit stays set. So S31 to S34, which took the gate bit as "the last note still sounds", took
+  every sequenced note after the first as legato (on the unit with S34: LEN 1/8, HOLD at NOTE, LEG ON,
+  silence). A countdown at or below 0 cannot tell an ended note from LEN INF. ✅ The amp envelope's
+  state (`0x4199ed64 + 8 × track`: 2 attack, 1 hold, 0 decay; `FUN_400716c0`) can: with HOLD at NOTE it
+  holds until the release, and the event loop sees it before this tick's envelope pass.
 - **Where the pitch is made.** The first render stage `FUN_40075184`, called after the event loop,
   computes every track's rate every tick: its loop (`0x40075690`) reads `NOTES[track]` into `%d6`, adds
   TUNE and looks the sum up in the pitch table. `%a2` walks the engine's smoothed copy of the values
   (TUNE's slot, `0x80002794 + 106 × track`); the ISR's own copy, which p-locks write and which is not
   smoothed, is a fixed distance away (`−0x1236`).
 - **The note-on hook** (`0x400779f6`, `lea NOTES,%a1` → `jsr port_on`, 6 B): sets the track's bit in
-  the new-note byte and copies its gate bit into the legato byte, then does the `lea`. It uses no
-  register: bit operations on memory, the gate's low byte `0x800019f7`.
+  the new-note byte and marks the note legato, then does the `lea`. From S35 it marks it legato when
+  the amp envelope's state is not 0 (two ×4 index steps, as the ColdFire has no ×8), and only sets the
+  legato bit, which `port_glide` takes with the new-note bit; S31 to S34 copied the gate bit (the low
+  byte `0x800019f7`). It changes only `%a1`, which the replaced `lea` loads.
 - **The rate-loop hook** (`0x40075690`, 12 B: `lea NOTES,%a0`, `moveq #3,%d1` and the `movel` into
   `%d6` → `jsr port_glide`, `moveq #3,%d1`, `bras` over a filler word): returns the glided note sum in
   `%d6`. It uses `%d0`, `%d4`, `%d5` and `%a0`, which the loop loads again before reading; `%d2` and
@@ -198,7 +212,7 @@ About 2.5 time constants bring an octave's glide within a semitone of its target
   (`0x40078070`, 8 B) call `amp_hook`, which stores the note-on mask less the held tracks and the
   release byte, and clears the held byte. `%d3` stays as it is for the code after. The power-up
   initialisation clears the held byte with the valid byte (`clrw`), so garbage there cannot hold a
-  first note's envelope.
+  first note's envelope; from S35 it clears all four flag bytes (`clrl`).
 - A sample track's voice still restarts its sample at a legato note (the lanes' trig, flag `0x80`),
   with the lanes' own de-click; only the amp envelope carries on.
 
@@ -206,7 +220,7 @@ About 2.5 time constants bring an octave's glide within a semitone of its target
 
 Two new pads, vetted on this image ([landing_pads.md](../landing_pads.md#the-portamento-pads-fun_400e6d1c-and-fun_400ee05e)):
 `FUN_400e6d1c` holds `port_on` (36 B), and from S32 on `port_text` (18 B), from S33 on `rd_hook` (28 B)
-and from S34 on `amp_hook` (26 B): 108 of 108 B. `FUN_400ee05e` holds `port_glide` (112 of 122 B).
+and from S34 on `amp_hook` (26 B): 108 of 108 B. `FUN_400ee05e` holds `port_glide` (112 of 122 B; 116 from S35).
 The rest of each pad keeps its fill. No hook calls anything but the stock routines it jumps to.
 `.rodata` padding: the names (27 B), from S32 PORT's text object (16 B), from S33 the 48-entry table
 (192 B), `0x40252f00..0x40252fec`.
@@ -240,15 +254,19 @@ The rest of each pad keeps its fill. No hook calls anything but the stock routin
   S34: every tick of every case runs the ISR's amp-mask site after the rate loop and compares the
   note-on byte with the model (this tick's note-ons less its legato notes with LEG on), the release
   byte, the cleared held byte and the registers; and a case of its own: legato with PORT 0 and LEG on
-  held, legato with LEG off and detached notes restarted.
-  Twenty one-change controls each fail their own cases and pass the others: the legato test inverted,
+  held, legato with LEG off and detached notes restarted. From S35 the harness sets the amp
+  envelope's state at each note-on as `FUN_400716c0` leaves it, and a case of its own: two tracks whose
+  gate bits are left set, one whose last note ended (detached: restarted, no glide) and one whose
+  last note still holds (legato: held, glides).
+  Twenty-two one-change controls each fail their own cases and pass the others: the legato test inverted,
   PORT read from slot 45, no start on the target at power-up, every note taken as legato, k with
   PORT² / 4, the site's `moveq #2`, LEG's step profile left as the knob's, LEG in slot 46, knob H =
   id 4, the CFO oscillator's note read left on the trig's; PORT's text test inverted, LEG's flag word
   left 0; each lookup without 46 and 47, the sound writer's 46 words, the p-lock writer's stock table
   (which stores the PORT lock as index 0 and the LEG lock as index 1, as stock does), the reader taking
   any spare words; no legato note held, the held mask not inverted, the held byte not cleared at
-  power-up.
+  power-up; every note-on taken as legato (S34's fault on the unit), the legato bit not taken by the
+  glide.
 
 ## Stage images
 
@@ -263,6 +281,7 @@ Each stage adds one thing to the one before; flash them in order on a unit that 
 | S32 | `d01d3596` | `4c50980d…` | S31 + PORT reads OFF at 0; LEG's cell as FLT.T's |
 | S33 | `d0d6ff03` | `da64862f…` | S32 + PORT and LEG saved with the sound, and their p-locks with the pattern |
 | S34 | `0047c55d` | `de034548…` | S33 + with LEG ON a legato note does not restart the amp envelope |
+| S35 | `78d8af35` | `f8a304d3…` | S34 + a note is legato when the last note's amp envelope is still in its attack or hold |
 
 **What to check on the unit (OS 1.54):**
 
@@ -289,6 +308,9 @@ Each stage adds one thing to the one before; flash them in order on a unit that 
   new attack (a CFOO track just changes pitch; a sample track restarts its sample, at the running
   level); detached notes start with their attack. LEG OFF: every note restarts the envelope as
   before. The filter envelope follows FLT.T as before.
+- **S35:** as S34, with short notes: HOLD at NOTE, LEN 1/8 and LEG ON: every note sounds and starts
+  with its attack, and none glides; LEN longer than the trig distance (or INF): the notes glide and
+  carry on. With PORT on and LEG ON, a detached note no longer glides.
 
 ## On the unit
 
@@ -300,8 +322,14 @@ Each stage adds one thing to the one before; flash them in order on a unit that 
 - LEG's cell shows `OFF`/`ON` text while it is turned, which FLT.T's does not (above; S32 changes it);
 - PORT and LEG set on a project are not there after it is saved and loaded again (S33 changes it).
 
-Not reported yet: S28 to S30 on their own, what existing projects hold in PORT and LEG, a lock on LEG,
-and S32 to S34.
+✅ S32: confirmed (PORT reads OFF at 0, LEG's cell as FLT.T's). ✅ S33: confirmed for PORT and LEG,
+their recall with the project and their p-locks.
+
+⛔ S34: with HOLD at NOTE, a short AMP DEC, LEN 1/8 (no locks) and LEG ON, no note sounds; with the same
+settings PORT had glided whether LEG was on or off (seen before S34). Cause: the legato test (above,
+"When a note ends"); S35 changes it.
+
+Not reported yet: S28 to S30 on their own, what existing projects hold in PORT and LEG, and S35.
 
 ## Open points
 
