@@ -59,10 +59,12 @@ Planned, not in the build (the portamento test image S31, on top of the CFO osci
 - `+0`, 8 longs: the note sum each track plays;
 - `+32`, long: the marker `0x504f5254` (`PORT`) once the block is initialised;
 - `+36`, `+37`, `+38`, bytes, bit = track: a note-on not yet seen by the glide; that note-on came with
-  the track's gate open; the track's note sum is valid.
+  the track's gate open; the track's note sum is valid;
+- `+39`, byte, bit = track (S34): this tick's note is legato with LEG on, so its amp envelope is not
+  restarted; cleared every tick.
 
-Until the marker is right no track's note sum is taken as valid, and a track whose sum is not valid
-starts on its target, so start-up garbage is harmless.
+Until the marker is right no track's note sum is taken as valid (and from S34 no envelope held), and a
+track whose sum is not valid starts on its target, so start-up garbage is harmless.
 
 The code names `0x439d1004`, `0x439d1010`, `0x439d1038`, `0x439d1050`, `0x439d1058`, `0x439d1060` and
 `0x439d10e0` directly ([docs/patch_listing.md](../docs/patch_listing.md)); `slice[]` and `ownerTrack[]` are reached

@@ -46,7 +46,7 @@ In the portamento test images only (not in `patch.json`;
 
 | Pad | Extent | Size | Occupied by |
 |---|---|---:|---|
-| `FUN_400e6d1c` | `0x400e6d1c..0x400e6d88` | 108 B | S28 its fill; S29 and S30 `port_on`'s inert replay, 8 B; S31 `port_on`, `0x400e6d1c..0x400e6d40`; the rest keeps its fill. Vetted below |
+| `FUN_400e6d1c` | `0x400e6d1c..0x400e6d88` | 108 B | S28 its fill; S29 and S30 `port_on`'s inert replay, 8 B; S31 `port_on`, `0x400e6d1c..0x400e6d40`; S32 and `port_text` to `0x400e6d52`; S33 and `rd_hook` to `0x400e6d6e`; S34 and `amp_hook`: the whole pad; until then the rest keeps its fill. Vetted below |
 | `FUN_400ee05e` | `0x400ee05e..0x400ee0d8` | 122 B | S28 its fill; S29 and S30 `port_glide`'s inert replay, 12 B; S31 `port_glide`, `0x400ee05e..0x400ee0ce`; the rest keeps its fill. Vetted below |
 
 Free code space: 112 B in twelve blocks, none larger than 18 B: 18 B at `0x401282ce` (fill), 16 B
@@ -289,9 +289,10 @@ That leaves `0x40252b3c..0x40252b50` (20 B), the byte at `0x40252c2b` and `0x402
 (896 B) free in S14, and from `0x40252ed9` on (295 B) in S26. The build's own selector table at
 `0x40252bf8` stays in place, unused.
 
-In the portamento test images, from S30 on (on top of S27;
-[features/portamento.md](features/portamento.md)): `0x40252f00`, 27 B, the names `PORT`, `Portamento`,
-`LEG` and `Legato`. That leaves `0x40252ed9..0x40252f00` (39 B) and `0x40252f1b..0x40253000` (229 B).
+In the portamento test images (on top of S27; [features/portamento.md](features/portamento.md)):
+from S30 `0x40252f00`, 27 B, the names `PORT`, `Portamento`, `LEG` and `Legato`; from S32
+`0x40252f1c`, 16 B, PORT's text object; from S33 `0x40252f2c`, 192 B, the 48-entry slot → stored index
+table. That leaves `0x40252ed9..0x40252f00` (39 B) and, from S33, `0x40252fec..0x40253000` (20 B).
 
 ## Related notes
 

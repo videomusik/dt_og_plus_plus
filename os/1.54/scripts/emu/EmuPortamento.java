@@ -87,15 +87,19 @@ public class EmuPortamento extends GhidraScript {
     int v = (int) rdn(STATE + 38, 1);
     for (int t = 0; t < 8; t++) valid[t] = ((v >> t) & 1) != 0;
   }
+  int holdBits, onMask;		// HOLDAMP: this tick's legato notes with LEG on; this tick's note-ons
+  boolean holdamp;
   long modelTick(int t) {
     long T = target[t];
     if (!magic) { magic = true; for (int i = 0; i < 8; i++) valid[i] = false; }
     if (!valid[t]) { valid[t] = true; cur[t] = T; return T; }
     boolean isNew = ((newBits >> t) & 1) != 0;
     newBits &= ~(1 << t);
-    boolean glide = port[t] != 0;
-    if (isNew && glide && leg[t] != 0 && ((legBits >> t) & 1) == 0) glide = false;
-    if (!glide) { cur[t] = T; return T; }
+    if (isNew && leg[t] != 0) {
+      if (((legBits >> t) & 1) == 0) { cur[t] = T; return T; }	// LEG on, detached: on its pitch
+      if (holdamp) holdBits |= 1 << t;				// LEG on, legato: amp envelope held
+    }
+    if (port[t] == 0) { cur[t] = T; return T; }
     long k = 1 + ((long) port[t] * port[t] >> 3);
     long step = ((long) (int) (T - cur[t])) / k;	// truncated toward zero, as divs.l
     if (step == 0) cur[t] = T; else cur[t] = (int) (cur[t] + step) & 0xffffffffL;
@@ -130,6 +134,7 @@ public class EmuPortamento extends GhidraScript {
     for (int i = 0; i < KEEP_ON.length; i++) if (rd(KEEP_ON[i]) != sent[i]) bad.append(" [note-on " + KEEP_ON[i] + "]");
     target[t] = (long) note << 16;
     newBits |= 1 << t;
+    onMask |= 1 << t;
     legBits = gateOpen ? legBits | (1 << t) : legBits & ~(1 << t);
     wr(GATES, rdn(GATES, 4) | (1L << t), 4);	// the trig opens the gate (0x40077b0c)
   }
@@ -164,11 +169,43 @@ public class EmuPortamento extends GhidraScript {
       if (rd("SP") != sp) bad.append(" [rate stack]");
       for (int i = 0; i < KEEP_RATE.length; i++) if (rd(KEEP_RATE[i]) != sent[i]) bad.append(" [rate " + KEEP_RATE[i] + "]");
     }
+    if (holdamp) ampSite(bad);
+    onMask = 0;
     return got;
+  }
+  /** HOLDAMP: the ISR's store of the amp envelope's masks (0x40078070..0x40078078) after the rate loop:
+   *  the note-on byte at %fp@(-36) must be this tick's note-ons less the model's held tracks, the
+   *  release byte at %fp@(-35) the low byte of %d2, the held byte cleared, the registers kept. */
+  static final long AMP_SITE = 0x40078070L, AMP_END = 0x40078078L, FRAME = 0x40258400L;
+  int lastAmp;
+  static final String[] KEEP_AMP = {"D1","D2","D3","D4","D5","D6","D7","A0","A1","A2","A3","A4","A5","A6"};
+  void ampSite(StringBuilder bad) throws Exception {
+    long sp = SP0 - 0x100;
+    wr(FRAME - 36, 0xeeee, 2);
+    emu.writeRegister("SP", sp); emu.writeRegister("PC", AMP_SITE);
+    long[] sent = new long[KEEP_AMP.length];
+    for (int i = 0; i < KEEP_AMP.length; i++) { sent[i] = 0x5a5a0000L + i; emu.writeRegister(KEEP_AMP[i], sent[i]); }
+    long d3 = 0x12340000L | onMask; emu.writeRegister("D3", d3); sent[2] = d3;
+    long d2 = 0x5a5a00c3L; emu.writeRegister("D2", d2); sent[1] = d2;
+    emu.writeRegister("A6", FRAME); sent[13] = FRAME;
+    boolean done = false;
+    for (int s = 0; s < 100; s++) {
+      if (emu.getExecutionAddress().getOffset() == AMP_END) { done = true; break; }
+      if (!emu.step(monitor)) { bad.append(" [amp fault " + emu.getLastError() + "]"); return; }
+    }
+    if (!done) { bad.append(" [amp ran away]"); return; }
+    long on = rdn(FRAME - 36, 1), rel = rdn(FRAME - 35, 1), want = onMask & ~holdBits & 0xff;
+    lastAmp = (int) on;
+    if (on != want && bad.length() < 500) bad.append(String.format(" [amp trig 0x%02x, want 0x%02x]", on, want));
+    if (rel != 0xc3) bad.append(" [amp release byte]");
+    if (rdn(STATE + 39, 1) != 0) bad.append(" [held byte not cleared]");
+    if (rd("SP") != sp) bad.append(" [amp stack]");
+    for (int i = 0; i < KEEP_AMP.length; i++) if (rd(KEEP_AMP[i]) != sent[i]) bad.append(" [amp " + KEEP_AMP[i] + "]");
+    holdBits = 0;
   }
   long[] ticks(int n, StringBuilder bad) throws Exception { long[] g = null; for (int i = 0; i < n; i++) g = tick(bad, true); return g; }
   void begin() throws Exception {
-    fresh(); modelFromMemory();
+    fresh(); modelFromMemory(); holdBits = 0; onMask = 0;
     for (int t = 0; t < 8; t++) { setParams(t, 0, 0); target[t] = 0; }
   }
 
@@ -254,6 +291,22 @@ public class EmuPortamento extends GhidraScript {
     for (int t = 0; t < 8; t++) noteOn(t, 70 - t, false, bad);
     ticks(10, bad);
     verdict("power-up garbage: every track's first note starts on its pitch, then glides", bad);
+    if (!holdamp) return;
+    // HOLDAMP: which note-ons restart the amp envelope (every tick of every case above checks it too)
+    begin(); bad = new StringBuilder();
+    setParams(0, 0, 1); setParams(1, 30, 0); setParams(2, 30, 1);
+    for (int t = 0; t < 3; t++) noteOn(t, 48, false, bad);
+    ticks(2, bad);
+    noteOn(0, 50, false, bad); ticks(1, bad);
+    if ((lastAmp & 1) == 0) bad.append(" [PORT 0, LEG on, first trig after the start: not restarted]");
+    noteOn(0, 52, true, bad); noteOn(1, 53, true, bad); noteOn(2, 54, true, bad); ticks(1, bad);
+    if (lastAmp != 0x02) bad.append(String.format(" [legato on 0 (PORT 0, LEG on), 1 (LEG off), 2 (LEG on): restarted 0x%02x, want 0x02]", lastAmp));
+    gateOff(0); gateOff(2);
+    noteOn(0, 55, false, bad); noteOn(2, 56, false, bad); ticks(1, bad);
+    if (lastAmp != 0x05) bad.append(String.format(" [detached on 0 and 2: restarted 0x%02x, want 0x05]", lastAmp));
+    ticks(3, bad);
+    if (lastAmp != 0) bad.append(" [restarts without note-ons]");
+    verdict("LEG on: a legato note does not restart the amp envelope (PORT 0 too); LEG off and detached notes do", bad);
   }
 
   // ---- inert hooks (S29, S30): replay only
@@ -329,7 +382,8 @@ public class EmuPortamento extends GhidraScript {
     emu.writeRegister("SP", SP0 - 0x200); emu.writeRegister("PC", 0x401533eeL);
     emu.writeRegister("A2", S2); emu.writeRegister("A3", S3); emu.writeRegister("A4", S4);
     emu.writeRegister("D2", 0x4018e18cL); emu.writeRegister("D3", 0x4018e1acL);
-    wr(0x4197e448L, 0x1111, 4); wr(0x4197e49cL, 0x2222, 4);
+    wr(0x4197e448L, 0x1111, 4); wr(0x4197e49cL, 0, 4);	// id 5's word as .bss leaves it
+    boolean off = sym.containsKey("port_tobj");
     List<String> calls = new ArrayList<>();
     for (int s = 0; s < 400 && emu.getExecutionAddress().getOffset() != 0x4015346eL; s++) {
       long p = emu.getExecutionAddress().getOffset();
@@ -342,11 +396,149 @@ public class EmuPortamento extends GhidraScript {
       if (!emu.step(monitor)) { bad.append(" [dobj fault]"); break; }
     }
     String gotC = String.join(", ", calls);
-    String wantC = "tmpl 4197e44c<-4018e18c, text 4197e45c<-4197d7fc, pic 4197e46c<-4197d58c, "
-        + "tmpl 4197e4a0<-4018e1ac, text 4197e4b0<-4197d6ac, pic 4197e4c0<-4197d37c";
+    String wantC = String.format("tmpl 4197e44c<-4018e18c, text 4197e45c<-%x, pic 4197e46c<-4197d58c, "
+        + "tmpl 4197e4a0<-4018e1ac, text 4197e4b0<-4197d6ac, pic 4197e4c0<-4197d37c",
+        off ? sym.get("port_tobj") : 0x4197d7fcL);
     if (!gotC.equals(wantC)) bad.append(" [" + gotC + "]");
-    if (rdn(0x4197e448L, 4) != 0 || rdn(0x4197e49cL, 4) != 0) bad.append(" [+0 words not cleared]");
-    verdict("display objects: PORT '%d' knob, LEG OFF/ON switch with the selector step", bad);
+    if (rdn(0x4197e448L, 4) != 0) bad.append(" [id 4's +0 word not cleared]");
+    if (rdn(0x4197e49cL, 4) != (off ? 4 : 0)) bad.append(String.format(" [id 5's +0 word 0x%x]", rdn(0x4197e49cL, 4)));
+    verdict(off ? "display objects: PORT OFF/number knob, LEG switch as FLT.T (flags 4), selector step"
+        : "display objects: PORT '%d' knob, LEG OFF/ON switch with the selector step", bad);
+    if (off) offTextCase();
+  }
+
+  /** S32: PORT's text through the stock popup formatter FUN_400657ee(id 4, value), the display object's
+   *  text callable installed from this build's object as the start-up copy installs it. */
+  void offTextCase() throws Exception {
+    StringBuilder bad = new StringBuilder();
+    fresh();
+    long obj = 0x4197e2f8L + 0x54 * 4 + 0x14, src = sym.get("port_tobj");
+    wr(obj, 0x40001500L, 4); wr(obj + 4, 0, 4); wr(obj + 8, rdn(src + 8, 4), 4); wr(obj + 12, rdn(src + 12, 4), 4);
+    int[] vals = {0, 1, 2, 9, 64, 100, 127};
+    StringBuilder got = new StringBuilder();
+    for (int v : vals) {
+      long sp = SP0 - 0x10; wr(sp, RET, 4); wr(sp + 4, 4, 4); wr(sp + 8, (long) v << 8, 4);
+      emu.writeMemory(toAddr(0x4197de98L), new byte[16]);
+      emu.writeRegister("SP", sp); emu.writeRegister("PC", 0x400657eeL);
+      boolean done = false;
+      for (int s = 0; s < 20000; s++) {
+        if (emu.getExecutionAddress().getOffset() == RET) { done = true; break; }
+        if (!emu.step(monitor)) { bad.append(" [text fault " + emu.getLastError() + "]"); break; }
+      }
+      if (!done) { bad.append(" [text did not return]"); break; }
+      String s = cstr(0x4197de98L), want = v == 0 ? "OFF" : Integer.toString(v);
+      got.append(" ").append(s);
+      if (!s.equals(want)) bad.append(String.format(" [%d: '%s']", v, s));
+    }
+    verdict("PORT's text through the stock formatter: OFF at 0, else the number (" + got.toString().trim() + ")", bad);
+  }
+
+  // ---- S33: saving
+  Map<Long, Long> stubRet = new HashMap<>();
+  /** call pc with the arguments, stubbing the PCs in stubs (return stubRet's value or 0); false if it
+   *  faulted or ran away */
+  boolean call(long pc, long[] args, long[] stubs, int limit, StringBuilder bad, String what) throws Exception {
+    long sp = SP0 - 0x40 - 4L * args.length;
+    wr(sp, RET, 4);
+    for (int i = 0; i < args.length; i++) wr(sp + 4 + 4L * i, args[i], 4);
+    emu.writeRegister("SP", sp); emu.writeRegister("PC", pc);
+    for (int s = 0; s < limit; s++) {
+      long p = emu.getExecutionAddress().getOffset();
+      if (p == RET) return true;
+      boolean stub = false;
+      for (long st : stubs) if (p == st) stub = true;
+      if (stub) {
+        long q = rd("SP");
+        emu.writeRegister("D0", stubRet.getOrDefault(p, 0L));
+        emu.writeRegister("PC", rdn(q, 4)); emu.writeRegister("SP", q + 4);
+        continue;
+      }
+      if (!emu.step(monitor)) { bad.append(" [" + what + ": fault " + emu.getLastError() + " at 0x" + Long.toHexString(p) + "]"); return false; }
+    }
+    bad.append(" [" + what + ": ran away]");
+    return false;
+  }
+  long callRet() throws Exception { return rd("D0"); }
+
+  void saveCases() throws Exception {
+    // the two lookups against the stock code, run from a copy at 0x40001600 (absolute leas only)
+    for (int f = 0; f < 2; f++) {
+      StringBuilder bad = new StringBuilder();
+      fresh();
+      long fn = f == 0 ? 0x40079738L : 0x40079772L, copy = 0x40001600L;
+      byte[] st = new byte[58]; currentProgram.getMemory().getBytes(toAddr(fn), st); emu.writeMemory(toAddr(copy), st);
+      int n = 0, diff = 0;
+      long[] kinds = {0xffffffffL, 0, 1, 7, 8, 15, 16, 17, 100};
+      for (long kind : kinds) for (long idx = -2; idx <= 60; idx++) {
+        long ix = idx & 0xffffffffL;
+        call(fn, new long[] {kind, ix}, new long[0], 200, bad, "new"); long a = callRet();
+        call(copy, new long[] {kind, ix}, new long[0], 200, bad, "stock"); long b = callRet();
+        boolean ext = kind < 16 && (ix == 46 || ix == 47);
+        long want = ext ? ix : b;
+        if (a != want && bad.length() < 400) bad.append(String.format(" [kind %d index %d: 0x%x, stock 0x%x]", (int) kind, idx, a, b));
+        if (a != b) diff++;
+        n++;
+      }
+      verdict(String.format("%s: as stock for %d inputs, but kinds below 16 map %s 46 and 47 to themselves (%d differ)",
+          f == 0 ? "FUN_40079738 (index -> slot)" : "FUN_40079772 (slot -> index)", n, f == 0 ? "indices" : "slots", diff), bad);
+    }
+    // the sound: writer FUN_4007a5a0, reader FUN_4007a236, round trip
+    long SND = 0x40258800L, SND2 = 0x40258a00L, REC = 0x40258c00L;
+    long[] wstubs = {0x4007a552L, 0x40079dbcL, 0x40084ea4L};
+    long[] rstubs = {0x40106b96L, 0x40000e82L, 0x4007a1dcL, 0x40084ec2L, 0x400797acL, 0x40084ea4L};
+    StringBuilder bad = new StringBuilder();
+    fresh();
+    stubRet.clear(); stubRet.put(0x4007a552L, 1L); stubRet.put(0x40106b96L, 1L); stubRet.put(0x4007a1dcL, 1L); stubRet.put(0x400797acL, 1L);
+    emu.writeMemory(toAddr(SND), new byte[0x100]); emu.writeMemory(toAddr(SND2), new byte[0x100]);
+    emu.writeMemory(toAddr(REC), new byte[0x100]);
+    int[] v = new int[53];
+    for (int s = 0; s < 53; s++) v[s] = ((s * 37 + 5) & 0x7f) << 8 | (s * 11 & 0xff);
+    v[4] = 26 << 8; v[12] = 30 << 8;		// the LFO destinations: slots
+    v[20] = 0;					// no sample
+    v[46] = 80 << 8; v[47] = 1 << 8;		// PORT 80, LEG ON
+    for (int s = 48; s < 53; s++) v[s] = 0;
+    for (int s = 0; s < 53; s++) wr(SND + 0x14 + 2 * s, v[s], 2);
+    call(0x4007a5a0L, new long[] {REC, SND, 0}, wstubs, 200000, bad, "writer");
+    if (rdn(REC + 0x78, 2) != v[46] || rdn(REC + 0x7a, 2) != v[47]) bad.append(String.format(" [record +0x78: %08x]", rdn(REC + 0x78, 4)));
+    call(0x4007a236L, new long[] {SND2, REC}, rstubs, 200000, bad, "reader");
+    for (int s = 0; s < 48; s++) if (rdn(SND2 + 0x14 + 2 * s, 2) != v[s] && bad.length() < 400)
+      bad.append(String.format(" [slot %d: 0x%x, wrote 0x%x]", s, rdn(SND2 + 0x14 + 2 * s, 2), v[s]));
+    verdict("a sound written and read back: slots 0..47, PORT and LEG included, in the spare words", bad);
+    bad = new StringBuilder();
+    long[][] spare = {{0, 0, 0}, {0x12345678L, 0, 0}, {0x7f000100L, 0x7f00, 0x100}, {0x80000000L, 0, 0}, {0x00010000L, 0, 0}, {0x40000200L, 0, 0}};
+    for (long[] c : spare) {
+      wr(REC + 0x78, c[0], 4);
+      call(0x4007a236L, new long[] {SND2, REC}, rstubs, 200000, bad, "reader");
+      if (rdn(SND2 + 0x70, 2) != c[1] || rdn(SND2 + 0x72, 2) != c[2]) bad.append(String.format(" [spare %08x: %04x %04x]", c[0], rdn(SND2 + 0x70, 2), rdn(SND2 + 0x72, 2)));
+    }
+    verdict("the reader: a stock record's zeros, PORT 127 with LEG ON, and four malformed spares (all 0)", bad);
+    // the p-locks: writer FUN_4007adb2 and reader FUN_4007abb2, round trip; and the single store FUN_4007aefa
+    bad = new StringBuilder();
+    fresh();
+    long LK = 0x42000000L, LK2 = 0x42040000L, RECS = 0x42080000L, TS = 0x1b35;
+    byte[] ff = new byte[0x1b350]; Arrays.fill(ff, (byte) 0xff); emu.writeMemory(toAddr(LK), ff);
+    for (int tr = 0; tr < 16; tr++) emu.writeMemory(toAddr(LK + tr * TS + 0x1b00), new byte[0x35]);
+    long[][] locks = {{0, 46, 0, 0x2000}, {0, 46, 5, 0x4000}, {2, 47, 3, 0x0100}, {1, 30, 7, 0x1234}, {3, 4, 9, 0x1a00}};
+    for (long[] l : locks) { wr(LK + l[0] * TS + l[2] * 0x6c + l[1] * 2, l[3], 2); wr(LK + l[0] * TS + 0x1b00 + l[1], 1, 1); }
+    emu.writeMemory(toAddr(RECS), new byte[0x28a0]);
+    call(0x4007adb2L, new long[] {RECS, LK}, new long[0], 2000000, bad, "lock writer");
+    StringBuilder idx = new StringBuilder();
+    for (int r = 0; r < 6; r++) idx.append(String.format(" %d/%d", (byte) rdn(RECS + r * 0x82, 1), (byte) rdn(RECS + r * 0x82 + 1, 1)));
+    call(0x4007abb2L, new long[] {LK2, RECS}, new long[0], 4000000, bad, "lock reader");
+    int flags = 0;
+    for (int tr = 0; tr < 16; tr++) for (int s = 0; s < 53; s++) if (rdn(LK2 + tr * TS + 0x1b00 + s, 1) != 0) flags++;
+    for (long[] l : locks) {
+      if (rdn(LK2 + l[0] * TS + 0x1b00 + l[1], 1) == 0) bad.append(String.format(" [track %d slot %d not locked]", l[0], l[1]));
+      if (rdn(LK2 + l[0] * TS + l[2] * 0x6c + l[1] * 2, 2) != l[3]) bad.append(String.format(" [track %d slot %d step %d: 0x%x]", l[0], l[1], l[2], rdn(LK2 + l[0] * TS + l[2] * 0x6c + l[1] * 2, 2)));
+    }
+    if (flags != 4) bad.append(" [" + flags + " locked slots, want 4]");
+    verdict("p-locks written and read back: PORT and LEG locks as indices 46, 47 (records" + idx + ")", bad);
+    bad = new StringBuilder();
+    byte[] ffr = new byte[0x28a0]; Arrays.fill(ffr, (byte) 0xff); emu.writeMemory(toAddr(RECS), ffr);
+    call(0x4007aefaL, new long[] {RECS, LK, 0, 47, 2}, new long[0], 200000, bad, "lock store");
+    if (rdn(RECS, 1) != 47 || rdn(RECS + 1, 1) != 2 || rdn(RECS + 2 + 3 * 2, 2) != 0x0100)
+      bad.append(String.format(" [record %02x/%02x step 3 %04x]", rdn(RECS, 1), rdn(RECS + 1, 1), rdn(RECS + 8, 2)));
+    verdict("the single p-lock store: LEG's lock on track 2 as index 47", bad);
   }
 
   public void run() throws Exception {
@@ -362,6 +554,7 @@ public class EmuPortamento extends GhidraScript {
       }
     }
     feature = sym.containsKey("snap");
+    holdamp = sym.containsKey("amp_hook");
     fresh();
     boolean hooks = rdn(ON_SITE, 2) == 0x4eb9 && rdn(RATE_SITE, 2) == 0x4eb9;
     boolean data = rdn(DESC + 0x34 * 4, 4) == 5;
@@ -375,6 +568,7 @@ public class EmuPortamento extends GhidraScript {
     }
     if (hooks) { if (feature) glideCases(); else inertCases(); }
     if (data) dataCases();
+    if (sym.containsKey("inv_slots")) saveCases();
     println(fails == 0 ? "=== ALL CASES PASS ===" : "=== " + fails + " CASE(S) FAIL ===");
     emu.dispose();
   }

@@ -9,16 +9,20 @@ Every audio track's TRIG page gets two knobs, G and H, which are empty in stock:
 
 | Knob | Name | Range | What it does |
 |---|---|---|---|
-| G | PORT, Portamento | 0–127, default 0 | the glide time; 0 is off |
-| H | LEG, Legato | OFF/ON, default OFF | ON: only a legato note glides |
+| G | PORT, Portamento | OFF, 1–127, default OFF | the glide time; OFF (0) bypasses the glide |
+| H | LEG, Legato | OFF/ON, default OFF | ON: only a legato note glides, and it does not restart the amp envelope |
 
 - With PORT above 0 a new note starts from the pitch the track is playing and glides to its own pitch.
   With LEG OFF every note glides. With LEG ON only a legato note glides, one whose trig comes while the
   last note still sounds (its gate still open, so its LEN reaches the new trig); any other note starts
   on its own pitch.
+- With LEG ON a legato note also leaves the amp envelope running, as on a mono synth in legato mode
+  (from S34): its attack does not restart. That holds whatever PORT is. The filter envelope keeps its
+  own control, FLT.T.
+- At PORT OFF every tick plays the trig's own note sum, exactly what the stock code plays.
 - A note change without a trig (a trigless lock with a NOTE lock) glides as well.
 - PORT and LEG belong to the sound, like the AMP page's parameters: they are saved with it and can be
-  locked per trig.
+  locked per trig (saved with the project from S33; S31 and S32 lose them on a reload).
 - The glide applies wherever the stock rate loop takes the pitch from the trig's note: SAMP, WERP,
   SLICE when its pitch follows the note, each POLY voice (from that voice's last note), and the CFO
   oscillator's OSC1 (OSC2 and OSC3 follow at their detunes). Where the stock code ignores the note,
@@ -119,15 +123,93 @@ About 2.5 time constants bring an octave's glide within a semitone of its target
 - **The CFO oscillator** reads its note through `lea NOTES,%a0` (`0x400f783e` in S27); its operand
   points at the glided notes. The rate loop runs before the oscillator in the same tick.
 - **State** (40 B at `0x439d1180`, above `.bss`, [memory_map.md](../memory_map.md)): the note sum
-  each track plays (8 longs), a marker word, and the new-note, legato and valid bytes. The start-up
-  contents are garbage: until the marker reads `PORT` no track's note is valid, and a track whose note
-  is not valid starts on its target.
+  each track plays (8 longs), a marker word, and the new-note, legato and valid bytes, and from S34
+  the held byte. The start-up contents are garbage: until the marker reads `PORT` no track's note is
+  valid (and, from S34, no envelope held), and a track whose note is not valid starts on its target.
+
+### PORT's OFF and LEG's cell (S32)
+
+✅ Read in the code (objdump):
+
+- **The texts.** No stock text prints `OFF` at 0 and the number above it. The sends' text
+  (`0x4197d76c`, invoker `0x400658d0`) prints `OFF` at 0 but `%s%d.%02d` otherwise, the text of
+  `0x4197d7ec`. So PORT gets its own text callable: a 16 B object in the `.rodata` padding (storage 0,
+  the `%d` text's manager `0x40060c92`, the invoker `port_text`), whose invoker tail-jumps to
+  `0x400658d0` for 0 and to the `%d` invoker `0x4005f8ce` otherwise. The display build copies a source
+  with `0x40151f6c`, which copies the manager and the invoker and calls the manager to clone the
+  storage; this manager's clone only allocates a fresh byte (`new(1)` through `0x400d43a8`) and reads
+  nothing of the source. Id 4's text operand (`0x40153410`) points at the object. The popup formatter
+  `FUN_400657ee` reaches the invoker through `FUN_40151eea` with `(object, value, buffer)`.
+- **LEG's flag word.** `clrl 0x4197e49c` (`0x40153446`) is that word's only writer, the word lies in
+  `.bss` and the build runs once ([above](#port-and-leg-as-sound-parameters)), so `addql #4` writes
+  FLT.T's 4: the cell drawer then shows no value text while LEG is turned, as for FLT.T.
+
+### Saving PORT and LEG (S33)
+
+✅ Read in the code (objdump, decompile):
+
+- **The stored sound.** A saved sound is a 160 B record (`0xbeefbace`, version 3, its name, then its
+  values at `+0x1c` as 46 words, the machine at `+0x7c`, …, `0xbacef00c` at `+0x9c`). The writer
+  `FUN_4007a5a0` clears `+0x1c..+0x7b` and stores slot s at `+0x1c + 2 × I[s]` for the slots 0–45,
+  through the table `I` at `0x401ac4d4` (slot → stored index); the reader `FUN_4007a236` clears the
+  sound's 106 B of values and loads them back through `F` at `0x401ac58c` (stored index → slot). So
+  slots 46–52 are never written: in S31 and S32, PORT and LEG come back as 0 after a reload (as the
+  unit showed). `+0x78..+0x7b`, two words, lie inside the writer's clear and outside everything the
+  reader reads.
+- **The stored p-locks.** A pattern's locks are kept in RAM per track, step and slot (16 tracks of
+  `0x1b35` B: 64 steps × 53 words and a count, then a byte per slot). They are stored as up to 80
+  records of `0x82` B: the stored index, the track, 64 words. The writers `FUN_4007adb2` (all) and
+  `FUN_4007aefa` (one) take the index from `I` for any slot up to 52; past its 46 entries they read
+  the start of `F`, 0 and 1, so in stock a lock on slot 46 is stored as a lock on slot 0 and one on
+  slot 47 as a lock on slot 1, LFO1's speed. The reader `FUN_4007abb2` maps an index through
+  `FUN_40079738(track, index)`, which gives slot 0 for an index above 45.
+- **The mirror.** `Sound::vfunc_17` keeps a stored copy of the sound up to date as values change:
+  for one changed slot through `FUN_40079772(0, slot)` (slot → stored index, 0 above 45), else by a
+  full rewrite through the writer. MIDI presets (kind 8, slots up to 40) and the FX setup (kind 16,
+  its own tables) use the same function.
+- **S33:** a 48-entry `I` in the `.rodata` padding (the stock 46, then 46 and 47) for the three writers
+  (`0x4007a5fa`, `0x4007adec`, `0x4007af34`); the sound writer's loop takes 48 words (`moveq #92` →
+  `#96` at `0x4007a614`), so PORT and LEG go to the spare words `+0x78` and `+0x7a`; `FUN_40079738`
+  and `FUN_40079772` rewritten in place (56 of their 58 B, the rest `nop`): as stock for every input,
+  and for a kind below 16 the index or slot 46 and 47 maps to itself; and the reader's `lea` of `F`
+  (`0x4007a2aa`) calls `rd_hook`, which first fills slots 46 and 47 from the spare words. The value
+  loop that follows writes slots 0–45 only. Spare words that are not a whole PORT of 0–127 and a LEG
+  of 0 or 1 give 0 for both. ⚠️ The converter from the oldest record format (`FUN_4007b962`) copies
+  every field but these two words, so a converted record may hold leftovers there; that is why the
+  reader checks them.
+- **Compatibility.** A sound saved by the stock firmware has zeros there: PORT OFF and LEG OFF. A
+  project saved with S33 and opened on the stock firmware: the stock reader ignores the spare words,
+  and its `FUN_40079738` gives a lock with index 46 or 47 slot 0, which no parameter uses.
+
+### The amp envelope on legato notes (S34)
+
+✅ Read in the code (objdump, decompile):
+
+- **Which code is the amp envelope.** After the render the ISR builds a block at `%fp@(-60)` of each
+  track's AMP ATK, HOLD and DEC (engine `+0x5e`, `+0x60`, `+0x62`, slots 38–40), then the note-on mask
+  `%d3` at `%fp@(-36)` and a release mask at `%fp@(-35)` (`0x40078040..0x40078074`), and calls
+  `FUN_400716c0`. That routine runs a three-state envelope per track over the track's 32 samples in
+  place (state at `0x4199ed64 + 8 × track`: 2 attack, 1 hold, 0 decay), and restarts a track's attack
+  for its bit in the note-on byte; with HOLD 127 the release byte ends the hold. The filter envelope is
+  `FUN_40073304` (engine `+0x4c..+0x58`, slots 29–35), restarted by another mask (`%d4`, trigs with
+  flag `0x200`); `FUN_40072844` is the filter.
+- **S34:** `port_glide`, which already decides for each new note whether it is legato with LEG on,
+  sets that track's bit in a held byte (state `+39`); the ISR's two `moveb`s into the block
+  (`0x40078070`, 8 B) call `amp_hook`, which stores the note-on mask less the held tracks and the
+  release byte, and clears the held byte. `%d3` stays as it is for the code after. The power-up
+  initialisation clears the held byte with the valid byte (`clrw`), so garbage there cannot hold a
+  first note's envelope.
+- A sample track's voice still restarts its sample at a legato note (the lanes' trig, flag `0x80`),
+  with the lanes' own de-click; only the amp envelope carries on.
 
 ### Code space
 
 Two new pads, vetted on this image ([landing_pads.md](../landing_pads.md#the-portamento-pads-fun_400e6d1c-and-fun_400ee05e)):
-`port_on` in `FUN_400e6d1c` (36 of 108 B), `port_glide` in `FUN_400ee05e` (112 of 122 B). The rest of
-each pad keeps its fill. Neither hook calls anything.
+`FUN_400e6d1c` holds `port_on` (36 B), and from S32 on `port_text` (18 B), from S33 on `rd_hook` (28 B)
+and from S34 on `amp_hook` (26 B): 108 of 108 B. `FUN_400ee05e` holds `port_glide` (112 of 122 B).
+The rest of each pad keeps its fill. No hook calls anything but the stock routines it jumps to.
+`.rodata` padding: the names (27 B), from S32 PORT's text object (16 B), from S33 the 48-entry table
+(192 B), `0x40252f00..0x40252fec`.
 
 ## Checks
 
@@ -147,11 +229,26 @@ each pad keeps its fill. Neither hook calls anything.
   TRIG data: the rows and names; the stock sorter's tables, the same as from the stock rows but for
   the slot map's 46 → 4 and 47 → 5 (CC 7 still VOL, CC 10 still PAN); the layout's stores (G = 4,
   H = 5); the display build for ids 4 and 5 with its copy routines stubbed (template, text and picture
-  sources). The inert stages replay the stock instructions and leave the state alone. Ten one-change
-  controls each fail their own cases and pass the others: the legato test inverted, PORT read from
-  slot 45, no start on the target at power-up, every note taken as legato, k with PORT² / 4, the site's
-  `moveq #2`, LEG's step profile left as the knob's, LEG in slot 46, knob H = id 4, and the CFO
-  oscillator's note read left on the trig's.
+  sources). The inert stages replay the stock instructions and leave the state alone.
+  From S32: the display build gives id 4 this build's text object and id 5 the flag word 4; PORT's
+  text through the stock popup formatter reads `OFF`, `1`, `2`, `9`, `64`, `100`, `127`. From S33: both
+  rewritten lookups against the stock code (copied and run beside them) for 567 inputs each, equal but
+  for the 10 extended ones; a sound written by the stock writer and read back by the stock reader with
+  the edits, slots 0–47 equal, PORT and LEG in the spare words; the reader on a stock record's zeros, on
+  PORT 127 with LEG ON, and on four malformed spare pairs (0); p-locks on PORT, LEG and two other
+  slots written and read back (records 7, 30, 46, 47); the single store of a LEG lock as index 47. From
+  S34: every tick of every case runs the ISR's amp-mask site after the rate loop and compares the
+  note-on byte with the model (this tick's note-ons less its legato notes with LEG on), the release
+  byte, the cleared held byte and the registers; and a case of its own: legato with PORT 0 and LEG on
+  held, legato with LEG off and detached notes restarted.
+  Twenty one-change controls each fail their own cases and pass the others: the legato test inverted,
+  PORT read from slot 45, no start on the target at power-up, every note taken as legato, k with
+  PORT² / 4, the site's `moveq #2`, LEG's step profile left as the knob's, LEG in slot 46, knob H =
+  id 4, the CFO oscillator's note read left on the trig's; PORT's text test inverted, LEG's flag word
+  left 0; each lookup without 46 and 47, the sound writer's 46 words, the p-lock writer's stock table
+  (which stores the PORT lock as index 0 and the LEG lock as index 1, as stock does), the reader taking
+  any spare words; no legato note held, the held mask not inverted, the held byte not cleared at
+  power-up.
 
 ## Stage images
 
@@ -163,6 +260,9 @@ Each stage adds one thing to the one before; flash them in order on a unit that 
 | S29 | `40945186` | `fdf804d3…` | S28 + both hooks, each pad only replaying what its hook replaced |
 | S30 | `16e4e6a5` | `8cde020f…` | S29 + PORT and LEG on the TRIG page (rows, names, display objects, layout); nothing glides yet |
 | S31 | `31292184` | `ad0e5c03…` | S30 + the glide, and the CFO oscillator's note read on the glided note |
+| S32 | `d01d3596` | `4c50980d…` | S31 + PORT reads OFF at 0; LEG's cell as FLT.T's |
+| S33 | `d0d6ff03` | `da64862f…` | S32 + PORT and LEG saved with the sound, and their p-locks with the pattern |
+| S34 | `0047c55d` | `de034548…` | S33 + with LEG ON a legato note does not restart the amp envelope |
 
 **What to check on the unit (OS 1.54):**
 
@@ -171,14 +271,24 @@ Each stage adds one thing to the one before; flash them in order on a unit that 
   means one of the two pads is live.
 - **S29:** as S28; every note plays its own pitch, nothing glides, the TRIG page is unchanged.
 - **S30:** on an audio track's TRIG page, G shows PORT (0–127, whole steps) and H shows LEG (OFF/ON, a
-  switch). Both turn, reset to 0/OFF, lock on a trig, and survive saving and reloading the project and
-  changing sounds. Existing projects and a new sound show PORT 0 and LEG OFF. Nothing sounds different.
+  switch). Both turn, reset to 0/OFF, lock on a trig and follow the sound when it changes (a reload
+  loses them until S33). Existing projects and a new sound show PORT 0 and LEG OFF. Nothing sounds different.
   MIDI CC 7 and CC 10 still set VOL and PAN, and turning PORT sends no CC. A MIDI track's TRIG page is
   unchanged; the LFO destination list has no PORT or LEG. Note how LEG's cell looks next to FLT.T's.
 - **S31:** PORT 0 plays as before. PORT 32 with LEG OFF: every new note glides (time constant about
   0.1 s), slower as PORT rises. LEG ON: notes whose LEN reaches the next trig glide, the others start on their pitch.
   A PORT lock on one trig changes that note's glide only. On a POLY track each voice glides from its
   own last note. On a CFOO track OSC1 glides and OSC2 and OSC3 keep their detunes.
+- **S32:** PORT reads `OFF` at 0 and the number above; LEG's cell shows no `OFF`/`ON` text while it is
+  turned, as FLT.T's. Nothing else changes.
+- **S33:** set PORT and LEG on a few tracks and lock both on some trigs; save the project, load another
+  and load it again (and power off and on): the values and locks come back. Copying and pasting a
+  sound carries them. A lock on another parameter in the same pattern still comes back on its own
+  parameter; LFO1's speed is untouched. Projects saved before S33 open with PORT OFF and LEG OFF.
+- **S34:** LEG ON, a sound with a slow attack: notes whose LEN reaches the next trig carry on without a
+  new attack (a CFOO track just changes pitch; a sample track restarts its sample, at the running
+  level); detached notes start with their attack. LEG OFF: every note restarts the envelope as
+  before. The filter envelope follows FLT.T as before.
 
 ## On the unit
 
@@ -187,10 +297,11 @@ Each stage adds one thing to the one before; flash them in order on a unit that 
 - a sample track glides;
 - LEG ON works;
 - a lock on PORT works;
-- LEG's cell shows `OFF`/`ON` text while it is turned, which FLT.T's does not (above).
+- LEG's cell shows `OFF`/`ON` text while it is turned, which FLT.T's does not (above; S32 changes it);
+- PORT and LEG set on a project are not there after it is saved and loaded again (S33 changes it).
 
-Not reported yet: S28 to S30 on their own, what existing projects hold in PORT and LEG, and a lock on
-LEG.
+Not reported yet: S28 to S30 on their own, what existing projects hold in PORT and LEG, a lock on LEG,
+and S32 to S34.
 
 ## Open points
 
@@ -198,8 +309,12 @@ LEG.
   reported.
 - ⚠️ Slots 46 and 47 unused in stock: by the scans above; S30 shows what existing projects hold.
 - ⚠️ A lock on LEG is expected to work as the lock on PORT does (the slot map, and `FUN_40074b0a`
-  writing the ISR's copy by slot); the sequencer's lock store is not traced.
+  writing the ISR's copy by slot).
+- ⚠️ Other places that store or copy a sound's values outside the record above (a kit's copy, a sound
+  pool) are not traced beyond the writer, the reader and the mirror; S33's reload test covers the
+  common path.
 - The glide is stepped once per tick (0.67 ms); on the shortest glides that is 1,500 steps a second.
-- LEG's `+0x00` word (above): to make its cell behave as FLT.T's, the build would set it to 4.
-- Code space left: 10 B in `FUN_400ee05e`, 72 B in `FUN_400e6d1c`.
+- At a legato note with LEG ON a sample still restarts; only the amp envelope carries on (S34).
+- Code space left: 10 B in `FUN_400ee05e`; `FUN_400e6d1c` is full from S34; `.rodata` padding
+  `0x40252fec..0x40253000` (20 B) and `0x40252ed9..0x40252f00` (39 B).
 - The feature is not in `patch.json`.

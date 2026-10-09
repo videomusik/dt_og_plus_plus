@@ -18,8 +18,14 @@ to out/1.54/stages/ (only with --stages):
        objects, and the TRIG page's layout; the hooks still inert, so nothing glides yet
   S31  S30 + the glide: port_on and port_glide, and the CFO oscillator's note read pointed at the glided
        note
+  S32  S31 + PORT shows OFF at 0; LEG's display object gets FLT.T's flag word (no value text while
+       turned)
+  S33  S32 + PORT and LEG saved with the sound and their p-locks with the pattern: the sound writer
+       writes 48 words, the stored record's spare words carry them, the reader takes them back, and
+       the stored-index lookups map them both ways
+  S34  S33 + with LEG on, a legato note does not restart the amp envelope
 patch.json is not changed: the feature is a prototype."""
-import os, shutil, subprocess, sys, tempfile
+import os, re, shutil, subprocess, sys, tempfile
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", "..", "..", ".."))
 sys.path.insert(0, os.path.join(ROOT, "os", "1.54", "build"))
@@ -40,6 +46,10 @@ RODATA2 = (0x40252c2c, 0x40253000)                 # the .rodata padding after C
 SITES = [(0x400779f6, "43f980001f28", "port_on", ""),                   # lea NOTES,%a1 (note-on)
          (0x40075690, "41f980001f28" "7203" "2c30ec00", "port_glide",   # lea NOTES,%a0; moveq #3,%d1;
           "7203" "6002" "4e71")]                                         # movel %a0@(0,%fp:l:4),%d6
+# S33: the sound reader FUN_4007a236 before its value loop (lea 0x401ac58c,%a0).
+SAVE_SITES = [(0x4007a2aa, "41f9401ac58c", "rd_hook", "")]
+# S34: the ISR's store of the amp envelope's masks (moveb %d3,%fp@(-36) ; moveb %d2,%fp@(-35)).
+HOLD_SITES = [(0x40078070, "1d43ffdc" "1d42ffdd", "amp_hook", "4e71")]
 # S30: descriptor rows 4 and 5 (0x401aa09c + 0x34 x id), stock words, and the new rows' fields.
 DESC = 0x401aa09c
 ROW_STOCK = {4: "ffffffff ffffffff 00000000 00000000 00000000 00000000 0007ffff ffffffff 00000004 00000000 401c2568 401c5bc7 401c20af",
@@ -58,9 +68,26 @@ DOBJ = [(0x40153410, "4197d7ec", "4197d7fc", "id 4 text: the '%d' text (VEL's, A
 # .bss, zero before the one start-up run of FUN_40152280, so addq.l #4/#5 stores 4 and 5 in place of clr.l.
 LAYOUT = [(0x401565f8, "42b94197dfd4", "58b94197dfd4", "TRIG knob G = id 4 (PORT)"),
           (0x40156612, "42b94197dfd8", "5ab94197dfd8", "TRIG knob H = id 5 (LEG)")]
+# S32: id 4's text from this build's object (OFF at 0); id 5's flag word 4 as FLT.T's, by the same
+# zeroed-.bss, run-once argument as the layout (the clr.l is the word's only writer).
+OFF_OPS = [(0x40153410, "port_tobj", "id 4 text: OFF at 0, else %d")]
+LEG_FLAG = [(0x40153446, "42b94197e49c", "58b94197e49c", "id 5 flags: 4, FLT.T's")]
+# S33: the sound writer FUN_4007a5a0 (its table and its loop's 46 words -> 48), the p-lock writers
+# FUN_4007adb2 and FUN_4007aefa (their table), operand by operand; and the two lookups rewritten in place.
+SAVE_OPS = [(0x4007a5fa, "401ac4d4", "inv_slots", "sound writer: slot -> stored index table"),
+            (0x4007adec, "401ac4d4", "inv_slots", "p-lock writer: slot -> stored index table"),
+            (0x4007af34, "401ac4d4", "inv_slots", "p-lock store: slot -> stored index table")]
+SAVE_EDITS = [(0x4007a614, "725c", "7260", "sound writer: 48 words (moveq #92 -> #96)")]
+INPLACE = {".port_fwd": (0x40079738, "2f027410222f0008202f000cb481651066087223b280640c6006742db480640c"
+                                     "4280601241f9401ac444600641f9401ac58c20300c00241f4e75"),
+           ".port_inv": (0x40079772, "2f027410222f0008202f000cb481651066087233b2806508600a742db480640c"
+                                     "4280601241f9401ac374600641f9401ac4d420300c00241f4e75")}
 # S31: the CFO oscillator's note read (lea NOTES,%a0 then the indexed movel into %d2), in its pad.
 CFO_PAD = (0x400f77da, 0x400f811e)
 CFO_NOTE = "41f980001f28" "24300c00"
+# The assembly options of each build: the inert hooks, and the stages from S31 on.
+VARIANTS = {"inert": ["INERT"], "S31": [], "S32": ["OFFTEXT"], "S33": ["OFFTEXT", "SAVE"],
+            "S34": ["OFFTEXT", "SAVE", "HOLDAMP"]}
 
 
 def run(*cmd):
@@ -70,10 +97,11 @@ def run(*cmd):
     return r.stdout
 
 
-def assemble(tmp, inert):
+def assemble(tmp, opts):
     src = os.path.join(HERE, "port.s")
     o, e = os.path.join(tmp, "port.o"), os.path.join(tmp, "port.elf")
-    run(PFX + "as", "-mcpu=5475", *(["--defsym", "INERT=1"] if inert else []), "-o", o, src)
+    defs = [x for f in opts for x in ("--defsym", f + "=1")]
+    run(PFX + "as", "-mcpu=5475", *defs, "-o", o, src)
     run(PFX + "ld", "-T", LD, "-o", e, o)
     secs = {}
     for line in run(PFX + "objdump", "-h", e).splitlines():
@@ -109,7 +137,6 @@ def s27_image(stock, img, tmp):
 def branch_targets_inside(sites):
     """Operands of the stock code (objdump, notes/analysis_method.md) outside each site that name an
     address strictly inside it: a branch into the replaced bytes would break the hook."""
-    import re
     lst = run(PFX + "objdump", "-D", "-b", "binary", "-m", "m68k:cfv4e", "--adjust-vma=0x%x" % BASE,
               "--start-address=0x%x" % BASE, "--stop-address=0x%x" % CODE_END, cfo.STOCK3)
     bad = []
@@ -142,8 +169,8 @@ def put(im, addr, want, new, what):
     im[off:off + n] = bytes.fromhex(new)
 
 
-def apply_sites(im, syms):
-    for addr, want, sym, tail in SITES:
+def apply_sites(im, syms, sites):
+    for addr, want, sym, tail in sites:
         put(im, addr, want, "4eb9%08x" % syms[sym] + tail, sym)
 
 
@@ -153,6 +180,10 @@ def apply_data(im, syms, secs):
         put(im, r, ROW_STOCK[i].replace(" ", ""), row_bytes(i, syms).hex(), "descriptor row %d" % i)
     for addr, want, new, what in DOBJ + LAYOUT:
         put(im, addr, want, new, what)
+    place_names(im, secs)
+
+
+def place_names(im, secs):
     vma, data = secs[".port_names"]
     im[vma - BASE:vma - BASE + len(data)] = data
 
@@ -163,6 +194,31 @@ def place_code(im, secs):
         assert vma == lo and vma + len(data) <= hi, "%s does not fit its pad" % name
         im[lo - BASE:hi - BASE] = cfo.fill(lo, hi)
         im[vma - BASE:vma - BASE + len(data)] = data
+
+
+def apply_offtext(im, syms, secs):
+    """S32: PORT's text object and LEG's flag word."""
+    place_names(im, secs)
+    for addr, sym, what in OFF_OPS:
+        put(im, addr, "4197d7fc", "%08x" % syms[sym], what)
+    for addr, want, new, what in LEG_FLAG:
+        put(im, addr, want, new, what)
+
+
+def apply_save(im, syms, secs):
+    """S33: the writers' table and length, the two lookups in place, the reader's hook."""
+    place_names(im, secs)
+    for addr, want, sym, what in SAVE_OPS:
+        put(im, addr, want, "%08x" % syms[sym], what)
+    for addr, want, new, what in SAVE_EDITS:
+        put(im, addr, want, new, what)
+    for name, (lo, stock_hex) in INPLACE.items():
+        vma, data = secs[name]
+        n = len(stock_hex) // 2
+        assert vma == lo and len(data) <= n, "%s does not fit the function it replaces" % name
+        new = data + bytes.fromhex("4e71") * ((n - len(data)) // 2)
+        put(im, lo, stock_hex, new.hex(), name)
+    apply_sites(im, syms, SAVE_SITES)
 
 
 def main():
@@ -180,19 +236,24 @@ def main():
     try:
         s27, h27 = s27_image(stock, img, tmp)
         print("S27 rebuilt: section 3 %s" % h27)
-        secs_i, syms_i = assemble(tmp, inert=True)
-        secs_f, syms_f = assemble(tmp, inert=False)
+        asm = {v: assemble(tmp, o) for v, o in VARIANTS.items()}
+        secs_i, syms_i = asm["inert"]
+        secs_l, syms_l = asm["S34"]
         # every byte this feature writes: stock in the stock image, untouched by the build and by S27
         touched = []
         for name, (lo, hi) in PADS.items():
             touched.append((lo, hi, name))
-        for addr, want, sym, _t in SITES:
+        for addr, want, sym, _t in SITES + SAVE_SITES + HOLD_SITES:
             touched.append((addr, addr + len(want) // 2, "site " + sym))
         for i in ROWS:
             touched.append((DESC + 0x34 * i, DESC + 0x34 * (i + 1), "row %d" % i))
-        for addr, want, _n, what in DOBJ + LAYOUT:
+        for addr, want, _n, what in DOBJ + LAYOUT + LEG_FLAG + SAVE_EDITS:
             touched.append((addr, addr + len(want) // 2, what))
-        vn, dn = secs_f[".port_names"]
+        for addr, want, _s, what in SAVE_OPS:
+            touched.append((addr, addr + 4, what))
+        for name, (lo, stock_hex) in INPLACE.items():
+            touched.append((lo, lo + len(stock_hex) // 2, name + " (in place)"))
+        vn, dn = secs_l[".port_names"]
         assert RODATA2[0] <= vn and vn + len(dn) <= RODATA2[1], ".port_names outside the .rodata padding"
         assert stock[vn - BASE:vn + len(dn) - BASE] == bytes(len(dn)), ".rodata padding not zero in stock"
         touched.append((vn, vn + len(dn), ".port_names"))
@@ -201,13 +262,21 @@ def main():
             assert s27[lo - BASE:hi - BASE] == stock[lo - BASE:hi - BASE], "S27 changes %s" % what
             print("%-60s 0x%08x..0x%08x" % (what, lo, hi))
         for name in PADS:
-            for s in (secs_i, secs_f):
-                assert s[name][0] == PADS[name][0] and s[name][0] + len(s[name][1]) <= PADS[name][1], name
-            print("%-12s inert %d B, feature %d B of %d" % (name, len(secs_i[name][1]), len(secs_f[name][1]),
-                                                          PADS[name][1] - PADS[name][0]))
-        bad = branch_targets_inside([(a, len(w) // 2) for a, w, _s, _t in SITES])
-        assert not bad, "branches into a hook site: %s" % bad
-        print("no instruction branches into a hook site's replaced bytes")
+            for v, (s, _y) in asm.items():
+                assert s[name][0] == PADS[name][0] and s[name][0] + len(s[name][1]) <= PADS[name][1], (v, name)
+            print("%-12s %s of %d B" % (name, ", ".join("%s %d" % (v, len(s[name][1])) for v, (s, _y) in asm.items()),
+                                       PADS[name][1] - PADS[name][0]))
+        # the stock table the writers' new one extends
+        inv = stock[0x401ac4d4 - BASE:0x401ac4d4 - BASE + 46 * 4]
+        sy33 = asm["S33"][1]
+        it = secs_l[".port_names"][1][sy33["inv_slots"] - vn:sy33["inv_slots"] - vn + 48 * 4]
+        assert it[:46 * 4] == inv and it[46 * 4:] == bytes.fromhex("0000002e0000002f"), "inv_slots"
+        print("inv_slots: the stock table's 46 entries, then 46 and 47")
+        sites = [(a, len(w) // 2) for a, w, _s, _t in SITES + SAVE_SITES + HOLD_SITES]
+        sites += [(lo, len(h) // 2) for lo, h in INPLACE.values()]
+        bad = branch_targets_inside(sites)
+        assert not bad, "branches into a hook site or a rewritten function: %s" % bad
+        print("no instruction branches into a hook site's replaced bytes or into a rewritten function")
         # the CFO oscillator's note read: exactly one in its pad
         lo, hi = CFO_PAD
         pat = bytes.fromhex(CFO_NOTE)
@@ -221,23 +290,42 @@ def main():
             s28[lo - BASE:hi - BASE] = cfo.fill(lo, hi)
         s29 = bytearray(s28)
         place_code(s29, secs_i)
-        apply_sites(s29, syms_i)
+        apply_sites(s29, syms_i, SITES)
         s30 = bytearray(s29)
         apply_data(s30, syms_i, secs_i)
-        s31 = bytearray(s30)
-        place_code(s31, secs_f)
-        for addr, _w, sym, tail in SITES:          # the sites call the same entries
-            assert syms_f[sym] == syms_i[sym]
-        off = cfo_note - BASE
-        assert s31[off:off + 4].hex() == "80001f28"
-        s31[off:off + 4] = syms_f["STATE"].to_bytes(4, "big")
-        built = {"S28": bytes(s28), "S29": bytes(s29), "S30": bytes(s30), "S31": bytes(s31)}
+        built = {"S28": bytes(s28), "S29": bytes(s29), "S30": bytes(s30)}
+        prev = s30
+        for v in ("S31", "S32", "S33", "S34"):
+            secs, syms = asm[v]
+            for _a, _w, sym, _t in SITES:          # the sites call the same entries
+                assert syms[sym] == syms_i[sym]
+            im = bytearray(prev)
+            place_code(im, secs)
+            if v == "S31":
+                off = cfo_note - BASE
+                assert im[off:off + 4].hex() == "80001f28"
+                im[off:off + 4] = syms["STATE"].to_bytes(4, "big")
+            if v == "S32":
+                apply_offtext(im, syms, secs)
+            if v == "S33":
+                apply_save(im, syms, secs)
+            if v == "S34":
+                place_names(im, secs)
+                for name, (lo, _h) in INPLACE.items():
+                    assert bytes(im[lo - BASE:lo - BASE + len(secs[name][1])]) == secs[name][1], name
+                apply_sites(im, syms, HOLD_SITES)
+            for name in (".port_names",) + tuple(INPLACE):   # every later section as placed
+                if name in secs:
+                    vma, data = secs[name]
+                    assert bytes(im[vma - BASE:vma - BASE + len(data)]) == data, (v, name)
+            built[v] = bytes(im)
+            prev = im
         # load files for EmuPortamento: every byte that differs from stock in the feature's ranges
         out = os.path.join(ROOT, "work", "dt_1.54-port")
         os.makedirs(out, exist_ok=True)
         ranges = [(lo, hi) for lo, hi, _w in touched] + [(cfo_note, cfo_note + 4)]
         for name, im in built.items():
-            sy = syms_f if name == "S31" else syms_i
+            sy = asm[name][1] if name in asm else syms_i
             with open(os.path.join(out, name + ".load"), "w") as f:
                 for lo, hi in ranges:
                     f.write("%08x %s\n" % (lo, im[lo - BASE:hi - BASE].hex()))
@@ -251,7 +339,7 @@ def main():
         dest = os.path.join(ROOT, "out", "1.54", "stages")
         os.makedirs(dest, exist_ok=True)
         syx, tool = build.DEFAULT_SYX, build.DEFAULT_TOOL
-        for name in ("S28", "S29", "S30", "S31"):
+        for name in built:
             p3 = built[name]
             sel, i = [], 0
             while i < len(stock):
