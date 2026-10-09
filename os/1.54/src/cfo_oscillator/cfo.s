@@ -1544,8 +1544,9 @@ cfo_lfolist2:
 |
 | src_fmt: %a1 = the format's slot (the name's, then the sample's after it), %d0 = the track's own
 | machine, %d1 = the track. CFOO: "%s", its name alone. POLY: "%s: %s" of POLY and the short name of its
-| pool's Source's machine (groupSource, 0x439d1050; a pool of one has itself), no sample; POLY alone
-| without a Source. Anything else unchanged. Clobbers %d0, %d1, %a0.
+| pool's Source's machine (S26: groupSource, 0x439d1050, a pool of one having itself; S27: from the
+| machines, below), no sample; POLY alone without a Source. Anything else unchanged. Clobbers %d0, %d1,
+| %a0.
 src_fmt:
 	subql	#4,%d0
 	beqs	2f			| POLY
@@ -1557,6 +1558,21 @@ src_fmt:
 2:	moveq	#7,%d0
 	cmpl	%d1,%d0
 	bcss	1b			| not a track 0..7
+.ifdef POLYSRC
+| (S27) The Source from the machines, as POLY's pool map is built (0x400bf17c: a POLY track takes the
+| Source of the track before it, any other track is its own): the nearest track before this one that
+| is not POLY. The pool map itself (groupSource) is rebuilt only on some events, from the engine's copy
+| of the machines, and can be behind what the pages show.
+	movel	%a1,%sp@-
+	movel	%d1,%sp@-
+src_back:
+3:	subql	#1,%sp@			| the track before
+	bmis	4f			| none: no Source
+	xcall	trk_machine
+	subql	#4,%d0
+	beqs	3b			| POLY: further back
+	addql	#4,%d0			| the Source's machine
+.else
 	lea	0x439d1050,%a0
 	mvzb	%a0@(0,%d1:l),%d0	| its Source
 	cmpl	%d0,%d1
@@ -1567,6 +1583,7 @@ src_fmt:
 	movel	%a1,%sp@-
 	movel	%d0,%sp@-
 	xcall	trk_machine		| the Source's machine
+.endif
 	movel	%d0,%sp@
 	jsr	0x4007912c		| its short name
 	addql	#4,%sp
@@ -1577,6 +1594,11 @@ src_fmt:
 	lea	s_fmt_poly,%a0
 	movel	%a0,%a1@		| "%s: %s"
 	rts
+.ifdef POLYSRC
+4:	addql	#4,%sp
+	moveal	%sp@+,%a1
+	bras	1b
+.endif
 
 | cfo_trkpop2: the [TRK] popup's FUN_40093ab0(popup, fmt, name, sample) at 0x4003bd6a: the track's own
 | machine in %d5, the track FUN_4003bbfe's argument (%fp@(8)).

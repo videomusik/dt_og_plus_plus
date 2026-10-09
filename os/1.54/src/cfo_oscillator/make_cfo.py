@@ -42,6 +42,8 @@ Stages, written to out/1.54/stages/ (only with --stages):
   S25  S24 + the SRC page's title and popup show POLY and CFOO without a sample name
   S26  S25 + those three texts show a POLY track as POLY and its Source's machine; this build's calls
        between its own routines become bsr.w
+  S27  S26 + the Source found from the machines (the nearest non-POLY track before), not POLY's pool
+       map
 patch.json is not changed: the feature is a prototype."""
 import json, os, shutil, subprocess, sys, tempfile
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -134,7 +136,8 @@ def run(*cmd):
 
 def assemble(ld, tmp, inert=False, machine5=False, names=False, icon=False, slots=False, knobs=False,
              displays=False, knobs2=False, sets=False, pure=False, snap=False, trkpop=False, lfonames=False,
-             corners=False, srcname=False, polytext=False):
+             corners=False, srcname=False, polytext=False,
+             polysrc=False):
     run(sys.executable, os.path.join(HERE, "make_waves.py"), os.path.join(tmp, "waves.inc"))
     src = os.path.join(HERE, "cfo.s")
     defs = (["--defsym", "MACHINE5=1"] if machine5 else []) + (["--defsym", "NAMES=1"] if names else []) + \
@@ -144,7 +147,8 @@ def assemble(ld, tmp, inert=False, machine5=False, names=False, icon=False, slot
         (["--defsym", "PURE=1"] if pure else []) + (["--defsym", "SNAP=1"] if snap else []) + \
         (["--defsym", "TRKPOP=1"] if trkpop else []) + (["--defsym", "LFONAMES=1"] if lfonames else []) + \
         (["--defsym", "CORNERS=1"] if corners else []) + (["--defsym", "SRCNAME=1"] if srcname else []) + \
-        (["--defsym", "POLYTEXT=1", "--defsym", "SHORT=1"] if polytext else [])
+        (["--defsym", "POLYTEXT=1", "--defsym", "SHORT=1"] if polytext else []) + \
+        (["--defsym", "POLYSRC=1"] if polysrc else [])
     ldefs = ["--section-start=.cfo_names=0x%08x" % NAMES_RO] if pure else []
     if inert:
         src = os.path.join(tmp, "inert.s")
@@ -237,6 +241,8 @@ KNOB_STAGES = [
                       lfonames=True, corners=True, srcname=True)),
     ("S26", "n", dict(knobs=True, displays=True, knobs2=True, sets=True, pure=True, snap=True, trkpop=True,
                       lfonames=True, corners=True, srcname=True, polytext=True)),
+    ("S27", "o", dict(knobs=True, displays=True, knobs2=True, sets=True, pure=True, snap=True, trkpop=True,
+                      lfonames=True, corners=True, srcname=True, polytext=True, polysrc=True)),
 ]
 
 

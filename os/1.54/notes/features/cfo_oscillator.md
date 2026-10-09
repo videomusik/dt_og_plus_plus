@@ -234,9 +234,9 @@ the pad's 2,372. The routes:
 
 ## Testing on the unit
 
-`make_cfo.py lz4_stream.ld --stages` builds eighteen images on top of the reference build (section 3
+`make_cfo.py lz4_stream.ld --stages` builds nineteen images on top of the reference build (section 3
 `efc90606…`, `.syx` `3fd4b0a3`), each adding one step to the stage named in its row. They are meant to
-be flashed in order, S9 to S26:
+be flashed in order, S9 to S27:
 
 | Stage | `.syx` | Section 3 | Contents |
 |---|---|---|---|
@@ -258,6 +258,7 @@ be flashed in order, S9 to S26:
 | S24 | `42f51b39` | `d4b5a241…` | S23 + the waves and the mix read SIN, TRI, SAW, SQR and OSC1, 1+2, 123, 2+3 at their four points ([below](#names-at-the-four-points-in-s24)) |
 | S25 | `62765b5a` | `ac131e81…` | S24 + the SRC page's title and popup show POLY and CFOO without a sample name ([below](#the-src-pages-own-texts-in-s25)) |
 | S26 | `346177af` | `fad9ee37…` | S25 + the [TRK] popup and the SRC page show a POLY track as POLY and its Source's machine ([below](#a-poly-tracks-source-in-s26)) |
+| S27 | `3f81282f` | `703cedf7…` | S26 + the Source found from the machines, not POLY's pool map ([below](#the-source-from-the-machines-in-s27)) |
 
 Checked on the built images (S12's own checks are [below](#cfoo-machine-5-in-s12)):
 - the build's own checks;
@@ -315,6 +316,9 @@ Results on the unit, OS 1.54, each stage flashed on the one before from S8:
   ONESHOT track's names change too, that is not explained.
 - ✅ **S19:** works, as reported (no details).
 - ✅ **S20 to S23:** work, as reported (no details).
+- ⚠️ **S26:** as reported: a POLY track reads `POLY` with [TRK] and with [SRC], but without its
+  Source's machine. ✅ Explained by the code (S27, [below](#the-source-from-the-machines-in-s27)): the
+  pool map S26 reads can be behind the machines the pages show.
 - ✅ **S24, S25:** do as intended, as reported. Seen with S25: [TRK] + a track key shows a POLY track as
   POLY and a CFOO track as CFOO, but the SRC page shows a POLY track's Source's machine instead (CFOO
   alone, or the machine and its sample for SLICE and the others): its machine comes through POLY's
@@ -401,6 +405,9 @@ What to check:
   no sample), the same with [TRK] + a track key and on its SRC page; a POLY track with no Source before
   it reads `POLY`; a CFOO track `CFOO`; every other track its machine and sample as before. Everything
   else as S25 (this stage also shortens the code's internal calls).
+- **S27:** as S26 asks: a POLY track reads `POLY: ` and its Source's machine (the nearest track before
+  it that is not POLY) with [TRK] and on its SRC page, right after a machine change too; a POLY track
+  with only POLY tracks (or none) before it reads `POLY`.
 - **S17:** on a CFOO track all eight cells are plain knobs, each turning over its own range: A, C, D over
   the waves, B in four steps, E and F to 120, G and H to 98 with unison at the top. The encoder popup
   (and the cell's text, where the page shows one) reads, for example, `OSC1 Wave=0`, `FM Source=OFF`,
@@ -1129,6 +1136,26 @@ format untouched; `trk_machine` on the stock `FUN_4000d9c8`; and every earlier c
 code, on S26's own bytes. The changed runs outside the pad and the tables are the operands that follow
 the code, S25's two sites back to stock, and the three new call operands. Controls: the pool table's
 address, the popup's track slot and the Source name's slot, each one off, fail their own cases.
+
+## The Source from the machines, in S27
+
+Built with `--defsym POLYSRC=1` on top of S26. On the unit S26 showed POLY tracks without their Source
+(above). ✅ Read in the code (objdump of the build): POLY's pool map, `groupSource` at `0x439d1050`, is
+built by `0x400bf17c` from the engine's copy of the machines (`*(0x800019ac) + 0x9e + 0xa2 × track`): a
+POLY track takes the Source of the track before it, any other track is its own. It runs after the
+machine setter (POLY's return hook at `0x40037a24`) and after `FUN_400e0cb0` (`0x40037a3c`), and the
+table lies above `.bss`, so start-up does not clear it: it can hold a track as its own Source while the
+pages already show it as POLY. Run on S26's bytes with such a map and the expected texts below, the
+emulator shows `POLY` alone, as the unit did.
+
+S27's `src_fmt` follows the builder's rule on the machines the pages show (`trk_machine`): from the
+track before, back past POLY tracks, to the first that is not POLY; past track 1 there is no Source. The
+pool map is not read. 4 B smaller than S26's lookup.
+
+**Checked:** S26's case set against the rule on the machines (POLY on tracks 0, 2, 3, 5, 7: no Source,
+CFOO, CFOO, SLIC, PTCH), with the pool map filled with every track as its own; the three routines and
+everything else as S26, on S27's own bytes. Controls: S26's bytes under that expectation (the argument
+`polywalk`) show `POLY` alone, and S27 with machine 3 taken for POLY fails.
 
 ## Related notes
 

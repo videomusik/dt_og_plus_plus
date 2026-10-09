@@ -1182,12 +1182,20 @@ public class EmuCfoOscillator extends GhidraScript {
   static final long[] MACH8 = {4, 5, 4, 4, 3, 4, 2, 4};
   static final long[] GS8 = {0, 1, 1, 1, 4, 4, 6, 0xff};
   static final long FMT0 = 0x401c41c0L, NAME0 = 0x40aa0001L, SAMPLE0 = 0x40aa0002L, SLOT = 0x439d4a80L;
+  // S27 (sym src_back): the Source is the nearest track before that is not POLY, from the machines
+  // (POLY's own rule); groupSource is then filled with a stale map (each track its own) that must not be
+  // read
+  boolean polySrc = false, polyWalkArg = false;	// polywalk: S27's rule on an older load (a control)
   long[] polyModel(long own, long t) {
     long only = sym.get("s_name_only");
     if (own == 5) return new long[] {only, NAME0, SAMPLE0};
     if (own != 4) return new long[] {FMT0, NAME0, SAMPLE0};
-    if (t > 7 || GS8[(int) t] == t || GS8[(int) t] > 7) return new long[] {only, NAME0, SAMPLE0};
-    return new long[] {sym.get("s_fmt_poly"), sym.get("poly_name"), 0x40ab0000L + MACH8[(int) GS8[(int) t]]};
+    if (t > 7) return new long[] {only, NAME0, SAMPLE0};
+    long s = -1;
+    if (polySrc) { for (long u = t - 1; u >= 0; u--) if (MACH8[(int) u] != 4) { s = u; break; } }
+    else if (GS8[(int) t] != t && GS8[(int) t] <= 7) s = GS8[(int) t];
+    if (s < 0) return new long[] {only, NAME0, SAMPLE0};
+    return new long[] {sym.get("s_fmt_poly"), sym.get("poly_name"), 0x40ab0000L + MACH8[(int) s]};
   }
   void polyCases() throws Exception {
     fresh();
@@ -1198,7 +1206,8 @@ public class EmuCfoOscillator extends GhidraScript {
     if (rdn(0x4003a6daL, 4) != sym.get("cfo_srctitle2")) bad.append(" [0x4003a6d8]");
     if (rdn(0x4003a6ceL, 2) != 0x4879L || rdn(0x4003a6d0L, 4) != FMT0 || rdn(0x4003b512L, 2) != 0x4879L || rdn(0x4003b514L, 4) != FMT0)
       bad.append(" [S25's pea sites are not stock]");
-    for (int t = 0; t < 8; t++) wr(0x439d1050L + t, GS8[t], 1);
+    polySrc = sym.containsKey("src_back") || polyWalkArg;
+    for (int t = 0; t < 8; t++) wr(0x439d1050L + t, polySrc ? t : GS8[t], 1);
     long[] names = new long[8];
     for (int m = 0; m < 8; m++) names[m] = 0x40ab0000L + m;
     long TM = sym.get("trk_machine"), RD = 0x4007912cL;
@@ -1491,6 +1500,7 @@ public class EmuCfoOscillator extends GhidraScript {
     v2 = knobs && sym.containsKey("cfo_encobj");
     realSets = knobs && (sym.containsKey("set_machine") || Arrays.asList(args).contains("realsets"));
     pure = sym.containsKey("segfrac");
+    polyWalkArg = Arrays.asList(args).contains("polywalk");
     corners = sym.containsKey("wave_cnames");
     if (knobs) {
       CFOO_SHORT = new String[] {"WAV1", "FMSR", "WAV2", "WAV3", "MIX", "FM", "DET2", "DET3"};
