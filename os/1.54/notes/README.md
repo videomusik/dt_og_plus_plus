@@ -71,7 +71,7 @@ New in this image, not in the OS 1.52A build:
 
 In progress, not in the build:
 
-- **CFO oscillator.** A 3-oscillator 8-bit wavetable synth with FM, written into a track's audio
+- **CFO oscillator.** A 3-oscillator 8-bit FM synth, written into a track's audio
   buffer where the sampler's samples go. The code is checked in the emulator; it is waiting for a
   landing pad. [features/cfo_oscillator.md](features/cfo_oscillator.md).
 

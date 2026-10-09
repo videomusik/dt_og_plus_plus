@@ -230,7 +230,7 @@ In the CFO oscillator's test images only (not in `patch.json`;
 
 | Address | Size | Contents |
 |---|---|---|
-| `0x40252724` | 1,048 B | the four wavetables (1,024 B) and the mix points (24 B); S11 to S14 |
+| `0x40252724` | 1,048 B | the four waveform tables (1,024 B) and the mix points (24 B); S11 to S14 |
 | `0x40252c2c` | 12 B | the machine-picker selector table with CFOO's entry, replacing the one at `0x40252bf8`; S14 |
 | `0x40252c38` | 28 B | CFOO's icon `Bitmap` struct, with POLY's mask `0x4023e0a0`; S14 |
 | `0x40252c54` | 44 B | CFOO's icon colour plane; S14 |

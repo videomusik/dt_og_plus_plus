@@ -1,9 +1,9 @@
-# CFO oscillator: a 3-oscillator 8-bit wavetable synth with FM
+# CFO oscillator: a 3-oscillator 8-bit FM synth
 
 ## What this is
 
 A synth voice for the Digitakt's audio tracks: three phase-accumulator oscillators that read 256-entry
-8-bit wavetables, OSC1 frequency-modulated by OSC2 and/or OSC3, each oscillator's wave morphing
+8-bit waveform tables, OSC1 frequency-modulated by OSC2 and/or OSC3, each oscillator's wave morphing
 SIN → TRI → SAW → SQR. It writes into a track's audio buffer at the point where the sampler writes its
 samples, so the rest of the track's chain applies to it unchanged:
 - the level stage and SRR;
@@ -158,7 +158,7 @@ within one sample. The last level per track is kept in this build's RAM at `0x43
 ([memory_map.md](../memory_map.md)). A stored value above `0x7fff` cannot be a level: it is what the
 RAM held at boot, and the track then starts at the new level with no ramp.
 
-**The wavetables** (`make_waves.py`): SIN, TRI, SAW, SQR, 256 signed bytes each, with one phase
+**The waveform tables** (`make_waves.py`): SIN, TRI, SAW, SQR, 256 signed bytes each, with one phase
 convention, so the morph blends shapes instead of cancelling them:
 - every table starts with a zero crossing at index 0;
 - SIN and TRI peak at 64 and bottom out at 192;
@@ -173,7 +173,7 @@ The tables (1,024 B) and the mix points (24 B) go into the `.rodata` padding at
 `EmuCfoOscillator` ([scripts/emu/README.md](../../scripts/emu/README.md)) runs the assembled code in
 Ghidra's p-code emulator. It runs over 3 to 200 consecutive ticks and compares every output sample with
 a model of the same integer arithmetic. The model is written in the harness and reads the stock pitch
-table and the wavetables from emulator memory. All cases pass:
+table and the waveform tables from emulator memory. All cases pass:
 - tracks that are not synth tracks keep their buffers exactly;
 - OSC1 alone; TUNE ±; the three morphs; the four mix points;
 - FM from OSC2, OSC2+3 and OSC3; half and zero level; notes 0 and 127;

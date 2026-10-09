@@ -1,4 +1,4 @@
-| CFO oscillator for DT OG++ on Digitakt OS 1.54: a 3-oscillator 8-bit wavetable synth with FM, rendered
+| CFO oscillator for DT OG++ on Digitakt OS 1.54: a 3-oscillator 8-bit FM synth, rendered
 | into a track's audio buffer where the sampler would put its samples. Everything after that point (the
 | level stage, SRR, the filters and their envelope, the amp envelope, the mix and the effects) runs
 | unchanged on it.

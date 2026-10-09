@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""CFO oscillator for OS 1.54: generate the wavetables, assemble cfo.s with a placement linker script,
+"""CFO oscillator for OS 1.54: generate the waveform tables, assemble cfo.s with a placement linker script,
 check it against the stock image and the current build, and write an emulator load file.
 
     python3 os/1.54/src/cfo_oscillator/make_cfo.py <placement.ld>            # check, write the load file
