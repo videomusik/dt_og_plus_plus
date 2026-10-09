@@ -607,7 +607,10 @@ those slots from the engine block.
 
 ⛔ The table has no free rows. Ids up to 163 are in use (the MIDI track's pages end the table), and the
 records whose name reads `Error` are track-level records with page and slot `-1` and their own data in
-`+0x18`, not spare rows. So the eight records have to come from somewhere else:
+`+0x18`, not spare rows. (The descriptor sorter skips page −1 rows, so the CC words of rows 4 and 5,
+CC 7 and CC 10, reach no table; portamento reuses those two rows,
+[portamento.md](portamento.md#port-and-leg-as-sound-parameters). Two rows are not eight.) So the eight
+records have to come from somewhere else:
 
 - ⛔ **Serve ids at or above 164 from a second table.** Out: twenty accessors index from the same base
   (`lea 0x401aa09c,%a0`, forty `id < 164` checks), so each would need its own branch.

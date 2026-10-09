@@ -54,6 +54,16 @@ Planned, not in the build (the CFO oscillator's test images S11–S14,
 - `0x439d1160`, 32 B: the level each track ended its last tick on (u32, `0..0x7fff`). A start-up value
   above `0x7fff` is taken as "no level yet"; one below starts a single tick's ramp from it.
 
+Planned, not in the build (the portamento test image S31, on top of the CFO oscillator's S27;
+[features/portamento.md](features/portamento.md)): `0x439d1180`, 40 B, the portamento state:
+- `+0`, 8 longs: the note sum each track plays;
+- `+32`, long: the marker `0x504f5254` (`PORT`) once the block is initialised;
+- `+36`, `+37`, `+38`, bytes, bit = track: a note-on not yet seen by the glide; that note-on came with
+  the track's gate open; the track's note sum is valid.
+
+Until the marker is right no track's note sum is taken as valid, and a track whose sum is not valid
+starts on its target, so start-up garbage is harmless.
+
 The code names `0x439d1004`, `0x439d1010`, `0x439d1038`, `0x439d1050`, `0x439d1058`, `0x439d1060` and
 `0x439d10e0` directly ([docs/patch_listing.md](../docs/patch_listing.md)); `slice[]` and `ownerTrack[]` are reached
 by displacement from those base registers.
