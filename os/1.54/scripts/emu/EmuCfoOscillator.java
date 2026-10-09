@@ -1174,6 +1174,101 @@ public class EmuCfoOscillator extends GhidraScript {
     if (bad.length() != 0) fails++;
   }
 
+  /** S26 (sym src_fmt): the three machine-and-sample texts. The agreed texts, from the format, name and
+   *  sample the stock code passes: CFOO its name alone; POLY "POLY: " and its pool's Source's machine's
+   *  short name, no sample, or POLY alone without a Source (a pool of one, none past track 7); any other
+   *  machine unchanged. A layout of eight tracks: machines MACH8 (trk_machine stubbed by track), Sources
+   *  GS8 in groupSource, short names 0x40ab0000 + machine (the reader 0x4007912c stubbed). */
+  static final long[] MACH8 = {4, 5, 4, 4, 3, 4, 2, 4};
+  static final long[] GS8 = {0, 1, 1, 1, 4, 4, 6, 0xff};
+  static final long FMT0 = 0x401c41c0L, NAME0 = 0x40aa0001L, SAMPLE0 = 0x40aa0002L, SLOT = 0x439d4a80L;
+  long[] polyModel(long own, long t) {
+    long only = sym.get("s_name_only");
+    if (own == 5) return new long[] {only, NAME0, SAMPLE0};
+    if (own != 4) return new long[] {FMT0, NAME0, SAMPLE0};
+    if (t > 7 || GS8[(int) t] == t || GS8[(int) t] > 7) return new long[] {only, NAME0, SAMPLE0};
+    return new long[] {sym.get("s_fmt_poly"), sym.get("poly_name"), 0x40ab0000L + MACH8[(int) GS8[(int) t]]};
+  }
+  void polyCases() throws Exception {
+    fresh();
+    StringBuilder bad = new StringBuilder();
+    if (!cstr(sym.get("s_fmt_poly")).equals("%s: %s") || !cstr(sym.get("poly_name")).equals("POLY")) bad.append(" [the strings]");
+    if (rdn(0x4003bd6cL, 4) != sym.get("cfo_trkpop2")) bad.append(" [0x4003bd6a]");
+    if (rdn(0x4003b51eL, 4) != sym.get("cfo_srcpop")) bad.append(" [0x4003b51c]");
+    if (rdn(0x4003a6daL, 4) != sym.get("cfo_srctitle2")) bad.append(" [0x4003a6d8]");
+    if (rdn(0x4003a6ceL, 2) != 0x4879L || rdn(0x4003a6d0L, 4) != FMT0 || rdn(0x4003b512L, 2) != 0x4879L || rdn(0x4003b514L, 4) != FMT0)
+      bad.append(" [S25's pea sites are not stock]");
+    for (int t = 0; t < 8; t++) wr(0x439d1050L + t, GS8[t], 1);
+    long[] names = new long[8];
+    for (int m = 0; m < 8; m++) names[m] = 0x40ab0000L + m;
+    long TM = sym.get("trk_machine"), RD = 0x4007912cL;
+    stubTab.clear(); stubTab.put(TM, MACH8); stubTab.put(RD, names);
+    int n = 0;
+    // 1. src_fmt itself
+    for (long own : new long[] {-1, 0, 1, 2, 3, 4, 5, 6}) for (long t : new long[] {0, 1, 2, 3, 4, 5, 6, 7, 9}) {
+      wr(SLOT, FMT0, 4); wr(SLOT + 4, NAME0, 4); wr(SLOT + 8, SAMPLE0, 4);
+      String w = "own " + own + " track " + t;
+      if (!runReal(sym.get("src_fmt"), new long[] {RET}, new String[] {"A1", "D0", "D1"}, new long[] {SLOT, own & 0xffffffffL, t},
+                   new long[] {TM, RD}, bad, "src_fmt " + w)) continue;
+      long[] want = polyModel(own, t);
+      for (int i = 0; i < 3; i++) if (rdn(SLOT + 4L * i, 4) != want[i]) { bad.append(String.format(" [src_fmt %s: slot %d 0x%x, want 0x%x]", w, i, rdn(SLOT + 4L * i, 4), want[i])); break; }
+      if (rd("A1") != SLOT) bad.append(" [src_fmt: a1 not kept]");
+      for (int i = 0; i < KEEP.length; i++) if (rd(KEEP[i]) != 0x5a5a0000L + i) { bad.append(" [src_fmt: " + KEEP[i] + " not kept]"); break; }
+      n++;
+    }
+    // 2. the three sites' routines, each with its formatter stubbed
+    long FR = 0x439d4b80L, PAGE = 0x439d4c80L, XO = 0x439d4d00L;
+    for (long own : new long[] {0, 3, 4, 5}) for (long t : new long[] {0, 1, 2, 5, 7}) {
+      // the TRK popup: own in %d5, the track at %fp@(8)
+      wr(FR + 8, t, 4);
+      if (runReal(sym.get("cfo_trkpop2"), new long[] {RET, 0x439d4900L, FMT0, NAME0, SAMPLE0}, new String[] {"D5", "A6"}, new long[] {own, FR},
+                  new long[] {TM, RD, 0x40093ab0L}, bad, "trkpop2")) {
+        long[] c = lastCall(0x40093ab0L), want = polyModel(own, t);
+        if (c == null || c[1] != 0x439d4900L || c[2] != want[0] || c[3] != want[1] || c[4] != want[2])
+          bad.append(String.format(" [trkpop2 own %d track %d: %s]", own, t, c == null ? "not reached" : String.format("0x%x 0x%x 0x%x", c[2], c[3], c[4])));
+      }
+      // the SRC popup: own in %d4, the track in %a3; its other format untouched
+      for (long f : new long[] {FMT0, 0x401c3ef5L}) {
+        if (!runReal(sym.get("cfo_srcpop"), new long[] {RET, 0x439d4900L, f, NAME0, SAMPLE0}, new String[] {"D4", "A3"}, new long[] {own, t},
+                     new long[] {TM, RD, 0x40093ab0L}, bad, "srcpop")) continue;
+        long[] c = lastCall(0x40093ab0L), want = f == FMT0 ? polyModel(own, t) : new long[] {f, NAME0, SAMPLE0};
+        if (c == null || c[2] != want[0] || c[3] != want[1] || c[4] != want[2])
+          bad.append(String.format(" [srcpop own %d track %d fmt 0x%x: %s]", own, t, f, c == null ? "not reached" : String.format("0x%x 0x%x 0x%x", c[2], c[3], c[4])));
+      }
+    }
+    // the SRC title: the page's track from FUN_4001d24e(page +0x74), its own machine from trk_machine
+    for (long t : new long[] {0, 1, 2, 3, 4, 5, 6, 7}) {
+      wr(PAGE + 116, XO, 4);
+      stubRet.clear(); stubRet.put(0x4001d24eL, t);
+      if (!runReal(sym.get("cfo_srctitle2"), new long[] {RET, PAGE + 432, FMT0, NAME0, SAMPLE0}, new String[] {"A2"}, new long[] {PAGE},
+                   new long[] {TM, RD, 0x4001d24eL, 0x40000e82L}, bad, "srctitle2")) continue;
+      long[] c = lastCall(0x40000e82L), a = lastCall(0x4001d24eL), want = polyModel(MACH8[(int) t], t);
+      if (a == null || a[1] != XO) bad.append(" [srctitle2: the track's lookup]");
+      if (c == null || c[1] != PAGE + 432 || c[2] != want[0] || c[3] != want[1] || c[4] != want[2])
+        bad.append(String.format(" [srctitle2 track %d: %s]", t, c == null ? "not reached" : String.format("0x%x 0x%x 0x%x", c[2], c[3], c[4])));
+      for (int i = 0; i < KEEP.length; i++) {
+        long w = KEEP[i].equals("A2") ? PAGE : 0x5a5a0000L + i;
+        if (rd(KEEP[i]) != w) { bad.append(" [srctitle2: " + KEEP[i] + " not kept]"); break; }
+      }
+    }
+    stubRet.clear(); stubTab.clear();
+    // 3. trk_machine itself: the project's kit and the stock FUN_4000d9c8 on a holder
+    long PROJ = 0x439d4a00L, KIT = 0x439d5000L;
+    for (long m : new long[] {5, 3}) for (long t : new long[] {0, 6, 8}) {
+      realSets(m);
+      stubRet.put(0x40138882L, PROJ); stubRet.put(0x40014d92L, KIT);
+      if (t <= 7) wr(KIT + 0x60 + 200 * t, HVT, 4);
+      if (!runReal(TM, new long[] {RET, t}, new String[] {}, new long[] {}, new long[] {0x40138882L, 0x40014d92L}, bad, "trk_machine " + t)) continue;
+      long[] k = lastCall(0x40014d92L);
+      if (rd("D0") != (t <= 7 ? m : 0xffffffffL) || k == null || k[1] != PROJ) bad.append(String.format(" [trk_machine machine %d track %d: 0x%x]", m, t, rd("D0")));
+      if (rd("SP") != spAt + 4 || rdn(spAt + 4, 4) != t) bad.append(" [trk_machine: the stack]");
+      for (int i = 0; i < KEEP.length; i++) if (rd(KEEP[i]) != 0x5a5a0000L + i) { bad.append(" [trk_machine: " + KEEP[i] + " not kept]"); break; }
+    }
+    stubRet.clear();
+    println(String.format("  %-64s %s%s", "S26 POLY: Source's machine, CFOO alone, three texts, " + n + " cases", bad.length() == 0 ? "OK" : "**FAIL**", bad));
+    if (bad.length() != 0) fails++;
+  }
+
   /** S19: the objects behind a sound's parameter set, laid out as the firmware has them. A
    *  SoundParameterSet (the stock vtable 0x4017ee58) keeps its sound holder at +0x10; the holder's method
    *  at +0x28 returns the sound (here a stub, movel #HSND,%d0 ; rts); the sound holds its values (16 bit)
@@ -1207,6 +1302,7 @@ public class EmuCfoOscillator extends GhidraScript {
   List<long[]> calls = new ArrayList<>();
   List<Long> machArgs = new ArrayList<>();	// FUN_4002200a's argument at each entry (not stubbed)
   Map<Long, Long> stubRet = new HashMap<>();	// what a stubbed PC returns in %d0 (0 if not listed)
+  Map<Long, long[]> stubTab = new HashMap<>();	// or by its first argument: table[arg], -1 past the end
   long spAt = 0;
   boolean runReal(long pc, long[] stack, String[] rn, long[] rv, long[] stubs, StringBuilder bad, String what) throws Exception {
     long sp = SP0 - 4L * stack.length;
@@ -1225,7 +1321,9 @@ public class EmuCfoOscillator extends GhidraScript {
       if (stub) {
         long q = rd("SP");
         calls.add(new long[] {p, rdn(q + 4, 4), rdn(q + 8, 4), rdn(q + 12, 4), rdn(q + 16, 4)});
-        emu.writeRegister("D0", stubRet.getOrDefault(p, 0L)); emu.writeRegister("PC", rdn(q, 4)); emu.writeRegister("SP", q + 4);
+        long r = stubRet.getOrDefault(p, 0L);
+        if (stubTab.containsKey(p)) { long[] t = stubTab.get(p); long a = rdn(q + 4, 4); r = a < t.length ? t[(int) a] : 0xffffffffL; }
+        emu.writeRegister("D0", r); emu.writeRegister("PC", rdn(q, 4)); emu.writeRegister("SP", q + 4);
         continue;
       }
       if (!emu.step(monitor)) { bad.append(" [" + what + ": FAULT " + emu.getLastError() + " at 0x" + Long.toHexString(p) + "]"); return false; }
@@ -1470,6 +1568,7 @@ public class EmuCfoOscillator extends GhidraScript {
       if (sym.containsKey("cfo_trkpop")) trkCases();
       if (sym.containsKey("cfo_lfocell")) lfoCases();
       if (sym.containsKey("cfo_srcfmt")) srcCases();
+      if (sym.containsKey("src_fmt")) polyCases();
       remap = false;
       run("machine 5: ONESHOT with SAMP OFF is left alone", 3, zero, zero, c4, 0x4000, 3, 0, 0, 0, 0, MAX);
       remap = true;

@@ -15,6 +15,23 @@
 |
 | Assemble with cfo.ld after generating waves.inc (make_waves.py); make_cfo.py does both.
 
+| A call or jump between this build's own routines: an absolute jsr/jmp up to S25; with --defsym SHORT
+| (S26 on) a bsr.w/bra.w, 2 B shorter, as all of them lie in one pad.
+	.macro	xcall	target
+.ifdef SHORT
+	bsrw	\target
+.else
+	jsr	\target
+.endif
+	.endm
+	.macro	xgoto	target
+.ifdef SHORT
+	braw	\target
+.else
+	jmp	\target
+.endif
+	.endm
+
 	.set	FILL,	0x40072478	| stock: the per-track level stage, (a18, engine), first after the lanes
 	.set	MACH,	0x4199f466	| stock: machine type per track, this tick (0 = ONESHOT)
 	.set	NOTES,	0x80001f28	| stock: note per track, MIDI note << 16
@@ -77,7 +94,7 @@ cfo_pad:
 	tstb	%a5@(0x3a)		| SAMP: no sample
 	bnes	2f
 .endif
-	jsr	track
+	xcall	track
 2:	addql	#1,%a6@(TRK)
 	moveq	#8,%d0
 	cmpl	%a6@(TRK),%d0
@@ -108,7 +125,7 @@ track:
 	addil	#0x30000,%d2
 	movel	%d2,%a6@(NSUM)
 	movel	%d2,%d0
-	jsr	pitch
+	xcall	pitch
 	movel	%d0,%a6@(STEP1)
 	moveq	#13,%d1			| FM scale: step / 8192 x F
 	lsrl	%d1,%d0
@@ -133,8 +150,8 @@ track:
 	extbl	%d1
 	movel	%d1,%a6@(M3)
 	mvzb	%a5@(0x3c),%d0		| E: the mix, 0..127
-	jsr	clamp127
-	jsr	gains
+	xcall	clamp127
+	xcall	gains
 .else
 	mvzb	%a5@(0x36),%d0		| B: FM from OSC2 for 1 and 2, from OSC3 for 2 and 3
 	subql	#1,%d0
@@ -193,51 +210,51 @@ track:
 	movel	%d1,%a6@(LCUR)
 .ifdef KNOBS2
 	mvzw	%a5@(0x40),%d0		| OSC2: G, 40.0..88.0 = -24..+24 semitones (8.8); wave C
-	jsr	detune24
+	xcall	detune24
 	addl	%a6@(NSUM),%d0
-	jsr	pitch
+	xcall	pitch
 	movel	%d0,%d6
 	mvzb	%a5@(0x38),%d0
-	jsr	clamp127
-	jsr	wave
+	xcall	clamp127
+	xcall	wave
 	lea	%a4@(4),%a2
 	lea	%a6@(S2),%a3
-	jsr	osc32
+	xcall	osc32
 	mvzw	%a5@(0x42),%d0		| OSC3: H, the same; wave D
-	jsr	detune24
+	xcall	detune24
 	addl	%a6@(NSUM),%d0
-	jsr	pitch
+	xcall	pitch
 	movel	%d0,%d6
 	mvzb	%a5@(0x3a),%d0
-	jsr	clamp127
-	jsr	wave
+	xcall	clamp127
+	xcall	wave
 	lea	%a4@(8),%a2
 	lea	%a6@(S3),%a3
-	jsr	osc32
+	xcall	osc32
 	mvzb	%a5@(0x34),%d0		| OSC1: A, the wave 0..127, with FM, into the buffer
-	jsr	clamp127
-	jsr	wave
+	xcall	clamp127
+	xcall	wave
 .else
 	mvzb	%a5@(0x40),%d0		| OSC2: G, -48..-1 st, unison at 48, +1..+50 cents; wave C
-	jsr	detune_lo
+	xcall	detune_lo
 	addl	%a6@(NSUM),%d0
-	jsr	pitch
+	xcall	pitch
 	movel	%d0,%d6
 	mvzb	%a5@(0x38),%d0
-	jsr	wave
+	xcall	wave
 	lea	%a4@(4),%a2
 	lea	%a6@(S2),%a3
-	jsr	osc32
+	xcall	osc32
 	mvzb	%a5@(0x42),%d0		| OSC3: H, -50..-1 cents, unison at 50, +1..+48 st; wave D
-	jsr	detune_hi
+	xcall	detune_hi
 	addl	%a6@(NSUM),%d0
-	jsr	pitch
+	xcall	pitch
 	movel	%d0,%d6
 	mvzb	%a5@(0x3a),%d0
-	jsr	wave
+	xcall	wave
 	lea	%a4@(8),%a2
 	lea	%a6@(S3),%a3
-	jsr	osc32
+	xcall	osc32
 	mvzb	%a5@(0x34),%d0		| OSC1: A, 4..88 -> wave (A - 4) x 1.5, with FM, into the buffer
 	subql	#4,%d0
 	bpls	1f
@@ -246,7 +263,7 @@ track:
 	addl	%d0,%d0
 	addl	%d1,%d0
 	lsrl	#1,%d0
-	jsr	wave
+	xcall	wave
 .endif
 	movel	%a6@(STEP1),%d6
 	movel	%a6@(TRK),%d0
@@ -254,7 +271,7 @@ track:
 	movea.l	%a6@(A18),%a3
 	adda.l	%d0,%a3
 	movea.l	%a4,%a2
-	jmp	osc1_mix
+	xgoto	osc1_mix
 
 .ifndef SETS
 | detune_lo: %d0 = G (clamped to 0..98) -> %d0 = note-sum offset: below 48 semitones (0x10000 each),
@@ -321,7 +338,7 @@ track:
 	addil	#0x30000,%d2
 	movel	%d2,%a6@(NSUM)
 	movel	%d2,%d0
-	jsr	pitch
+	xcall	pitch
 	movel	%d0,%a6@(STEP1)
 	moveq	#13,%d1			| FM scale: step / 8192 x LEN
 	lsrl	%d1,%d0
@@ -341,7 +358,7 @@ track:
 	extbl	%d1
 	movel	%d1,%a6@(M3)
 	mvzb	%a5@(0x38),%d0		| the mix from BR
-	jsr	gains
+	xcall	gains
 	mvzw	%a5@(0x42),%d0		| the level, Q31 >> 16: LEVEL(x, LEV), as the lanes compute it each
 	movel	%d0,%sp@-		| tick, but not read from the voice (+0x10): the lanes fade that once
 	movel	%a6@(TRK),%d0		| a voice's sample has ended, and a synth voice has none
@@ -377,31 +394,31 @@ track:
 	movel	%d1,%a6@(LCUR)
 	movel	%a6@(NSUM),%d0		| OSC2: an octave below, wave LOOP
 	subil	#0xc0000,%d0
-	jsr	pitch
+	xcall	pitch
 	movel	%d0,%d6
 	mvzb	%a5@(0x40),%d0
-	jsr	wave
+	xcall	wave
 	lea	%a4@(4),%a2
 	lea	%a6@(S2),%a3
-	jsr	osc32
+	xcall	osc32
 	movel	%a6@(NSUM),%d0		| OSC3: an octave and a fifth above, wave LOOP
 	addil	#0x130000,%d0
-	jsr	pitch
+	xcall	pitch
 	movel	%d0,%d6
 	mvzb	%a5@(0x40),%d0
-	jsr	wave
+	xcall	wave
 	lea	%a4@(8),%a2
 	lea	%a6@(S3),%a3
-	jsr	osc32
+	xcall	osc32
 	mvzb	%a5@(0x3c),%d0		| OSC1: wave STRT, with FM, mixed into the track's buffer
-	jsr	wave
+	xcall	wave
 	movel	%a6@(STEP1),%d6
 	movel	%a6@(TRK),%d0
 	lsll	#7,%d0
 	movea.l	%a6@(A18),%a3
 	adda.l	%d0,%a3
 	movea.l	%a4,%a2
-	jmp	osc1_mix
+	xgoto	osc1_mix
 .endif
 
 | ---- pitch: %d0 = note sum -> %d0 = phase step per sample (2^32 = one cycle, 48 kHz).
@@ -809,7 +826,7 @@ cfo_range:
 	movel	%d0,%sp@-
 .ifdef SETS
 	movel	%a1,%sp@-
-	jsr	set_machine
+	xcall	set_machine
 .else
 	movel	%a2,%sp@-
 	jsr	0x4002200a		| the set's machine; keeps %a2
@@ -912,7 +929,7 @@ cfo_pic:
 	bcss	9f			| not an SRC parameter
 	movel	%sp@(4),%sp@-		| the parameter set
 .ifdef SETS
-	jsr	set_machine		| its sound's machine
+	xcall	set_machine		| its sound's machine
 .else
 	jsr	0x4002200a		| its sound's machine
 .endif
@@ -975,7 +992,7 @@ cfo_ctext:
 	bcss	9f
 	movel	%sp@(4),%sp@-
 .ifdef SETS
-	jsr	set_machine
+	xcall	set_machine
 .else
 	jsr	0x4002200a
 .endif
@@ -986,7 +1003,7 @@ cfo_ctext:
 	subil	#108,%d0
 	movel	%sp@(12),%d1
 	moveal	%sp@(16),%a0
-	jmp	cfo_text		| returns to vfunc_22's caller
+	xgoto	cfo_text		| returns to vfunc_22's caller
 9:	lea	%sp@(-20),%sp		| the 8 B the hook replaced
 	moveml	%d2-%d4/%a2-%a3,%sp@
 	jmp	0x4000f32c
@@ -1007,7 +1024,7 @@ cfo_popup:
 	subil	#108,%d0
 	movel	%sp@(8),%d1
 	lea	0x4197de98,%a0		| FUN_400657ee's own buffer, which it returns
-	jsr	cfo_text
+	xcall	cfo_text
 	movel	#0x4197de98,%d0
 	rts
 9:	jmp	0x400657ee
@@ -1077,7 +1094,7 @@ cfo_text:
 	beqs	t_num			| F
 	subql	#1,%d0
 	beqs	t_g
-	jsr	t_cap98			| H
+	xcall	t_cap98			| H
 	subil	#50,%d1
 	beqs	t_zero
 	bmis	t_neg_ct
@@ -1089,13 +1106,13 @@ t_g:	jsr	t_cap98
 t_pos_ct:
 	moveb	#43,%a0@+		| '+'
 t_neg_ct:
-	jsr	t_putnum
+	xcall	t_putnum
 	lea	s_ct,%a1
 	bras	t_copy
 t_pos_st:
 	moveb	#43,%a0@+
 t_neg_st:
-	jsr	t_putnum
+	xcall	t_putnum
 	lea	s_st,%a1
 	bras	t_copy
 t_zero:	moveb	#48,%a0@+		| '0'
@@ -1206,7 +1223,7 @@ t2_det:	cmpil	#0x2800,%d1
 	bras	6b
 7:	moveal	%d1,%a1
 	movel	%d0,%d1
-	jsr	t_putnum
+	xcall	t_putnum
 	moveb	#46,%a0@+		| '.'
 	movel	%a1,%d1
 	moveq	#47,%d0			| two digits of cents
@@ -1279,7 +1296,7 @@ cfo_fobj:
 	beqs	9f
 	movel	%d0,%sp@-
 	movel	%a2,%sp@-
-	jsr	set_machine
+	xcall	set_machine
 	addql	#4,%sp
 	movel	%sp@+,%d1
 	subql	#CFOO,%d0
@@ -1340,7 +1357,9 @@ snap_dpts:				| -24, -17, -12, -5, 0, +7, +12, +19, +24 semitones
 | cfo_trkpop (S22): the [TRK] popup, FUN_4003bbfe, shows FUN_40093ab0(popup, "%s: %.16s", the machine's
 | short name, the sample name of SAMP's slot) at 0x4003bd6a, with the track's machine in %d5
 | (FUN_4002200a, -1 for none) and %d0, %d1 dead. POLY (4) and CFOO (5) play no sample of their own: for
-| them the format is "%s", the machine's name alone. Everything else goes on unchanged.
+| them the format is "%s", the machine's name alone. Everything else goes on unchanged. (Not in S26:
+| cfo_trkpop2 below.)
+.ifndef POLYTEXT
 cfo_trkpop:
 	movel	%d5,%d0
 	subql	#4,%d0
@@ -1350,6 +1369,7 @@ cfo_trkpop:
 	lea	s_name_only,%a0
 	movel	%a0,%sp@(8)		| the format
 1:	jmp	0x40093ab0
+.endif
 
 	.section .cfo_names,"a"
 s_name_only: .asciz "%s"
@@ -1357,6 +1377,7 @@ s_name_only: .asciz "%s"
 .endif
 
 .ifdef SRCNAME
+.ifndef POLYTEXT			| (S26 replaces these with cfo_srcpop and cfo_srctitle2)
 | (S25) The SRC page's own two texts of the same kind, "%s: %.16s" of the machine's short name and the
 | sample name of SAMP's slot (id 111; on CFOO, WAV3's value): its title (FUN_4003a638, sprintf into the
 | page's +0x1b0, the machine FUN_4002b5d4(page) on the stack) and a popup (SamplePageView::vfunc_2, the
@@ -1378,6 +1399,7 @@ cfo_srctitle:				| 0x4003a6ce: the machine at %sp@(12), under the name and the s
 2:	movel	%a0,%sp@-		| the format, where the pea put it
 	jmp	%a1@
 .endif
+.endif
 
 .ifdef LFONAMES
 | (S23) CFOO's names as LFO destinations. A CFOO track's SRC destinations are ONESHOT's ids 108..115
@@ -1391,6 +1413,29 @@ cfo_srctitle:				| 0x4003a6ce: the machine at %sp@(12), under the name and the s
 | cur_machine: -> %d0 = the current track's machine, -1 above track 7: FUN_4000d9c8(the project's kit,
 | FUN_4001d24e(FUN_40014d86(project))), as the picture finds the track and the stock layout lookup
 | (MachineParameterPageView::vfunc_23) its machine. Clobbers %d0, %d1, %a0, %a1.
+.ifdef POLYTEXT
+cur_machine:				| (S26: through trk_machine)
+	jsr	0x40138882		| the project
+	movel	%d0,%sp@-
+	jsr	0x40014d86
+	movel	%d0,%sp@
+	jsr	0x4001d24e		| the current track
+	movel	%d0,%sp@
+	xcall	trk_machine
+	addql	#4,%sp
+	rts
+| trk_machine(track) -> %d0 = its machine, -1 above track 7: FUN_4000d9c8(the project's kit, track).
+| Clobbers %d1, %a0, %a1.
+trk_machine:
+	jsr	0x40138882		| the project
+	movel	%d0,%sp@-
+	jsr	0x40014d92		| its kit
+	movel	%sp@(8),%sp@		| the track
+	movel	%d0,%sp@-
+	jsr	0x4000d9c8
+	addql	#8,%sp
+	rts
+.else
 cur_machine:
 	movel	%d2,%sp@-
 	jsr	0x40138882		| the project
@@ -1408,6 +1453,7 @@ cur_machine:
 	lea	%sp@(12),%sp
 	movel	%sp@+,%d2
 	rts
+.endif
 | lfo_src: %d0 = an id -> %d0 = the knob 0..7 for ids 108..115 on a CFOO track, else -1. Clobbers %d1,
 | %a0, %a1.
 lfo_src:
@@ -1487,6 +1533,86 @@ cfo_lfolist2:
 	movel	%a0,%sp@(8)		| the prefix "CFOO"
 2:	moveal	%sp@+,%a0
 	rts
+.endif
+
+.ifdef POLYTEXT
+| (S26) A track's machine and sample in three texts: the [TRK] popup (FUN_4003bbfe), the SRC page's
+| title (FUN_4003a638) and a popup on it (SamplePageView::vfunc_2). Each formats "%s: %.16s" of the
+| machine's short name and the sample name, the format first, then the two names, in the call of its
+| formatter (FUN_40093ab0, or sprintf 0x40000e82 for the title); that call is pointed here. The title's
+| machine is that of the page's POLY Source (FUN_4002b5d4), the others the track's own.
+|
+| src_fmt: %a1 = the format's slot (the name's, then the sample's after it), %d0 = the track's own
+| machine, %d1 = the track. CFOO: "%s", its name alone. POLY: "%s: %s" of POLY and the short name of its
+| pool's Source's machine (groupSource, 0x439d1050; a pool of one has itself), no sample; POLY alone
+| without a Source. Anything else unchanged. Clobbers %d0, %d1, %a0.
+src_fmt:
+	subql	#4,%d0
+	beqs	2f			| POLY
+	subql	#1,%d0
+	bnes	9f			| not CFOO: unchanged
+1:	lea	s_name_only,%a0		| the name alone
+	movel	%a0,%a1@
+9:	rts
+2:	moveq	#7,%d0
+	cmpl	%d1,%d0
+	bcss	1b			| not a track 0..7
+	lea	0x439d1050,%a0
+	mvzb	%a0@(0,%d1:l),%d0	| its Source
+	cmpl	%d0,%d1
+	beqs	1b			| a pool of one: no Source
+	moveq	#7,%d1
+	cmpl	%d0,%d1
+	bcss	1b
+	movel	%a1,%sp@-
+	movel	%d0,%sp@-
+	xcall	trk_machine		| the Source's machine
+	movel	%d0,%sp@
+	jsr	0x4007912c		| its short name
+	addql	#4,%sp
+	moveal	%sp@+,%a1
+	movel	%d0,%a1@(8)		| in place of the sample's
+	lea	poly_name,%a0
+	movel	%a0,%a1@(4)		| POLY
+	lea	s_fmt_poly,%a0
+	movel	%a0,%a1@		| "%s: %s"
+	rts
+
+| cfo_trkpop2: the [TRK] popup's FUN_40093ab0(popup, fmt, name, sample) at 0x4003bd6a: the track's own
+| machine in %d5, the track FUN_4003bbfe's argument (%fp@(8)).
+cfo_trkpop2:
+	lea	%sp@(8),%a1
+	movel	%d5,%d0
+	movel	%fp@(8),%d1
+	xcall	src_fmt
+	jmp	0x40093ab0
+| cfo_srcpop: SamplePageView::vfunc_2's FUN_40093ab0(popup, fmt, ...) at 0x4003b51c, shared with its
+| "Sound: %d %s": for the machine-and-sample format only, the track's own machine in %d4 and, for a
+| machine above 3, the track in %a3.
+cfo_srcpop:
+	movel	%sp@(8),%d0
+	cmpil	#0x401c41c0,%d0
+	bnes	1f
+	lea	%sp@(8),%a1
+	movel	%d4,%d0
+	movel	%a3,%d1
+	xcall	src_fmt
+1:	jmp	0x40093ab0
+| cfo_srctitle2: the title's sprintf(page + 0x1b0, fmt, name, sample) at 0x4003a6d8, the page in %a2:
+| the track FUN_4001d24e(page +0x74) and its own machine.
+cfo_srctitle2:
+	movel	%a2@(116),%sp@-
+	jsr	0x4001d24e		| the page's track
+	movel	%d0,%sp@
+	xcall	trk_machine		| its own machine
+	movel	%sp@+,%d1
+	lea	%sp@(8),%a1
+	xcall	src_fmt
+	jmp	0x40000e82
+
+	.section .cfo_names,"a"
+s_fmt_poly: .asciz "%s: %s"
+	.section .cfo_display,"ax"
 .endif
 
 	.section .hook_encobj,"ax"	| 0x40032b74: jsr FUN_40065794

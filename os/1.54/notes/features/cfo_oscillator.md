@@ -234,9 +234,9 @@ the pad's 2,372. The routes:
 
 ## Testing on the unit
 
-`make_cfo.py lz4_stream.ld --stages` builds seventeen images on top of the reference build (section 3
+`make_cfo.py lz4_stream.ld --stages` builds eighteen images on top of the reference build (section 3
 `efc90606…`, `.syx` `3fd4b0a3`), each adding one step to the stage named in its row. They are meant to
-be flashed in order, S9 to S25:
+be flashed in order, S9 to S26:
 
 | Stage | `.syx` | Section 3 | Contents |
 |---|---|---|---|
@@ -257,6 +257,7 @@ be flashed in order, S9 to S25:
 | S23 | `3d72e125` | `5c3ebf10…` | S22 + CFOO's names as LFO destinations ([below](#cfoo-as-an-lfo-destination-in-s23)) |
 | S24 | `42f51b39` | `d4b5a241…` | S23 + the waves and the mix read SIN, TRI, SAW, SQR and OSC1, 1+2, 123, 2+3 at their four points ([below](#names-at-the-four-points-in-s24)) |
 | S25 | `62765b5a` | `ac131e81…` | S24 + the SRC page's title and popup show POLY and CFOO without a sample name ([below](#the-src-pages-own-texts-in-s25)) |
+| S26 | `346177af` | `fad9ee37…` | S25 + the [TRK] popup and the SRC page show a POLY track as POLY and its Source's machine ([below](#a-poly-tracks-source-in-s26)) |
 
 Checked on the built images (S12's own checks are [below](#cfoo-machine-5-in-s12)):
 - the build's own checks;
@@ -314,6 +315,10 @@ Results on the unit, OS 1.54, each stage flashed on the one before from S8:
   ONESHOT track's names change too, that is not explained.
 - ✅ **S19:** works, as reported (no details).
 - ✅ **S20 to S23:** work, as reported (no details).
+- ✅ **S24, S25:** do as intended, as reported. Seen with S25: [TRK] + a track key shows a POLY track as
+  POLY and a CFOO track as CFOO, but the SRC page shows a POLY track's Source's machine instead (CFOO
+  alone, or the machine and its sample for SLICE and the others): its machine comes through POLY's
+  alias, `FUN_4002b5d4`. S26 makes the three texts agree.
 
 What to check:
 - **S9:** nothing changes anywhere. A live caller of the pad would now get 0 at once.
@@ -392,6 +397,10 @@ What to check:
   value is the number, FMSR, FM and the detunes as in S23.
 - **S25:** the SRC page of a POLY or CFOO track shows no sample name where it showed one (its title, and
   the popup that shows the machine and the sample); ONESHOT, WERP, REPITCH and SLICE as before.
+- **S26:** a POLY track reads `POLY: SAMP`, `POLY: SLIC`, `POLY: CFOO` and so on (its Source's machine,
+  no sample), the same with [TRK] + a track key and on its SRC page; a POLY track with no Source before
+  it reads `POLY`; a CFOO track `CFOO`; every other track its machine and sample as before. Everything
+  else as S25 (this stage also shortens the code's internal calls).
 - **S17:** on a CFOO track all eight cells are plain knobs, each turning over its own range: A, C, D over
   the waves, B in four steps, E and F to 120, G and H to 98 with unison at the top. The encoder popup
   (and the cell's text, where the page shows one) reads, for example, `OSC1 Wave=0`, `FM Source=OFF`,
@@ -1087,6 +1096,39 @@ that pushes `"%s"` for machines 4 and 5 and the stock format otherwise.
 **Checked:** both entries for machines −1 to 6: `"%s"` only for 4 and 5, where the `pea` put it, the rest
 of the stack and the kept registers unchanged; the two sites in place. Control: the title's machine read
 from the wrong stack slot fails it.
+
+## A POLY track's Source, in S26
+
+Built with `--defsym POLYTEXT=1 --defsym SHORT=1` on top of S25. The three texts of a track's machine
+and sample, the [TRK] popup (`FUN_4003bbfe`), the SRC page's title (`FUN_4003a638`) and its popup
+(`SamplePageView::vfunc_2`), each pass the format, the machine's short name and the sample name, in
+that order, to their formatter (`FUN_40093ab0`; `sprintf`, `0x40000e82`, for the title). ✅ Read in the
+code (objdump):
+- the [TRK] popup's machine is the track's own (`%d5`), the track its argument (`%fp@(8)`);
+- the SRC popup's machine is the track's own (`%d4`, the track `FUN_4001d24e(page +0x74)` in `%a3` for
+  a machine above 3);
+- the title's machine is `FUN_4002b5d4(page)`, which POLY's alias (its patch at `0x4002b691`) turns into
+  the page's Source's: a POLY track's SRC page shows the Source's parameters, and so its machine. The
+  page's own track is `FUN_4001d24e(page +0x74)` (stock at `0x4003a648`);
+- POLY's pools: `groupSource[track]` at `0x439d1050` is the track's Source, itself for a track outside
+  any pool, as its alias pads read it (`0x400bed74`: a track 0..7 → `groupSource[track]`).
+
+S26 points the three formatter calls (`0x4003bd6a`, `0x4003b51c` — shared with a `"Sound: %d %s"` text,
+which is left alone — and `0x4003a6d8`) at routines that hand the track's own machine and the track to
+`src_fmt`: CFOO gets `"%s"`; POLY gets `"%s: %s"` of `POLY` and the short name of its Source's machine
+(`trk_machine`, as `cur_machine` finds a machine; the short-name reader `0x4007912c`), or `"%s"` when
+the track is its own Source; anything else is left as it is. S22's and S25's sites are stock again.
+`cur_machine` now goes through `trk_machine`. The build's calls between its own routines become `bsr.w`
+(2 B shorter each): the code is 2,370 B and the pad has 2 B left.
+
+**Checked:** `src_fmt` for machines −1 to 6 on tracks 0–7 and 9, on a layout of pools (machines 4, 5, 4,
+4, 3, 4, 2, 4; Sources 0, 1, 1, 1, 4, 4, 6, none), with `trk_machine` and the name reader stubbed by
+argument (72 cases): `POLY: CFOO` for tracks 2 and 3, `POLY: SLIC` for 5, `POLY` alone for 0 and 7,
+`CFOO` for 1, others unchanged; the three routines with their formatters stubbed, the SRC popup's other
+format untouched; `trk_machine` on the stock `FUN_4000d9c8`; and every earlier case, on the `bsr.w`
+code, on S26's own bytes. The changed runs outside the pad and the tables are the operands that follow
+the code, S25's two sites back to stock, and the three new call operands. Controls: the pool table's
+address, the popup's track slot and the Source name's slot, each one off, fail their own cases.
 
 ## Related notes
 

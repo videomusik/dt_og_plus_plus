@@ -40,6 +40,8 @@ Stages, written to out/1.54/stages/ (only with --stages):
   S23  S22 + CFOO's names as LFO destinations, on the DEST knob and in the destination list
   S24  S23 + A, C, D and E read SIN, TRI, SAW, SQR and OSC1, 1+2, 123, 2+3 at 0, 42, 85, 127
   S25  S24 + the SRC page's title and popup show POLY and CFOO without a sample name
+  S26  S25 + those three texts show a POLY track as POLY and its Source's machine; this build's calls
+       between its own routines become bsr.w
 patch.json is not changed: the feature is a prototype."""
 import json, os, shutil, subprocess, sys, tempfile
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -104,7 +106,10 @@ RANGE_SITES2 = [(0x4000f5fe, "cfo_range9"), (0x4000ffae, "cfo_range4"), (0x40010
 # display object whose +0x44 callable [FUNC] + knob uses); the [TRK] popup's call of FUN_40093ab0; the
 # LFO DEST picture's std::string of the destination's group.
 OPERAND_SITES = [(0x40010054, "40065794", "cfo_fobj"), (0x4003bd6c, "40093ab0", "cfo_trkpop"),
-                 (0x40065dee, "4017af20", "cfo_lfogrp")]
+                 (0x40065dee, "4017af20", "cfo_lfogrp"),
+                 # S26: the three machine-and-sample texts' formatter calls (S22's and S25's sites left stock)
+                 (0x4003bd6c, "40093ab0", "cfo_trkpop2"), (0x4003b51e, "40093ab0", "cfo_srcpop"),
+                 (0x4003a6da, "40000e82", "cfo_srctitle2")]
 # S23 on: instructions replaced by a jsr to this build's routine plus a tail, each applied when its symbol
 # is in the assembly: (address, stock bytes, symbol, tail). The LFO DEST picture's short-name push, and
 # the destination list's long-name and short-name pushes.
@@ -129,7 +134,7 @@ def run(*cmd):
 
 def assemble(ld, tmp, inert=False, machine5=False, names=False, icon=False, slots=False, knobs=False,
              displays=False, knobs2=False, sets=False, pure=False, snap=False, trkpop=False, lfonames=False,
-             corners=False, srcname=False):
+             corners=False, srcname=False, polytext=False):
     run(sys.executable, os.path.join(HERE, "make_waves.py"), os.path.join(tmp, "waves.inc"))
     src = os.path.join(HERE, "cfo.s")
     defs = (["--defsym", "MACHINE5=1"] if machine5 else []) + (["--defsym", "NAMES=1"] if names else []) + \
@@ -138,7 +143,8 @@ def assemble(ld, tmp, inert=False, machine5=False, names=False, icon=False, slot
         (["--defsym", "KNOBS2=1"] if knobs2 else []) + (["--defsym", "SETS=1"] if sets else []) + \
         (["--defsym", "PURE=1"] if pure else []) + (["--defsym", "SNAP=1"] if snap else []) + \
         (["--defsym", "TRKPOP=1"] if trkpop else []) + (["--defsym", "LFONAMES=1"] if lfonames else []) + \
-        (["--defsym", "CORNERS=1"] if corners else []) + (["--defsym", "SRCNAME=1"] if srcname else [])
+        (["--defsym", "CORNERS=1"] if corners else []) + (["--defsym", "SRCNAME=1"] if srcname else []) + \
+        (["--defsym", "POLYTEXT=1", "--defsym", "SHORT=1"] if polytext else [])
     ldefs = ["--section-start=.cfo_names=0x%08x" % NAMES_RO] if pure else []
     if inert:
         src = os.path.join(tmp, "inert.s")
@@ -229,6 +235,8 @@ KNOB_STAGES = [
                       lfonames=True, corners=True)),
     ("S25", "m", dict(knobs=True, displays=True, knobs2=True, sets=True, pure=True, snap=True, trkpop=True,
                       lfonames=True, corners=True, srcname=True)),
+    ("S26", "n", dict(knobs=True, displays=True, knobs2=True, sets=True, pure=True, snap=True, trkpop=True,
+                      lfonames=True, corners=True, srcname=True, polytext=True)),
 ]
 
 
