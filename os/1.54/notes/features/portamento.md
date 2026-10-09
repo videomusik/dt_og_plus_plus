@@ -13,11 +13,13 @@ Every audio track's TRIG page gets two knobs, G and H, which are empty in stock:
 | H | LEG, Legato | OFF/ON, default OFF | ON: only a legato note glides, and it does not restart the amp envelope |
 
 - With PORT above 0 a new note starts from the pitch the track is playing and glides to its own pitch.
-  With LEG OFF every note glides. With LEG ON only a legato note glides, one whose trig comes while the
-  last note's amp envelope is still in its attack or hold (from S35; with HOLD at NOTE: its LEN reaches
-  the new trig, LEN INF included); any other note starts on its own pitch. S31 to S34 took a note as
-  legato when the track's gate bit was set, which a sequenced trig leaves set after its LEN: there,
-  every note after the first was legato.
+  With LEG OFF every note glides. With LEG ON only a legato note glides, one whose trig comes before
+  the last note's NoteOff, the end of its LEN (from S36; a LEN that ends in the very tick of the new
+  trig counts as reaching it, and LEN INF, which has no end, counts as ended); any other note starts
+  on its own pitch. S31 to S34 took a note as legato when the track's gate bit was set, which a
+  sequenced trig leaves set after its LEN: there, every note after the first was legato. S35 took it
+  from the amp envelope's state, which a legato note itself keeps from restarting: notes of equal
+  LEN then alternated.
 - With LEG ON a legato note also leaves the amp envelope running, as on a mono synth in legato mode
   (from S34): its attack does not restart. That holds whatever PORT is. The filter envelope keeps its
   own control, FLT.T.
@@ -115,19 +117,29 @@ About 2.5 time constants bring an octave's glide within a semitone of its target
   the release masks `%fp@(-76)` and `%fp@(-72)`, which reach the amp and the filter envelope. The
   gate bit stays set. So S31 to S34, which took the gate bit as "the last note still sounds", took
   every sequenced note after the first as legato (on the unit with S34: LEN 1/8, HOLD at NOTE, LEG ON,
-  silence). A countdown at or below 0 cannot tell an ended note from LEN INF. ✅ The amp envelope's
-  state (`0x4199ed64 + 8 × track`: 2 attack, 1 hold, 0 decay; `FUN_400716c0`) can: with HOLD at NOTE it
-  holds until the release, and the event loop sees it before this tick's envelope pass.
+  silence). LEN INF loads 0 (`0x40191590[128]`), a countdown that never runs out; a finite LEN loads a
+  positive count (168,750 per table step), which stays at its first value at or below 0 once it has
+  run out. S35 used the amp envelope's state (`0x4199ed64 + 8 × track`: 2 attack, 1 hold, 0 decay;
+  `FUN_400716c0`) instead; but a legato note does not restart the envelope, so the next decision
+  depends on the last one: on the unit, notes of equal LEN alternated. ✅ S36 reads the NoteOn/NoteOff
+  pattern itself, the countdown, at the NoteOn (after this tick's countdown pass, before the store of
+  the new note's): above 0, the last note still runs; at or below 0, it has ended, LEN INF included
+  (so no note can hold an envelope forever). One exception keeps a LEN equal to the trig distance
+  steady: at 120 BPM a step is 187.5 ticks, trigs come 187 and 188 ticks apart and a one-step countdown
+  runs out after 188, in the very tick of every second trig; stock then drops that release for the
+  track (the release mask is `~%d3 & %fp@(-76)`). So a countdown that ran out in this tick (its bit in
+  `%fp@(-76)`) counts as running.
 - **Where the pitch is made.** The first render stage `FUN_40075184`, called after the event loop,
   computes every track's rate every tick: its loop (`0x40075690`) reads `NOTES[track]` into `%d6`, adds
   TUNE and looks the sum up in the pitch table. `%a2` walks the engine's smoothed copy of the values
   (TUNE's slot, `0x80002794 + 106 × track`); the ISR's own copy, which p-locks write and which is not
   smoothed, is a fixed distance away (`−0x1236`).
 - **The note-on hook** (`0x400779f6`, `lea NOTES,%a1` → `jsr port_on`, 6 B): sets the track's bit in
-  the new-note byte and marks the note legato, then does the `lea`. From S35 it marks it legato when
-  the amp envelope's state is not 0 (two ×4 index steps, as the ColdFire has no ×8), and only sets the
-  legato bit, which `port_glide` takes with the new-note bit; S31 to S34 copied the gate bit (the low
-  byte `0x800019f7`). It changes only `%a1`, which the replaced `lea` loads.
+  the new-note byte and marks the note legato, then does the `lea`. From S36 it marks it legato when
+  the countdown `0x8000196c + 4 × track` is above 0 or its bit is set in the low byte of the ISR
+  frame's `%fp@(-76)` (`%fp@(-73)`), and only sets the legato bit, which `port_glide` takes with the
+  new-note bit (as in S35, which read the amp envelope's state); S31 to S34 copied the gate bit (the
+  low byte `0x800019f7`). It changes only `%a1`, which the replaced `lea` loads.
 - **The rate-loop hook** (`0x40075690`, 12 B: `lea NOTES,%a0`, `moveq #3,%d1` and the `movel` into
   `%d6` → `jsr port_glide`, `moveq #3,%d1`, `bras` over a filler word): returns the glided note sum in
   `%d6`. It uses `%d0`, `%d4`, `%d5` and `%a0`, which the loop loads again before reading; `%d2` and
@@ -257,8 +269,10 @@ The rest of each pad keeps its fill. No hook calls anything but the stock routin
   held, legato with LEG off and detached notes restarted. From S35 the harness sets the amp
   envelope's state at each note-on as `FUN_400716c0` leaves it, and a case of its own: two tracks whose
   gate bits are left set, one whose last note ended (detached: restarted, no glide) and one whose
-  last note still holds (legato: held, glides).
-  Twenty-two one-change controls each fail their own cases and pass the others: the legato test inverted,
+  last note still holds (legato: held, glides). From S36 a note-on finds the last note's countdown and
+  this tick's run-out byte in the ISR frame, and a case of its own: a countdown running, ended, ended
+  in this tick, 0 (LEN INF), 0 reached in this tick, and 1.
+  Twenty-four one-change controls each fail their own cases and pass the others: the legato test inverted,
   PORT read from slot 45, no start on the target at power-up, every note taken as legato, k with
   PORT² / 4, the site's `moveq #2`, LEG's step profile left as the knob's, LEG in slot 46, knob H =
   id 4, the CFO oscillator's note read left on the trig's; PORT's text test inverted, LEG's flag word
@@ -266,7 +280,8 @@ The rest of each pad keeps its fill. No hook calls anything but the stock routin
   (which stores the PORT lock as index 0 and the LEG lock as index 1, as stock does), the reader taking
   any spare words; no legato note held, the held mask not inverted, the held byte not cleared at
   power-up; every note-on taken as legato (S34's fault on the unit), the legato bit not taken by the
-  glide.
+  glide; a countdown that runs out in the NoteOn's tick taken as a NoteOff, a countdown of 0 taken as
+  legato.
 
 ## Stage images
 
@@ -282,6 +297,7 @@ Each stage adds one thing to the one before; flash them in order on a unit that 
 | S33 | `d0d6ff03` | `da64862f…` | S32 + PORT and LEG saved with the sound, and their p-locks with the pattern |
 | S34 | `0047c55d` | `de034548…` | S33 + with LEG ON a legato note does not restart the amp envelope |
 | S35 | `78d8af35` | `f8a304d3…` | S34 + a note is legato when the last note's amp envelope is still in its attack or hold |
+| S36 | `9df62a0b` | `d6fac1a3…` | S35 + a note is legato when the last note's LEN has not ended at the NoteOn (or ends in its tick) |
 
 **What to check on the unit (OS 1.54):**
 
@@ -311,6 +327,9 @@ Each stage adds one thing to the one before; flash them in order on a unit that 
 - **S35:** as S34, with short notes: HOLD at NOTE, LEN 1/8 and LEG ON: every note sounds and starts
   with its attack, and none glides; LEN longer than the trig distance (or INF): the notes glide and
   carry on. With PORT on and LEG ON, a detached note no longer glides.
+- **S36:** as S35, now by LEN alone: LEN shorter than the trig distance, every note restarts and none
+  glides; LEN equal to it (1 step on every step) or longer, every note after the first is legato,
+  steadily, with any HOLD; LEN INF: every note restarts. HOLD and DEC only shape the sound.
 
 ## On the unit
 
@@ -329,7 +348,10 @@ their recall with the project and their p-locks.
 settings PORT had glided whether LEG was on or off (seen before S34). Cause: the legato test (above,
 "When a note ends"); S35 changes it.
 
-Not reported yet: S28 to S30 on their own, what existing projects hold in PORT and LEG, and S35.
+⚠️ S35: notes of equal LEN alternate between restarting and not (one runs into the other); cause: the
+amp envelope's state as the legato test (above); S36 changes it.
+
+Not reported yet: S28 to S30 on their own, what existing projects hold in PORT and LEG, and S36.
 
 ## Open points
 

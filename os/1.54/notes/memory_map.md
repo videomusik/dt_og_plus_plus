@@ -59,8 +59,9 @@ Planned, not in the build (the portamento test image S31, on top of the CFO osci
 - `+0`, 8 longs: the note sum each track plays;
 - `+32`, long: the marker `0x504f5254` (`PORT`) once the block is initialised;
 - `+36`, `+37`, `+38`, bytes, bit = track: a note-on not yet seen by the glide; that note-on is legato
-  (S31–S34: the track's gate bit was set; from S35: the track's amp envelope was still in its attack
-  or hold, and the glide clears the bit when it takes the note); the track's note sum is valid;
+  (S31–S34: the track's gate bit was set; S35: the track's amp envelope was still in its attack or
+  hold; from S36: the last note's LEN countdown was above 0 or ran out in that tick; from S35 the
+  glide clears the bit when it takes the note); the track's note sum is valid;
 - `+39`, byte, bit = track (S34): this tick's note is legato with LEG on, so its amp envelope is not
   restarted; cleared every tick.
 

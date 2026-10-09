@@ -29,7 +29,7 @@ import java.util.*;
 
 public class EmuPortamento extends GhidraScript {
   static final long NOTES = 0x80001f28L, GATES = 0x800019f4L, COPY = 0x80001502L, MIRROR_TUNE = 0x80002794L;
-  static final long STATE = 0x439d1180L, MAGICV = 0x504f5254L, AMPST = 0x4199ed64L;
+  static final long STATE = 0x439d1180L, MAGICV = 0x504f5254L, AMPST = 0x4199ed64L, LENCD = 0x8000196cL;
   static final long ON_SITE = 0x400779f6L, ON_END = 0x40077a0aL, HELD = 0x4399ec80L;
   static final long RATE_SITE = 0x40075690L, RATE_END = 0x4007569cL;
   static final long SP0 = 0x40258600L, RET = 0x40001000L;
@@ -88,7 +88,11 @@ public class EmuPortamento extends GhidraScript {
     for (int t = 0; t < 8; t++) valid[t] = ((v >> t) & 1) != 0;
   }
   int holdBits, onMask;		// HOLDAMP: this tick's legato notes with LEG on; this tick's note-ons
-  boolean holdamp, legamp;	// S34, S35
+  boolean holdamp, legamp, lencnt;	// S34, S35, S36
+  int relMask;			// the release byte of the next amp-site pass
+  long rawCount = NONE;		// S36: unless NONE, the last note's countdown a note-on finds
+  static final long NONE = Long.MIN_VALUE;
+  boolean tieNow;		// S36: the last note's countdown ran out in this very tick
   long modelTick(int t) {
     long T = target[t];
     if (!magic) {
@@ -121,6 +125,10 @@ public class EmuPortamento extends GhidraScript {
    *  hold, as FUN_400716c0 leaves it). A sequenced trig whose LEN has run out leaves the gate set. */
   void noteOn(int t, int note, boolean gateOpen, boolean sounding, StringBuilder bad) throws Exception {
     wr(AMPST + 8L * t, sounding ? 1 : 0, 4);
+    long cd = rawCount != NONE ? rawCount : sounding ? 50000 : -7200;	// S36: the last note's countdown
+    wr(LENCD + 4L * t, cd, 4);
+    wr(FRAME - 73, tieNow ? 1L << t : 0, 1);
+    boolean lenLegato = (int) cd > 0 || tieNow;
     long g = rdn(GATES, 4);
     g = gateOpen ? g | (1L << t) : g & ~(1L << t);
     wr(GATES, g, 4);
@@ -129,6 +137,7 @@ public class EmuPortamento extends GhidraScript {
     long[] sent = new long[KEEP_ON.length];
     for (int i = 0; i < KEEP_ON.length; i++) { sent[i] = 0x5a5a0000L + i; emu.writeRegister(KEEP_ON[i], sent[i]); }
     emu.writeRegister("D2", t); sent[1] = t;
+    emu.writeRegister("A6", FRAME); sent[11] = FRAME;
     emu.writeRegister("D1", note); emu.writeRegister("A1", 0xdead0001L); emu.writeRegister("A4", 0xdead0004L);
     boolean done = false;
     for (int s = 0; s < 200; s++) {
@@ -144,7 +153,8 @@ public class EmuPortamento extends GhidraScript {
     target[t] = (long) note << 16;
     newBits |= 1 << t;
     onMask |= 1 << t;
-    if (legamp) { if (sounding) legBits |= 1 << t; }
+    if (lencnt) { if (lenLegato) legBits |= 1 << t; }
+    else if (legamp) { if (sounding) legBits |= 1 << t; }
     else legBits = gateOpen ? legBits | (1 << t) : legBits & ~(1 << t);
     wr(GATES, rdn(GATES, 4) | (1L << t), 4);	// the trig opens the gate (0x40077b0c)
   }
@@ -196,7 +206,7 @@ public class EmuPortamento extends GhidraScript {
     long[] sent = new long[KEEP_AMP.length];
     for (int i = 0; i < KEEP_AMP.length; i++) { sent[i] = 0x5a5a0000L + i; emu.writeRegister(KEEP_AMP[i], sent[i]); }
     long d3 = 0x12340000L | onMask; emu.writeRegister("D3", d3); sent[2] = d3;
-    long d2 = 0x5a5a00c3L; emu.writeRegister("D2", d2); sent[1] = d2;
+    long d2 = 0x5a5a0000L | relMask; emu.writeRegister("D2", d2); sent[1] = d2;
     emu.writeRegister("A6", FRAME); sent[13] = FRAME;
     boolean done = false;
     for (int s = 0; s < 100; s++) {
@@ -207,7 +217,8 @@ public class EmuPortamento extends GhidraScript {
     long on = rdn(FRAME - 36, 1), rel = rdn(FRAME - 35, 1), want = onMask & ~holdBits & 0xff;
     lastAmp = (int) on;
     if (on != want && bad.length() < 500) bad.append(String.format(" [amp trig 0x%02x, want 0x%02x]", on, want));
-    if (rel != 0xc3) bad.append(" [amp release byte]");
+    if (rel != relMask) bad.append(" [amp release byte]");
+    relMask = 0;
     if (rdn(STATE + 39, 1) != 0) bad.append(" [held byte not cleared]");
     if (rd("SP") != sp) bad.append(" [amp stack]");
     for (int i = 0; i < KEEP_AMP.length; i++) if (rd(KEEP_AMP[i]) != sent[i]) bad.append(" [amp " + KEEP_AMP[i] + "]");
@@ -215,7 +226,7 @@ public class EmuPortamento extends GhidraScript {
   }
   long[] ticks(int n, StringBuilder bad) throws Exception { long[] g = null; for (int i = 0; i < n; i++) g = tick(bad, true); return g; }
   void begin() throws Exception {
-    fresh(); modelFromMemory(); holdBits = 0; onMask = 0;
+    fresh(); modelFromMemory(); holdBits = 0; onMask = 0; relMask = 0; rawCount = NONE; tieNow = false;
     for (int t = 0; t < 8; t++) { setParams(t, 0, 0); target[t] = 0; }
   }
 
@@ -328,6 +339,23 @@ public class EmuPortamento extends GhidraScript {
     if (gs[0] != 55L << 16) bad.append(" [ended note glided]");
     if (gs[1] == 55L << 16) bad.append(" [sounding note did not glide]");
     verdict("LEG on, gate bit left set by sequenced trigs: a note whose last note ended is detached", bad);
+    if (!lencnt) return;
+    // S36: legato from the last note's LEN countdown at the NoteOn (and this tick's run-outs)
+    begin(); bad = new StringBuilder();
+    setParams(0, 32, 1);
+    noteOn(0, 48, false, false, bad); ticks(2, bad);
+    long[][] c = {{50000, 0, 1}, {-7200, 0, 0}, {-7200, 1, 1}, {0, 0, 0}, {0, 1, 1}, {1, 0, 1}};
+    String[] what = {"running", "ended", "ended in this tick (a tie)", "LEN INF or landed on 0", "landed on 0 in this tick", "one unit left"};
+    int note = 50;
+    for (int i = 0; i < c.length; i++) {
+      rawCount = c[i][0]; tieNow = c[i][1] != 0;
+      noteOn(0, note, false, false, bad); long[] gc = ticks(1, bad);
+      boolean held = (lastAmp & 1) == 0, glided = gc[0] != (long) note << 16;
+      if (held != (c[i][2] != 0) || glided != (c[i][2] != 0)) bad.append(" [" + what[i] + ": " + (held ? "legato" : "detached") + "]");
+      note += 3; ticks(2, bad);
+    }
+    rawCount = NONE; tieNow = false;
+    verdict("LEG on: legato while the last LEN runs or ends in the NoteOn's tick; at or below 0 (INF too) not", bad);
   }
 
   // ---- inert hooks (S29, S30): replay only
@@ -578,6 +606,8 @@ public class EmuPortamento extends GhidraScript {
     holdamp = sym.containsKey("amp_hook");
     fresh();
     legamp = holdamp && rdn(sym.get("port_on") + 6, 2) == 0x43f9 && rdn(sym.get("port_on") + 8, 4) == AMPST;
+    lencnt = holdamp && rdn(sym.get("port_on") + 6, 2) == 0x43f9 && rdn(sym.get("port_on") + 8, 4) == LENCD;
+    legamp = legamp || lencnt;
     boolean hooks = rdn(ON_SITE, 2) == 0x4eb9 && rdn(RATE_SITE, 2) == 0x4eb9;
     boolean data = rdn(DESC + 0x34 * 4, 4) == 5;
     println(String.format("EmuPortamento %s: hooks %s, %s, TRIG data %s", args[0], hooks ? "present" : "absent",

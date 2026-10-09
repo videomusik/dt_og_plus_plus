@@ -26,6 +26,8 @@ to out/1.54/stages/ (only with --stages):
   S34  S33 + with LEG on, a legato note does not restart the amp envelope
   S35  S34 + a note is legato when the track's amp envelope is still in its attack or hold (the gate
        bit S31 to S34 test stays set after a sequenced trig's LEN, so every note was legato)
+  S36  S35 + a note is legato when no NoteOff came since the track's last NoteOn (the release byte
+       the amp envelope gets: LEN's countdown, note-off events, a stop), not by the envelope's state
 patch.json is not changed: the feature is a prototype."""
 import os, re, shutil, subprocess, sys, tempfile
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -89,7 +91,8 @@ CFO_PAD = (0x400f77da, 0x400f811e)
 CFO_NOTE = "41f980001f28" "24300c00"
 # The assembly options of each build: the inert hooks, and the stages from S31 on.
 VARIANTS = {"inert": ["INERT"], "S31": [], "S32": ["OFFTEXT"], "S33": ["OFFTEXT", "SAVE"],
-            "S34": ["OFFTEXT", "SAVE", "HOLDAMP"], "S35": ["OFFTEXT", "SAVE", "HOLDAMP", "LEGAMP"]}
+            "S34": ["OFFTEXT", "SAVE", "HOLDAMP"], "S35": ["OFFTEXT", "SAVE", "HOLDAMP", "LEGAMP"],
+            "S36": ["OFFTEXT", "SAVE", "HOLDAMP", "LEGAMP", "LENCNT"]}
 
 
 def run(*cmd):
@@ -174,6 +177,17 @@ def put(im, addr, want, new, what):
 def apply_sites(im, syms, sites):
     for addr, want, sym, tail in sites:
         put(im, addr, want, "4eb9%08x" % syms[sym] + tail, sym)
+
+
+def repoint_sites(im, syms, sites):
+    """A later stage's code can move inside its pad: point each hook site that an earlier stage made
+    at this stage's entry (the site must already hold a jsr and its tail)."""
+    for addr, _want, sym, tail in sites:
+        off = addr - BASE
+        n = 6 + len(tail) // 2
+        got = im[off:off + n].hex()
+        assert got[:4] == "4eb9" and got[12:] == tail, "0x%08x is not this build's jsr (%s)" % (addr, got)
+        im[off + 2:off + 6] = syms[sym].to_bytes(4, "big")
 
 
 def apply_data(im, syms, secs):
@@ -297,7 +311,7 @@ def main():
         apply_data(s30, syms_i, secs_i)
         built = {"S28": bytes(s28), "S29": bytes(s29), "S30": bytes(s30)}
         prev = s30
-        for v in ("S31", "S32", "S33", "S34", "S35"):
+        for v in ("S31", "S32", "S33", "S34", "S35", "S36"):
             secs, syms = asm[v]
             for _a, _w, sym, _t in SITES:          # the sites call the same entries
                 assert syms[sym] == syms_i[sym]
@@ -311,8 +325,9 @@ def main():
                 apply_offtext(im, syms, secs)
             if v == "S33":
                 apply_save(im, syms, secs)
-            if v == "S35":
+            if v in ("S35", "S36"):
                 place_names(im, secs)
+                repoint_sites(im, syms, SAVE_SITES + HOLD_SITES)
             if v == "S34":
                 place_names(im, secs)
                 for name, (lo, _h) in INPLACE.items():

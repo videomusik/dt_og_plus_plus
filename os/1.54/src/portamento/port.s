@@ -19,11 +19,16 @@
 |   HOLDAMP  with LEG on, a legato note does not restart the amp envelope
 |   LEGAMP   a note is legato when the track's amp envelope is still in its attack or hold, not when
 |            the gate bit is set: a sequenced trig's LEN ends by a countdown that never clears that bit
+|   LENCNT   (with LEGAMP) a note is legato when the last note's LEN countdown still runs at the NoteOn,
+|            or ran out in this very tick (a LEN equal to the trig distance); at or below 0 is a
+|            NoteOff, LEN INF (no countdown) included; the envelope's own state no longer counts
 | Assemble with port.ld; make_port.py does it.
 
 	.set	NOTES,	0x80001f28	| stock: the trig's note sum per track (note << 16), 8 longs
 	.set	GATEB,	0x800019f7	| stock: low byte of the gate mask 0x800019f4, bit = track
 	.set	AMPST,	0x4199ed64	| stock: the amp envelope's state per track, stride 8 (2 attack, 1 hold, 0 decay)
+	.set	LENCD,	0x8000196c	| stock: the amp's LEN countdown per track (long), loaded at a NoteOn, 0 for INF
+	.set	RELNOW,	-73		| stock: low byte of the ISR frame's %fp@(-76), this tick's countdowns run out
 	.set	STATE,	0x439d1180	| this build: the portamento state (40 B, above .bss)
 	.set	CUR,	0		|   8 longs: the note sum each track plays
 	.set	MAGIC,	32		|   long: MAGICV once the block below is initialised
@@ -43,6 +48,19 @@
 | any test.
 	.section .port_on,"ax"
 port_on:
+.ifdef LENCNT
+| The NoteOn comes before the stock store loads this note's countdown (0x40077a72), and after this
+| tick's countdown pass (0x400774dc): the countdown is the last note's.
+	bset	%d2,STATE+NEWB		| a new note on this track
+	lea	LENCD,%a1
+	tstl	%a1@(0,%d2:l:4)		| the last note's LEN still running?
+	bgts	1f
+	btst	%d2,%fp@(RELNOW)	| or run out in this very tick: a tie
+	beqs	2f
+1:	bset	%d2,STATE+LEGB		| legato
+2:	lea	%a1@(NOTES-LENCD),%a1
+	rts
+.else
 .ifdef LEGAMP
 | The amp envelope (FUN_400716c0) has not yet seen this note: its state is the last note's. Only the
 | legato bit is set here; port_glide clears it when it takes the new note.
@@ -67,6 +85,7 @@ port_on:
 .endif
 	lea	NOTES,%a1
 	rts
+.endif
 .endif
 
 .ifdef OFFTEXT
