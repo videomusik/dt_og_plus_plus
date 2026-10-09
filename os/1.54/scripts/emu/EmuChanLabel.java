@@ -43,6 +43,13 @@ public class EmuChanLabel extends GhidraScript {
   static final long RET = 0x40030db4L;          // any address that is not inside the pad
   static final long SP0 = 0x40258600L;
   static final long PAGE = 0x439d3000L, VPTR = 0x439d3200L, GETTER = 0x400a9900L;
+  // A build may route the pads' fall-through through the CFO oscillator's rename routines (in the pad
+  // FUN_400f77da) before the stock accessor. Given a whole MAIN OS, that pad is loaded too and may be
+  // passed through; for the ids tested here it must reach the stock accessor without asking the page
+  // for its machine (FUN_4002b5d4 is only for ONESHOT's SRC ids 108..115).
+  static final long CFO_PAD = 0x400f77daL, QUERY = 0x4002b5d4L;
+  static final int  CFO_LEN = 2372;
+  byte[] cfoBytes = null;
 
   static final int    MAIN_SIZE = 2479680;
   static final long   MAIN_BASE = 0x40000400L;
@@ -62,6 +69,8 @@ public class EmuChanLabel extends GhidraScript {
     if (!h.toString().equals(REF_MAIN_SHA256))
       println("  note: not the reference build's MAIN OS; stepping the pad bytes this image holds");
     int off = (int) (addr - MAIN_BASE);
+    int coff = (int) (CFO_PAD - MAIN_BASE);
+    cfoBytes = Arrays.copyOfRange(f, coff, coff + CFO_LEN);
     return Arrays.copyOfRange(f, off, off + len);
   }
 
@@ -81,6 +90,7 @@ public class EmuChanLabel extends GhidraScript {
     emu = new EmulatorHelper(currentProgram);
     emu.writeMemory(toAddr(SP0 - 0x600), new byte[0x1000]);
     emu.writeMemory(toAddr(PAD), padBytes);
+    if (cfoBytes != null) emu.writeMemory(toAddr(CFO_PAD), cfoBytes);
     emu.writeMemory(toAddr(PAGE), new byte[0x400]);
     wr(PAGE, VPTR, 4);
     wr(VPTR + 0x54, GETTER, 4);
@@ -135,7 +145,9 @@ public class EmuChanLabel extends GhidraScript {
         if (rd("SP") != sp + 4) bad.append(String.format(" [SP=0x%08x want 0x%08x]", rd("SP"), sp + 4));
         break;
       }
-      if (pc < PAD || pc >= PAD + PAD_LEN) { bad.append(" [escaped the pad at 0x" + Long.toHexString(pc) + "]"); break; }
+      if (pc == QUERY) { bad.append(" [the CFOO rename asked for the page's machine]"); break; }
+      boolean inCfo = cfoBytes != null && pc >= CFO_PAD && pc < CFO_PAD + CFO_LEN;
+      if ((pc < PAD || pc >= PAD + PAD_LEN) && !inCfo) { bad.append(" [escaped the pad at 0x" + Long.toHexString(pc) + "]"); break; }
       if (!emu.step(monitor)) { bad.append(" [FAULT: " + emu.getLastError() + "]"); break; }
     }
     for (int i = 0; i < 6; i++) if (rd32(sp + 16 + 4 * i) != canary[i]) bad.append(" [caller frame clobbered]");

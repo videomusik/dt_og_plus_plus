@@ -7,8 +7,10 @@
 //   0x40022fae  addi.l #16   -> addi.l #20
 //   0x40022fe6  moveq #4     -> moveq #5
 // (these are the build's edits at the same three sites; four machines become five).
-// Run it on a project imported from the stock MAIN OS (e.g. dt_1.54_emac). No arguments.
-//   ./scripts/ghidra_emu.sh 1.54 EmuMachineList
+// Run it on a project imported from the stock MAIN OS (e.g. dt_1.54_emac). Optional argument: the MAIN OS
+// of a build, whose bytes at the three sites are run as a third pass (and reported with its machine
+// sequence), for example a build that adds a sixth machine.
+//   ./scripts/ghidra_emu.sh 1.54 EmuMachineList [work/dt_1.54-<build>/section_3_MAIN_OS.bin]
 // Runs in Ghidra's emulator only; nothing touches a device. @category dt_og_plus_plus
 import ghidra.app.script.GhidraScript;
 import ghidra.app.emulator.EmulatorHelper;
@@ -24,6 +26,8 @@ public class EmuMachineList extends GhidraScript {
   void map(long addr,int n) throws Exception { emu.writeMemory(toAddr(addr),new byte[n]); }
   long rd(String r) throws Exception { return emu.readRegister(r).longValue()&0xffffffffL; }
 
+  byte[] image = null;
+
   int runOnce(boolean edited) throws Exception {
     emu=new EmulatorHelper(currentProgram);
     long FRAME=0x40258800L, SP=0x40258780L, RET=0x00000002L;
@@ -34,6 +38,13 @@ public class EmuMachineList extends GhidraScript {
       wr(0x40022f7eL,0x48780014L,4);      // pea 0x10 -> pea 0x14
       wr(0x40022faeL,0x06820000L,4); wr(0x40022fb2L,0x0014L,2);  // addil #16 -> #20
       wr(0x40022fe6L,0x7005L,2);          // moveq #4 -> moveq #5
+    }
+    if(image!=null){                      // a build's own bytes at the three sites
+      long[][] sites={{0x40022f7eL,4},{0x40022faeL,6},{0x40022fe6L,2}};
+      for(long[] st:sites){
+        int off=(int)(st[0]-0x40000400L);
+        emu.writeMemory(toAddr(st[0]),java.util.Arrays.copyOfRange(image,off,off+(int)st[1]));
+      }
     }
     // frame slots the loop reads (before our start point they were set by the earlier ctor body):
     wr(FRAME-108,0,4); wr(FRAME-104,0,4); wr(FRAME-100,0,4);  // the out-vector struct (begin=0 => skip free)
@@ -50,7 +61,7 @@ public class EmuMachineList extends GhidraScript {
     long bump=0x41b00000L;
     int adds=0; StringBuilder seq=new StringBuilder();
     int steps=0;
-    String tag = edited ? "EDITED" : "AS-IS ";
+    String tag = image!=null ? "IMAGE " : edited ? "EDITED" : "AS-IS ";
     for(;steps<20000;steps++){
       long pc=emu.getExecutionAddress().getOffset();
       if(pc==0x4002a9e4L){ println(tag+": loop EXIT after "+steps+" steps"); break; }
@@ -81,6 +92,12 @@ public class EmuMachineList extends GhidraScript {
     int s=runOnce(false);
     int e=runOnce(true);
     println("=== RESULT: as-is added "+s+" machines, edited added "+e+" machines ===");
+    String[] args=getScriptArgs();
+    if(args.length>0){
+      image=java.nio.file.Files.readAllBytes(java.nio.file.Paths.get(args[0]));
+      int m=runOnce(false);
+      println("=== IMAGE "+args[0].replaceAll(".*/(dt_1\\.54-[^/]*)/.*","$1")+": added "+m+" machines ===");
+    }
     println(e>s ? "=> the edit adds a machine in this constructor"
                 : "=> the edit does not change the count here: the list comes from elsewhere, or is capped elsewhere");
   }

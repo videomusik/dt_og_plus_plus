@@ -47,6 +47,13 @@ marker `0xC4A1`, which only this build writes
 | `0x439d1060` | 128 B | MIDI Loopback: the byte ring, 32 slots × 4 B |
 | `0x439d10e0` | 1 B | MIDI Loopback: the ring index, masked to 0..31 |
 
+Planned, not in the build (the CFO oscillator's test images S11–S14,
+[features/cfo_oscillator.md](features/cfo_oscillator.md)):
+- `0x439d1100`, 96 B: the phase accumulators, 8 tracks × 3 (u32). Their start-up contents do not
+  matter: any phase is a valid start.
+- `0x439d1160`, 32 B: the level each track ended its last tick on (u32, `0..0x7fff`). A start-up value
+  above `0x7fff` is taken as "no level yet"; one below starts a single tick's ramp from it.
+
 The code names `0x439d1004`, `0x439d1010`, `0x439d1038`, `0x439d1050`, `0x439d1058`, `0x439d1060` and
 `0x439d10e0` directly ([docs/patch_listing.md](../docs/patch_listing.md)); `slice[]` and `ownerTrack[]` are reached
 by displacement from those base registers.

@@ -35,6 +35,12 @@ occupants are the same code as in the patch listing ([docs/patch_listing.md](../
 | `FUN_40124a6c` + `FUN_40124ac4` | `0x40124a6c..0x40124b32` | 198 B | Chain Recording: `enc_pad` and `arm_pad`, `0x40124a6c..0x40124b24`; the rest keeps its fill. Vetted below |
 | `FUN_40128244` + `FUN_40128288` | `0x40128244..0x401282e0` | 156 B | Chain Recording: `fmt_arm`/`fmt_armed` and `no_pad`, `0x40128244..0x401282ce`; the rest keeps its fill. Vetted below |
 
+In the CFO oscillator's test images only (not in `patch.json`):
+
+| Pad | Extent | Size | Occupied by |
+|---|---|---:|---|
+| `FUN_400f77da` | `0x400f77da..0x400f811e` | 2,372 B | the CFO oscillator: in S11 `0x400f77da..0x400f7aac`; in S12 the code to `0x400f7abe` and the machine name table with its strings `0x400f7ac0..0x400f7b09`; in S13 and S14 the code to `0x400f7b26` and the name tables `0x400f7b28..0x400f7c01`; in S15 the code to `0x400f7b40` and the name tables `0x400f7b40..0x400f7c19`; in S16 the code to `0x400f7bcc` and the name and range tables `0x400f7bcc..0x400f7d41`; in S17 the code to `0x400f7dda` and the name, range and display tables `0x400f7ddc..0x400f7f79`; in S18 the code to `0x400f7f40` and the tables `0x400f7f40..0x400f8111`, 13 B short of the pad's end; in S19 the code to `0x400f7eb6` and the tables `0x400f7eb8..0x400f8089`, 149 B short; from S20 on code only, the tables in the .rodata padding at `0x40252c80`: S20 to `0x400f7ede`, S21 to `0x400f7f52`, S22 to `0x400f7f70`, S23 to `0x400f8060`, S24 to `0x400f80a4`, S25 to `0x400f80c6`, S26 to `0x400f811c`, 2 B short, S27 to `0x400f8118`, 6 B short; the rest keeps its fill. LZ4's streaming compressor, admitted by the recipe's library exception (the candidate list below); its fill test is the stage image S9 |
+
 Free code space: 112 B in twelve blocks, none larger than 18 B: 18 B at `0x401282ce` (fill), 16 B
 at `0x400152c0`, 16 B at `0x400bedf2`, 14 B at `0x40124b24` (fill), 10 B at `0x400156da`, 8 B at
 `0x400bf1e0`, 8 B at `0x40037ad6`, 6 B at `0x400c1392`, 6 B at `0x400bed96`, 6 B at `0x400bee64`,
@@ -173,9 +179,15 @@ Spans of adjacent leaf candidates of 120 B or more, other than the pads in use:
 | `0x4001df4e..0x4001dfd6` | 136 B | calls through a vtable |
 | `0x40013a9e..0x40013b24` | 134 B | not examined |
 | `0x400214e8..0x4002156c` | 132 B | not examined |
+| `0x400f77da..0x400f811e` | 2,372 B | `FUN_400f77da`, LZ4's streaming compressor. Not a leaf (two LZ4 helpers and `memcpy`), so step 1 does not admit it; steps 2–8 pass: raw words 2 (one straddles a FlexBus access at `0x400e2170`, one is the odd value `0x400f7fe1` in a word table at `0x40198c6e`), listing 0, the only switch table within ±32 KB (`0x400fae42`, 15 entries) does not reach it, `rts` before and a fresh prologue after. The CFO oscillator's candidate ([features/cfo_oscillator.md](features/cfo_oscillator.md#code-space)) |
 | `0x40071a16..0x40071b30` | 282 B | in the audio code |
 | `0x4007b2e8..0x4007b56a` | 642 B | in the audio code |
 | `0x4024f5be..0x4024f686`, `0x4024f7f0..0x4024f86c` | 200 B, 124 B | in the second code window; the first reads the peripheral registers `0xffff8010..0xffff8013` and data at `0x800xxx`, in SRAM. Not taken as a pad: I/O code |
+
+Most of the smaller leaf candidates call through a vtable (`jsr %a0@`) and are not leaves in fact. Those
+with no indirect call, outside the I/O region, the audio code and the second code window, are
+`0x400ee05e` (122 B), `0x400e6d1c` (108 B), `0x400e8544` (86 B), `0x40178f20` (86 B), `0x40178e02`
+(66 B), `0x400d266e` (60 B), `0x400c2242` (54 B) and `0x401778a4` (52 B): 634 B, not yet vetted.
 
 ⛔ A row here is a candidate, never a budget ([landing_pad_method.md](../../../notes/landing_pad_method.md#where-candidates-come-from)).
 
@@ -212,6 +224,21 @@ This build puts its icons and strings there:
 The `Bitmap` structs point at the `Bitmap` vtable (`0x401b7734`, the RTTI vtable `0x401b772c` + 8)
 and at stock masks: `0x4024de68` for the robin, a 17 × 17 all-ones mask (`ffff8000` seventeen
 times; hexdump), and `0x4023e0a0` for the POLY icon.
+
+In the CFO oscillator's test images only (not in `patch.json`;
+[features/cfo_oscillator.md](features/cfo_oscillator.md)):
+
+| Address | Size | Contents |
+|---|---|---|
+| `0x40252724` | 1,048 B | the four wavetables (1,024 B) and the mix points (24 B); S11 to S14 |
+| `0x40252c2c` | 12 B | the machine-picker selector table with CFOO's entry, replacing the one at `0x40252bf8`; S14 |
+| `0x40252c38` | 28 B | CFOO's icon `Bitmap` struct, with POLY's mask `0x4023e0a0`; S14 |
+| `0x40252c54` | 44 B | CFOO's icon colour plane; S14 |
+| `0x40252c80` | 465–601 B | CFOO's name, range and display tables (`.cfo_names`), moved out of the code pad; S20 465 B, S21 529 B, S22 and S23 533 B, S24 and S25 597 B, S26 and S27 601 B |
+
+That leaves `0x40252b3c..0x40252b50` (20 B), the byte at `0x40252c2b` and `0x40252c80..0x40253000`
+(896 B) free in S14, and from `0x40252ed9` on (295 B) in S26. The build's own selector table at
+`0x40252bf8` stays in place, unused.
 
 ## Related notes
 

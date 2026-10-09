@@ -15,3 +15,9 @@ file ([os/README.md](../README.md#values-found-again-in-another-version)).
 | `0x48780014` | Not an address: the encoding of `pea 0x14`, which the build writes over the stock `pea 0x10` at `0x40022f7e` (the machine-list constructor's vector size) | [docs/patch_listing.md](docs/patch_listing.md#poly-engine) |
 | `0x80001228` | The SRAM word the SLICE round robin engine reads the trig bits from | [notes/memory_map.md](notes/memory_map.md#on-chip-sram) |
 | `0x80001200` | The start of the 128 B of SRAM around `0x80001228` that the `EmuSliceLatch` harness clears before each case | [notes/memory_map.md](notes/memory_map.md#on-chip-sram) |
+| `0x80001a18` | The per-track audio buffers, 32 longs × 8, that `FUN_400757fe` writes and the audio ISR passes to `FUN_40072478` at `0x40077fc2` | [notes/features/cfo_oscillator.md](notes/features/cfo_oscillator.md#where-a-tracks-samples-come-from) |
+| `0x80002760` | The engine object, 8 per-track blocks of `0x6a` B, the render stages' first argument | [notes/features/cfo_oscillator.md](notes/features/cfo_oscillator.md#the-values-the-synth-reads) |
+| `0x80001f28` | The per-track note, MIDI note × 65536, read by `FUN_40075184`'s rate loop | [notes/features/cfo_oscillator.md](notes/features/cfo_oscillator.md#the-values-the-synth-reads) |
+| `0x8000edc4` | The per-voice render state, stride `0x5e`, whose `+0x10` holds the voice level | [notes/features/cfo_oscillator.md](notes/features/cfo_oscillator.md#the-values-the-synth-reads) |
+| `0x800018bc` | The machine byte per track that `FUN_4007725a` writes from a sound (`lea 0x800018bc,%a1` at `0x4007726c`) and the audio ISR copies to `0x4199f466` | [notes/function_ledger.md](notes/function_ledger.md#the-audio-isr-and-the-engine) |
+| `0x80001502` | The per-track value arrays, 106 B per track, that `FUN_40077282` copies a sound's values into (`addil #0x80001502` at `0x400772b8`) | [notes/function_ledger.md](notes/function_ledger.md#the-audio-isr-and-the-engine) |
