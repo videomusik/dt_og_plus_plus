@@ -75,8 +75,8 @@ In progress, not in the build:
   buffer where the sampler's samples go. The code is checked in the emulator; it is waiting for a
   landing pad. [features/cfo_oscillator.md](features/cfo_oscillator.md).
 - **Portamento.** PORT and LEG on every audio track's TRIG page: the note glides to each new note, or
-  with LEG on only to a legato one, for samples and the CFO oscillator. Checked in the emulator; test
-  images on top of the CFO oscillator's, not yet run on the unit.
+  with LEG on only to a legato one, for samples and the CFO oscillator. Test images on top of the CFO
+  oscillator's; ✅ the glide, LEG and a lock on PORT work on the test unit.
   [features/portamento.md](features/portamento.md).
 
 The other features have run on the test unit ([The test unit](#the-test-unit)).

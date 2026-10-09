@@ -80,11 +80,11 @@ About 2.5 time constants bring an octave's glide within a semitone of its target
   - id 5's text → `0x4197d6ac` (`OFF`/`ON`) and picture → `0x4197d37c` (the switch), FLT.T's and
     LFO.T's.
 
-  ⚠️ LEG keeps its object's word `+0x00` at 0; FLT.T and LFO.T have 4 there. The cell drawer
+  LEG keeps its object's word `+0x00` at 0; FLT.T and LFO.T have 4 there. The cell drawer
   (`MachineParameterPageView::vfunc_37`) tests that bit 2 and, when set, skips the value text it would
   otherwise draw while the knob is touched (on pages whose type is not 5). Writing 4 there takes a
-  longer instruction than the `clrl` it would replace, so LEG may show `OFF`/`ON` text where FLT.T
-  shows none.
+  longer instruction than the `clrl` it would replace. ✅ On the unit (S31, as reported) LEG's cell
+  shows `OFF`/`ON` text while it is turned, as this predicts.
 - **The TRIG page.** Its layout record `0x4197dfb4` (NOTE, VEL, LEN, PROB, FLT.T, LFO.T, then 0, 0,
   and Track Level) is written once at start-up by `FUN_40152280`, which runs only from the C++
   static-initialiser table (its one pointer, `0x40252604`, walked once by the init task's loop at
@@ -180,13 +180,26 @@ Each stage adds one thing to the one before; flash them in order on a unit that 
   A PORT lock on one trig changes that note's glide only. On a POLY track each voice glides from its
   own last note. On a CFOO track OSC1 glides and OSC2 and OSC3 keep their detunes.
 
+## On the unit
+
+✅ S31 on the test unit with OS 1.54, as reported:
+- a CFOO track glides;
+- a sample track glides;
+- LEG ON works;
+- a lock on PORT works;
+- LEG's cell shows `OFF`/`ON` text while it is turned, which FLT.T's does not (above).
+
+Not reported yet: S28 to S30 on their own, what existing projects hold in PORT and LEG, and a lock on
+LEG.
+
 ## Open points
 
-- ⚠️ The two new pads are dead by every scan of the recipe, but only S28 on the unit settles it.
+- The two new pads ran this build's code on the unit (S31, above); S28's fill test on its own is not
+  reported.
 - ⚠️ Slots 46 and 47 unused in stock: by the scans above; S30 shows what existing projects hold.
-- ⚠️ A lock on PORT or LEG is expected to work as for the AMP page's parameters (the slot map, and
-  `FUN_40074b0a` writing the ISR's copy by slot); the sequencer's lock store is not traced.
+- ⚠️ A lock on LEG is expected to work as the lock on PORT does (the slot map, and `FUN_40074b0a`
+  writing the ISR's copy by slot); the sequencer's lock store is not traced.
 - The glide is stepped once per tick (0.67 ms); on the shortest glides that is 1,500 steps a second.
-- ⚠️ LEG's `+0x00` word (above).
+- LEG's `+0x00` word (above): to make its cell behave as FLT.T's, the build would set it to 4.
 - Code space left: 10 B in `FUN_400ee05e`, 72 B in `FUN_400e6d1c`.
 - The feature is not in `patch.json`.

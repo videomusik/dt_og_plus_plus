@@ -191,7 +191,9 @@ read in this image, with the controls of steps 3 and 4 giving their known counts
 8. **Moat.** Outside every protected range ([update_moat.md](update_moat.md)); the nearest, the flash
    driver module `0x400e8c68..0x400ea596`, lies between them.
 
-⚠️ Their fill test is the stage image S28; not yet run on the unit.
+✅ S31, with `port_on` and `port_glide` in them, ran on the test unit with OS 1.54, and its glide works
+([features/portamento.md](features/portamento.md#on-the-unit)). Their fill test, the stage image S28,
+is not reported on its own.
 
 ## The candidate list on this image
 
