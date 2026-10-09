@@ -351,7 +351,10 @@ settings PORT had glided whether LEG was on or off (seen before S34). Cause: the
 ⚠️ S35: notes of equal LEN alternate between restarting and not (one runs into the other); cause: the
 amp envelope's state as the legato test (above); S36 changes it.
 
-Not reported yet: S28 to S30 on their own, what existing projects hold in PORT and LEG, and S36.
+✅ S36 on the test unit with OS 1.54, as reported: legato by LEN works as intended, "so far it seems
+to work".
+
+Not reported yet: S28 to S30 on their own, and what existing projects hold in PORT and LEG.
 
 ## Open points
 

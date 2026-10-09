@@ -77,8 +77,9 @@ In progress, not in the build:
 - **Portamento.** PORT and LEG on every audio track's TRIG page: the note glides to each new note, or
   with LEG on only to a legato one, for samples and the CFO oscillator; with LEG on a legato note does
   not restart the amp envelope; both are saved with the sound and their locks with the pattern. Test
-  images on top of the CFO oscillator's; ✅ the glide, LEG and a lock on PORT work on the test unit
-  (S31); saving, PORT's OFF and the amp envelope (S32–S34) are checked in the emulator.
+  images on top of the CFO oscillator's; ✅ on the test unit: the glide, LEG and a lock on PORT (S31),
+  PORT's OFF and LEG's cell (S32), saving and recall (S33), legato by LEN with the amp envelope held
+  (S36).
   [features/portamento.md](features/portamento.md).
 
 The other features have run on the test unit ([The test unit](#the-test-unit)).
