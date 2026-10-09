@@ -39,7 +39,7 @@ In the CFO oscillator's test images only (not in `patch.json`):
 
 | Pad | Extent | Size | Occupied by |
 |---|---|---:|---|
-| `FUN_400f77da` | `0x400f77da..0x400f811e` | 2,372 B | the CFO oscillator: in S11 `0x400f77da..0x400f7aac`; in S12 the code to `0x400f7abe` and the machine name table with its strings `0x400f7ac0..0x400f7b09`; in S13 and S14 the code to `0x400f7b26` and the name tables `0x400f7b28..0x400f7c01`; in S15 the code to `0x400f7b40` and the name tables `0x400f7b40..0x400f7c19`; in S16 the code to `0x400f7bcc` and the name and range tables `0x400f7bcc..0x400f7d41`; in S17 the code to `0x400f7dda` and the name, range and display tables `0x400f7ddc..0x400f7f79`; in S18 the code to `0x400f7f40` and the tables `0x400f7f40..0x400f8111`, 13 B short of the pad's end; in S19 the code to `0x400f7eb6` and the tables `0x400f7eb8..0x400f8089`, 149 B short; from S20 on code only, the tables in the .rodata padding at `0x40252c80`: S20 to `0x400f7ede`, S21 to `0x400f7f52`, S22 to `0x400f7f70`, S23 to `0x400f8060`, 190 B short; the rest keeps its fill. LZ4's streaming compressor, admitted by the recipe's library exception (the candidate list below); its fill test is the stage image S9 |
+| `FUN_400f77da` | `0x400f77da..0x400f811e` | 2,372 B | the CFO oscillator: in S11 `0x400f77da..0x400f7aac`; in S12 the code to `0x400f7abe` and the machine name table with its strings `0x400f7ac0..0x400f7b09`; in S13 and S14 the code to `0x400f7b26` and the name tables `0x400f7b28..0x400f7c01`; in S15 the code to `0x400f7b40` and the name tables `0x400f7b40..0x400f7c19`; in S16 the code to `0x400f7bcc` and the name and range tables `0x400f7bcc..0x400f7d41`; in S17 the code to `0x400f7dda` and the name, range and display tables `0x400f7ddc..0x400f7f79`; in S18 the code to `0x400f7f40` and the tables `0x400f7f40..0x400f8111`, 13 B short of the pad's end; in S19 the code to `0x400f7eb6` and the tables `0x400f7eb8..0x400f8089`, 149 B short; from S20 on code only, the tables in the .rodata padding at `0x40252c80`: S20 to `0x400f7ede`, S21 to `0x400f7f52`, S22 to `0x400f7f70`, S23 to `0x400f8060`, S24 to `0x400f80a4`, S25 to `0x400f80c6`, 88 B short; the rest keeps its fill. LZ4's streaming compressor, admitted by the recipe's library exception (the candidate list below); its fill test is the stage image S9 |
 
 Free code space: 112 B in twelve blocks, none larger than 18 B: 18 B at `0x401282ce` (fill), 16 B
 at `0x400152c0`, 16 B at `0x400bedf2`, 14 B at `0x40124b24` (fill), 10 B at `0x400156da`, 8 B at
@@ -234,10 +234,10 @@ In the CFO oscillator's test images only (not in `patch.json`;
 | `0x40252c2c` | 12 B | the machine-picker selector table with CFOO's entry, replacing the one at `0x40252bf8`; S14 |
 | `0x40252c38` | 28 B | CFOO's icon `Bitmap` struct, with POLY's mask `0x4023e0a0`; S14 |
 | `0x40252c54` | 44 B | CFOO's icon colour plane; S14 |
-| `0x40252c80` | 465–533 B | CFOO's name, range and display tables (`.cfo_names`), moved out of the code pad; S20 465 B, S21 529 B, S22 and S23 533 B |
+| `0x40252c80` | 465–597 B | CFOO's name, range and display tables (`.cfo_names`), moved out of the code pad; S20 465 B, S21 529 B, S22 and S23 533 B, S24 and S25 597 B |
 
 That leaves `0x40252b3c..0x40252b50` (20 B), the byte at `0x40252c2b` and `0x40252c80..0x40253000`
-(896 B) free in S14, and from `0x40252e95` on (363 B) in S23. The build's own selector table at
+(896 B) free in S14, and from `0x40252ed5` on (299 B) in S25. The build's own selector table at
 `0x40252bf8` stays in place, unused.
 
 ## Related notes

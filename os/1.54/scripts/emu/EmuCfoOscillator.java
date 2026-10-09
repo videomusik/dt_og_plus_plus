@@ -768,8 +768,11 @@ public class EmuCfoOscillator extends GhidraScript {
 
   /** S18: the agreed texts. A, C, D, E, F the number, at most 127; B OSC2, 2+3, OSC3 (above 2 as 2);
    *  G, H the semitones from unison, two decimals (a hundredth a cent, rounded), -24.00..+24.00, 0.00 at
-   *  unison. And each knob's range for the picture, {min, span} in 8.8. */
-  static String agreedText2(int k, int raw) {
+   *  unison. And each knob's range for the picture, {min, span} in 8.8. S24 (sym wave_cnames): A, C, D
+   *  at 0, 42, 85, 127 (the value as the synth reads it, at most 127) read SIN, TRI, SAW, SQR, and E
+   *  OSC1, 1+2, 123, 2+3. */
+  boolean corners = false;
+  String agreedText2(int k, int raw) {
     int n = (raw >> 8) & 0xff;
     if (k == 1) return new String[] {"OSC2", "2+3", "OSC3"}[Math.min(n, 2)];
     if (k >= 6) {
@@ -778,7 +781,11 @@ public class EmuCfoOscillator extends GhidraScript {
       int c = (Math.abs(v) * 100 + 128) >> 8;
       return (v < 0 ? "-" : "+") + (c / 100) + "." + String.format("%02d", c % 100);
     }
-    return String.valueOf(Math.min(n, 127));
+    int m = Math.min(n, 127);
+    int corner = m == 0 ? 0 : m == 42 ? 1 : m == 85 ? 2 : m == 127 ? 3 : -1;
+    if (corners && corner >= 0 && k != 5)
+      return (k == 4 ? new String[] {"OSC1", "1+2", "123", "2+3"} : new String[] {"SIN", "TRI", "SAW", "SQR"})[corner];
+    return String.valueOf(m);
   }
   static final int[][] KRANGE2 = {{0, 0x7f00}, {0, 0x200}, {0, 0x7f00}, {0, 0x7f00}, {0, 0x7f00}, {0, 0x7f00}, {0x2800, 0x3000}, {0x2800, 0x3000}};
   static final int[] STEP_IDS = {110, 109, 110, 110, 110, 110, 108, 108};
@@ -1137,6 +1144,36 @@ public class EmuCfoOscillator extends GhidraScript {
     if (bad.length() != 0) fails++;
   }
 
+  /** S25 (sym cfo_srcfmt): the SRC page's title (FUN_4003a638, the machine at %sp@(12)) and popup
+   *  (SamplePageView::vfunc_2, the machine in %d4) push "%s" for POLY (4) and CFOO (5) and the stock
+   *  "%s: %.16s" otherwise, where the pea they replace put it; the rest of the stack and the kept
+   *  registers unchanged; and the two sites in place. */
+  void srcCases() throws Exception {
+    fresh();
+    StringBuilder bad = new StringBuilder();
+    long fmt = 0x401c41c0L, only = sym.get("s_name_only");
+    if (rdn(0x4003a6ceL, 2) != 0x4eb9L || rdn(0x4003a6d0L, 4) != sym.get("cfo_srctitle")) bad.append(" [0x4003a6ce]");
+    if (rdn(0x4003b512L, 2) != 0x4eb9L || rdn(0x4003b514L, 4) != sym.get("cfo_srcfmt")) bad.append(" [0x4003b512]");
+    for (String r : new String[] {"cfo_srctitle", "cfo_srcfmt"}) {
+      for (long m : new long[] {-1, 0, 1, 2, 3, 4, 5, 6}) {
+        long mm = m & 0xffffffffL;
+        long[] stack = {RET, 0x401c6f07L, 0x439d4900L, r.equals("cfo_srctitle") ? mm : 0x3333, 0x439d4800L};
+        String[] rn = r.equals("cfo_srcfmt") ? new String[] {"D4"} : new String[] {};
+        long[] rv = r.equals("cfo_srcfmt") ? new long[] {mm} : new long[] {};
+        if (!runReal(sym.get(r), stack, rn, rv, new long[] {}, bad, r + " machine " + m)) continue;
+        long want = m == 4 || m == 5 ? only : fmt;
+        if (rd("SP") != spAt || rdn(spAt, 4) != want) bad.append(String.format(" [%s machine %d: sp %d, format 0x%x]", r, m, rd("SP") - spAt, rdn(spAt, 4)));
+        for (int i = 1; i < stack.length; i++) if (rdn(spAt + 4L * i, 4) != stack[i]) { bad.append(" [" + r + ": the stack changed]"); break; }
+        for (int i = 0; i < KEEP.length; i++) {
+          long w = KEEP[i].equals("D4") && r.equals("cfo_srcfmt") ? mm : 0x5a5a0000L + i;
+          if (rd(KEEP[i]) != w) { bad.append(" [" + r + ": " + KEEP[i] + " not kept]"); break; }
+        }
+      }
+    }
+    println(String.format("  %-64s %s%s", "S25 SRC page title and popup: machine name alone for POLY, CFOO", bad.length() == 0 ? "OK" : "**FAIL**", bad));
+    if (bad.length() != 0) fails++;
+  }
+
   /** S19: the objects behind a sound's parameter set, laid out as the firmware has them. A
    *  SoundParameterSet (the stock vtable 0x4017ee58) keeps its sound holder at +0x10; the holder's method
    *  at +0x28 returns the sound (here a stub, movel #HSND,%d0 ; rts); the sound holds its values (16 bit)
@@ -1356,6 +1393,7 @@ public class EmuCfoOscillator extends GhidraScript {
     v2 = knobs && sym.containsKey("cfo_encobj");
     realSets = knobs && (sym.containsKey("set_machine") || Arrays.asList(args).contains("realsets"));
     pure = sym.containsKey("segfrac");
+    corners = sym.containsKey("wave_cnames");
     if (knobs) {
       CFOO_SHORT = new String[] {"WAV1", "FMSR", "WAV2", "WAV3", "MIX", "FM", "DET2", "DET3"};
       CFOO_LONG = new String[] {"OSC1 Wave", "FM Source", "OSC2 Wave", "OSC3 Wave", "Osc Mix", "FM Amount", "OSC2 Detune", "OSC3 Detune"};
@@ -1431,6 +1469,7 @@ public class EmuCfoOscillator extends GhidraScript {
       if (sym.containsKey("cfo_fobj")) snapCases();
       if (sym.containsKey("cfo_trkpop")) trkCases();
       if (sym.containsKey("cfo_lfocell")) lfoCases();
+      if (sym.containsKey("cfo_srcfmt")) srcCases();
       remap = false;
       run("machine 5: ONESHOT with SAMP OFF is left alone", 3, zero, zero, c4, 0x4000, 3, 0, 0, 0, 0, MAX);
       remap = true;

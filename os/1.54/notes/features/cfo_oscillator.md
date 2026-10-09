@@ -234,9 +234,9 @@ the pad's 2,372. The routes:
 
 ## Testing on the unit
 
-`make_cfo.py lz4_stream.ld --stages` builds fifteen images on top of the reference build (section 3
+`make_cfo.py lz4_stream.ld --stages` builds seventeen images on top of the reference build (section 3
 `efc90606…`, `.syx` `3fd4b0a3`), each adding one step to the stage named in its row. They are meant to
-be flashed in order, S9 to S23:
+be flashed in order, S9 to S25:
 
 | Stage | `.syx` | Section 3 | Contents |
 |---|---|---|---|
@@ -255,6 +255,8 @@ be flashed in order, S9 to S23:
 | S21 | `23ad0daf` | `a87695d0…` | S20 + [FUNC] + knob steps between those points, and between nine detunes ([below](#func--knob-in-s21)) |
 | S22 | `0e302722` | `3fd1a030…` | S21 + the [TRK] popup shows POLY and CFOO without a sample name ([below](#the-trk-popup-in-s22)) |
 | S23 | `3d72e125` | `5c3ebf10…` | S22 + CFOO's names as LFO destinations ([below](#cfoo-as-an-lfo-destination-in-s23)) |
+| S24 | `42f51b39` | `d4b5a241…` | S23 + the waves and the mix read SIN, TRI, SAW, SQR and OSC1, 1+2, 123, 2+3 at their four points ([below](#names-at-the-four-points-in-s24)) |
+| S25 | `62765b5a` | `ac131e81…` | S24 + the SRC page's title and popup show POLY and CFOO without a sample name ([below](#the-src-pages-own-texts-in-s25)) |
 
 Checked on the built images (S12's own checks are [below](#cfoo-machine-5-in-s12)):
 - the build's own checks;
@@ -383,6 +385,11 @@ What to check:
   name (WAV1 … DET3), and the destination list reads `CFOO:OSC1 Wave` … `CFOO:OSC3 Detune` (or the
   short names where a long one is too wide). The FILTER, AMP and other destinations, and every other
   machine's list, are unchanged.
+- **S24:** on a CFOO track, WAV1, WAV2 and WAV3 read `SIN`, `TRI`, `SAW`, `SQR` at 0, 42, 85, 127 (under
+  the knob and in the popup, e.g. `OSC1 Wave=TRI`), and MIX `OSC1`, `1+2`, `123`, `2+3`; every other
+  value is the number, FMSR, FM and the detunes as in S23.
+- **S25:** the SRC page of a POLY or CFOO track shows no sample name where it showed one (its title, and
+  the popup that shows the machine and the sample); ONESHOT, WERP, REPITCH and SLICE as before.
 - **S17:** on a CFOO track all eight cells are plain knobs, each turning over its own range: A, C, D over
   the waves, B in four steps, E and F to 120, G and H to 98 with unison at the top. The encoder popup
   (and the cell's text, where the page shows one) reads, for example, `OSC1 Wave=0`, `FM Source=OFF`,
@@ -1024,9 +1031,8 @@ name alone.
 **Checked:** `cfo_trkpop` for machines −1 to 6: `"%s"` only for 4 and 5, the other arguments, the
 stack and the kept registers unchanged. Control: the test shifted by one machine fails it.
 
-⚠️ Two other places use the same format: `SamplePageView::vfunc_2` (`0x4003b512`) and `FUN_4003a638`
-(`0x4003a6ce`, the text `SamplePageView::vfunc_19` returns). What they show for POLY and CFOO is not
-checked.
+Two other places use the same format, on the SRC page; S25 takes them up
+([below](#the-src-pages-own-texts-in-s25)).
 
 ## CFOO as an LFO destination, in S23
 
@@ -1051,6 +1057,34 @@ CFOO's (short on the knob and in the fallback, long in the list).
 with the machine 5 and 0: CFOO's strings only for 108–115 on 5, the descriptor's otherwise, the list's
 stack (prefix, name) and its kept `%a0`; the four sites in place. Controls: the fallback's divide off
 by one, and the kit lookup replaced by the wrong one, each fail their own cases.
+
+## Names at the four points, in S24
+
+Built with `--defsym CORNERS=1` on top of S23. In `cfo_text` (the popup and the cell's text), A, C and D
+at 0, 42, 85 and 127 (the integer part, at most 127, as the synth reads it: S20's pure points) read
+`SIN`, `TRI`, `SAW`, `SQR`, and E at the same values `OSC1`, `1+2`, `123`, `2+3`; any other value, and F
+always, is the number.
+
+**Checked:** S18's text cases (4,168 values, popup and cell) against the model with the names. Controls:
+a name's letter changed, and the 42 test moved to 43, each fail those cases.
+
+## The SRC page's own texts, in S25
+
+Built with `--defsym SRCNAME=1` on top of S24. On the unit (OS 1.54), as reported: a POLY or CFOO
+track's SRC page still shows a sample name. ✅ Read in the code (objdump): two SRC-page texts format
+`"%s: %.16s"` of the machine's short name (`0x4007912c`) and a sample name, whatever the machine:
+- the page's title, `FUN_4003a638`: SAMP's slot (id 111, on CFOO WAV3's value) through `0x4002072a`,
+  `sprintf` into the page's `+0x1b0`, the machine `FUN_4002b5d4(page)`;
+- a popup in `SamplePageView::vfunc_2` (`0x4003b512`): the slot of the machine's Sample Slot id (table
+  `0x40184a0c`, id 0 above machine 3), the machine `FUN_4002200a` in `%d4`. Its `jsr 0x40093ab0` is
+  shared with a `"Sound: %d %s"` text.
+
+Each pushes the format with `pea 0x401c41c0` (`0x4003a6ce`, `0x4003b512`); S25 replaces both with a call
+that pushes `"%s"` for machines 4 and 5 and the stock format otherwise.
+
+**Checked:** both entries for machines −1 to 6: `"%s"` only for 4 and 5, where the `pea` put it, the rest
+of the stack and the kept registers unchanged; the two sites in place. Control: the title's machine read
+from the wrong stack slot fails it.
 
 ## Related notes
 

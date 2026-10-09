@@ -38,6 +38,8 @@ Stages, written to out/1.54/stages/ (only with --stages):
        +12, +19, +24 semitones
   S22  S21 + the [TRK] popup shows POLY and CFOO without a sample name
   S23  S22 + CFOO's names as LFO destinations, on the DEST knob and in the destination list
+  S24  S23 + A, C, D and E read SIN, TRI, SAW, SQR and OSC1, 1+2, 123, 2+3 at 0, 42, 85, 127
+  S25  S24 + the SRC page's title and popup show POLY and CFOO without a sample name
 patch.json is not changed: the feature is a prototype."""
 import json, os, shutil, subprocess, sys, tempfile
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -108,7 +110,9 @@ OPERAND_SITES = [(0x40010054, "40065794", "cfo_fobj"), (0x4003bd6c, "40093ab0", 
 # the destination list's long-name and short-name pushes.
 REPL_SITES = [(0x40065e5e, "70344c0038002f303830", "cfo_lfocell", "2f004e71"),
               (0x400a44d0, "2f3308282f06", "cfo_lfolist", ""),
-              (0x400a454c, "2f3328302f06", "cfo_lfolist2", "")]
+              (0x400a454c, "2f3328302f06", "cfo_lfolist2", ""),
+              (0x4003a6ce, "4879401c41c0", "cfo_srctitle", ""),   # S25: the SRC page title's format
+              (0x4003b512, "4879401c41c0", "cfo_srcfmt", "")]     # S25: SamplePageView::vfunc_2's
 
 
 def fill(lo, hi):
@@ -124,7 +128,8 @@ def run(*cmd):
 
 
 def assemble(ld, tmp, inert=False, machine5=False, names=False, icon=False, slots=False, knobs=False,
-             displays=False, knobs2=False, sets=False, pure=False, snap=False, trkpop=False, lfonames=False):
+             displays=False, knobs2=False, sets=False, pure=False, snap=False, trkpop=False, lfonames=False,
+             corners=False, srcname=False):
     run(sys.executable, os.path.join(HERE, "make_waves.py"), os.path.join(tmp, "waves.inc"))
     src = os.path.join(HERE, "cfo.s")
     defs = (["--defsym", "MACHINE5=1"] if machine5 else []) + (["--defsym", "NAMES=1"] if names else []) + \
@@ -132,7 +137,8 @@ def assemble(ld, tmp, inert=False, machine5=False, names=False, icon=False, slot
         (["--defsym", "KNOBS=1"] if knobs else []) + (["--defsym", "DISPLAYS=1"] if displays else []) + \
         (["--defsym", "KNOBS2=1"] if knobs2 else []) + (["--defsym", "SETS=1"] if sets else []) + \
         (["--defsym", "PURE=1"] if pure else []) + (["--defsym", "SNAP=1"] if snap else []) + \
-        (["--defsym", "TRKPOP=1"] if trkpop else []) + (["--defsym", "LFONAMES=1"] if lfonames else [])
+        (["--defsym", "TRKPOP=1"] if trkpop else []) + (["--defsym", "LFONAMES=1"] if lfonames else []) + \
+        (["--defsym", "CORNERS=1"] if corners else []) + (["--defsym", "SRCNAME=1"] if srcname else [])
     ldefs = ["--section-start=.cfo_names=0x%08x" % NAMES_RO] if pure else []
     if inert:
         src = os.path.join(tmp, "inert.s")
@@ -219,6 +225,10 @@ KNOB_STAGES = [
     ("S22", "i", dict(knobs=True, displays=True, knobs2=True, sets=True, pure=True, snap=True, trkpop=True)),
     ("S23", "j", dict(knobs=True, displays=True, knobs2=True, sets=True, pure=True, snap=True, trkpop=True,
                       lfonames=True)),
+    ("S24", "l", dict(knobs=True, displays=True, knobs2=True, sets=True, pure=True, snap=True, trkpop=True,
+                      lfonames=True, corners=True)),
+    ("S25", "m", dict(knobs=True, displays=True, knobs2=True, sets=True, pure=True, snap=True, trkpop=True,
+                      lfonames=True, corners=True, srcname=True)),
 ]
 
 

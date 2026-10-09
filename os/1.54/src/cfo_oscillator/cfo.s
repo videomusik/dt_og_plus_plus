@@ -1015,7 +1015,8 @@ cfo_popup:
 | cfo_text: %d0 = knob 0..7 (A..H), %d1 = its value (8.8), %a0 = a buffer. Writes what the synth makes
 | of the value, NUL-terminated: A, C, D the wave on one 0..127 scale; B OFF, OSC2, 2+3, OSC3; E the mix
 | 0..127; F the FM amount; G -48st..-1st, 0, +1ct..+50ct; H -50ct..-1ct, 0, +1st..+48st. At most 6 B.
-| Clobbers %d0, %d1, %a0, %a1.
+| (S18 and on: the knob table of S18 below; S24: A, C, D and E at 0, 42, 85, 127 read the pure wave or
+| the mix there.) Clobbers %d0, %d1, %a0, %a1.
 cfo_text:
 	andil	#0xffff,%d1
 .ifdef KNOBS2
@@ -1024,11 +1025,41 @@ cfo_text:
 	lsrl	#8,%d1
 	cmpil	#1,%d0
 	beqw	t2_b
+.ifdef CORNERS
+	movel	%d0,%a1			| the knob
+	moveq	#127,%d0		| A, C, D, E, F: at most 127, as the synth
+	cmpl	%d1,%d0
+	bccs	1f
+	movel	%d0,%d1
+1:	movel	%a1,%d0
+	subql	#5,%d0
+	beqw	t_num			| F: the number
+	moveq	#0,%d0			| (S24) A, C, D, E at 0, 42, 85, 127: the pure wave's or the mix's name
+	tstl	%d1
+	beqs	2f
+	moveq	#4,%d0
+	cmpil	#42,%d1
+	beqs	2f
+	moveq	#8,%d0
+	cmpil	#85,%d1
+	beqs	2f
+	moveq	#12,%d0
+	cmpil	#127,%d1
+	bnew	t_num			| between them: the number
+2:	movel	%a1,%d1
+	lea	wave_cnames,%a1
+	subql	#4,%d1
+	bnes	3f
+	lea	mix_cnames,%a1		| E
+3:	moveal	%a1@(0,%d0:l),%a1
+	braw	t_copy
+.else
 	moveq	#127,%d0		| A, C, D, E, F: the number, at most 127, as the synth
 	cmpl	%d1,%d0
 	bccw	t_num
 	movel	%d0,%d1
 	braw	t_num
+.endif
 .endif
 .ifndef SETS				| (S16, S17; with SETS, which comes with KNOBS2, left out)
 	lsrl	#8,%d1			| the integer part, as the synth reads it
@@ -1325,6 +1356,29 @@ s_name_only: .asciz "%s"
 	.section .cfo_display,"ax"
 .endif
 
+.ifdef SRCNAME
+| (S25) The SRC page's own two texts of the same kind, "%s: %.16s" of the machine's short name and the
+| sample name of SAMP's slot (id 111; on CFOO, WAV3's value): its title (FUN_4003a638, sprintf into the
+| page's +0x1b0, the machine FUN_4002b5d4(page) on the stack) and a popup (SamplePageView::vfunc_2, the
+| machine in %d4). Each pushes the format with 'pea 0x401c41c0' (0x4003a6ce, 0x4003b512), which is
+| replaced by a call here: POLY (4) and CFOO (5) get "%s", the machine's name alone; anything else the
+| stock format. %d0, %d1, %a0, %a1 are dead at both.
+cfo_srcfmt:				| 0x4003b512: the machine in %d4
+	movel	%d4,%d0
+	bras	1f
+cfo_srctitle:				| 0x4003a6ce: the machine at %sp@(12), under the name and the sample
+	movel	%sp@(12),%d0
+1:	moveal	%sp@+,%a1		| the return
+	lea	0x401c41c0,%a0		| "%s: %.16s"
+	subql	#4,%d0
+	moveq	#1,%d1
+	cmpl	%d0,%d1
+	bcss	2f
+	lea	s_name_only,%a0
+2:	movel	%a0,%sp@-		| the format, where the pea put it
+	jmp	%a1@
+.endif
+
 .ifdef LFONAMES
 | (S23) CFOO's names as LFO destinations. A CFOO track's SRC destinations are ONESHOT's ids 108..115
 | (FUN_40078f44, S15), and two places read their names from the descriptors: the DEST knob's picture
@@ -1449,6 +1503,20 @@ fmsr2_names:
 step_ids:				| the parameter whose step each knob takes, A..H
 	.long	110, 109, 110, 110, 110, 110, 108, 108
 s_zero2: .asciz	"0.00"
+	.balign	4
+.endif
+.ifdef CORNERS
+wave_cnames:				| (S24) the texts at 0, 42, 85, 127: A, C, D
+	.long	s_sin, s_tri, s_saw, s_sqr
+mix_cnames:				| and E
+	.long	s_mosc1, s_m12, s_m123, s_osc23
+s_sin:	.asciz	"SIN"
+s_tri:	.asciz	"TRI"
+s_saw:	.asciz	"SAW"
+s_sqr:	.asciz	"SQR"
+s_mosc1: .asciz	"OSC1"
+s_m12:	.asciz	"1+2"
+s_m123:	.asciz	"123"
 	.balign	4
 .endif
 fmsr_names:
