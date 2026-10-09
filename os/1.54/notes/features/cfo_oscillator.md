@@ -312,6 +312,8 @@ Results on the unit, OS 1.54, each stage flashed on the one before from S8:
   the knobs are the machine test above (S19), which can pass on a ONESHOT track as well. ⚠️ The names
   under the knobs come from S13's hook, which asks the page for its machine (`FUN_4002b5d4`); if a
   ONESHOT track's names change too, that is not explained.
+- ✅ **S19:** works, as reported (no details).
+- ✅ **S20 to S23:** work, as reported (no details).
 
 What to check:
 - **S9:** nothing changes anywhere. A live caller of the pad would now get 0 at once.
