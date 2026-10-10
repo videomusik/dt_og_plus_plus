@@ -1,8 +1,9 @@
 # FILTER page 2: VED and KEY
 
-Not in the build: test images on top of it (the build of `os/1.54/build/patch.json`, section 3
-`d6fac1a3…`). Source: [src/filter_page2/](../../src/filter_page2/). This note describes the last stage,
-S52, and what each stage before it changed.
+In the build from v0.2.2: `os/1.54/build/patch.json` holds it as the feature `filter_page2`, its last
+stage, S52, less the build before it (v0.2.1, section 3 `d6fac1a3…`), on which the stages are built.
+The build is S52, byte for byte. Source: [src/filter_page2/](../../src/filter_page2/). This note
+describes S52, and what each stage before it changed.
 
 ## What it does
 
@@ -242,7 +243,8 @@ at `0x40252efe`, 4 B at `0x40252ffc`, 8 B at `0x401778d0`. Knob B's destination 
 
 ## Checks
 
-- **`make_filt.py`:** the build comes from `patch.json` and must give its hash; every range this
+- **`make_filt.py`:** the build before this feature comes from `patch.json` (its features before
+  `filter_page2`, and the bytes this feature rewrites given back) and must give its hash; every range this
   feature writes is stock and untouched by the build, but for the three sites it takes over from
   portamento (the reader's call, the two lookups' tests), the writer's loop count and table, each
   holding the build's expected bytes, and the two leftovers, which must hold the build's pad fill; each
@@ -250,6 +252,17 @@ at `0x40252efe`, 4 B at `0x40252ffc`, 8 B at `0x401778d0`. Knob B's destination 
   into a replaced site; `%a4` holds the copier at the start-up site; each later stage keeps the entries
   the sites name. Each stage image passes `build.py`'s checks. The compressor window of S43 is unchanged
   (largest back-reference `0xffc6a`).
+- **The merge** (`make_filt.py --stages --write`): `patch.json` gets `filter_page2` from S52. Every
+  byte that S52 changes from stock is listed once, under the last feature that wrote it: this
+  feature's, else the earlier feature's. So portamento's reader call and two lookup tests and the
+  writer's loop count (`0x4007a2ac`, `0x4007974c`, `0x40079786`, `0x4007a614`), and the two leftovers
+  of the build's pad fill that hold KEY's text, are listed under `filter_page2`. `build.py` on the
+  result gives `.syx` `701a6c28…`, section 3 `3b88fa95…`: S52, v0.2.2. Without `--write` the script
+  reports whether `patch.json` is up to date. `make_cfo.build_without_cfo` gives the pad fill back
+  (`LATER_SITES`), so `make_cfo.py`, `make_chain.py` and `make_port.py` start from the merged
+  `patch.json` as before: Chain Recording's S8, the CFO oscillator's S27 and portamento's S36 rebuild to
+  their recorded hashes; `make_port.py` checks S36 against its recorded hash, and it and
+  `make_chain.py` refuse `--write`. The harnesses that take the build's MAIN OS pass on v0.2.2.
 - **The display objects on a whole start-up.** An emulation of the whole display builder
   `FUN_40152280` (a bump allocator in place of `0x400d43a8`) on S39 left ids 1 and 2 with ENV's text and
   picture callables, and `ParameterSet::vfunc_23` drew the same frame for them as for ENV; that ruled
@@ -285,7 +298,8 @@ at `0x40252efe`, 4 B at `0x40252ffc`, 8 B at `0x401778d0`. Knob B's destination 
 
 ## Stage images
 
-Each stage adds one thing to the one before; flash them in order on a unit that runs the build (v0.2.1).
+Each stage adds one thing to the one before; flash them in order on a unit that runs v0.2.1, the build
+before this feature. S52 is the build v0.2.2.
 
 | Stage | `.syx` | Section 3 | Contents |
 |---|---|---|---|
@@ -348,8 +362,8 @@ page: DEL's picture, B's dotted square, VED's name alone, SRR's knob, the BASE/W
 alone, ROUT's text). Cause and change: [FILTER page 2 draws its own knobs](#ved-and-key-as-sound-parameters)
 above, S40.
 
-✅ S40 to S43 on the test unit with OS 1.54, as reported: they work. ✅ The later stages, up to S52, on
-the test unit with OS 1.54, as reported: they work.
+✅ S40 to S52 on the test unit with OS 1.54, as reported: each flashed in turn and checked on its own,
+and they work. Not yet tested against every other feature of the build; nothing found broken so far.
 
 ## Open points
 

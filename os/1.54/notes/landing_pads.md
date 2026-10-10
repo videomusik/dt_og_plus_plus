@@ -35,8 +35,8 @@ occupants are the same code as in the patch listing ([docs/patch_listing.md](../
 | span at `0x40015558` | `0x40015558..0x400156e4` | 396 B | pool cursors, MIDI Loopback display pads, private-lane arm and record filter |
 | span at `0x400151ac` | `0x400151ac..0x400152d0` | 292 B | MIDI Loopback channel hook and tap |
 | the STL span | `0x401770a6..0x40177194` | 238 B | voice allocation, mute-by-origin detours; Chain Recording's chain state and `stop_pad` in the tail, `0x40177104..0x40177192` |
-| `FUN_40124a6c` + `FUN_40124ac4` | `0x40124a6c..0x40124b32` | 198 B | Chain Recording: `enc_pad` and `arm_pad`, `0x40124a6c..0x40124b24`; the rest keeps its fill (in the FILTER page 2 test image S52, `key_txt`'s first part, `0x40124b24..0x40124b30`). Vetted below |
-| `FUN_40128244` + `FUN_40128288` | `0x40128244..0x401282e0` | 156 B | Chain Recording: `fmt_arm`/`fmt_armed` and `no_pad`, `0x40128244..0x401282ce`; the rest keeps its fill (in the FILTER page 2 test image S52, `key_txt`'s second part: the rest). Vetted below |
+| `FUN_40124a6c` + `FUN_40124ac4` | `0x40124a6c..0x40124b32` | 198 B | Chain Recording: `enc_pad` and `arm_pad`, `0x40124a6c..0x40124b24`; the rest keeps its fill (from v0.2.2 FILTER page 2's `key_txt`, first part, `0x40124b24..0x40124b30`). Vetted below |
+| `FUN_40128244` + `FUN_40128288` | `0x40128244..0x401282e0` | 156 B | Chain Recording: `fmt_arm`/`fmt_armed` and `no_pad`, `0x40128244..0x401282ce`; the rest keeps its fill (from v0.2.2 FILTER page 2's `key_txt`, second part: the rest). Vetted below |
 
 The CFO oscillator ([features/cfo_oscillator.md](features/cfo_oscillator.md)), stage by stage; the
 build holds S27's:
@@ -53,7 +53,7 @@ S27; the build holds S36's:
 | `FUN_400e6d1c` | `0x400e6d1c..0x400e6d88` | 108 B | S28 its fill; S29 and S30 `port_on`'s inert replay, 8 B; S31 `port_on`, `0x400e6d1c..0x400e6d40`; S32 and `port_text` to `0x400e6d52`; S33 and `rd_hook` to `0x400e6d6e`; S34 and `amp_hook`: the whole pad; until then the rest keeps its fill. Vetted below |
 | `FUN_400ee05e` | `0x400ee05e..0x400ee0d8` | 122 B | S28 its fill; S29 and S30 `port_glide`'s inert replay, 12 B; S31 to S34 `port_glide`, `0x400ee05e..0x400ee0ce`; from S35 to `0x400ee0d2`; the rest keeps its fill. Vetted below |
 
-In the FILTER page 2 test images only, on top of the build (not in `patch.json`;
+FILTER page 2's pads (in the build from v0.2.2; by stage in
 [features/filter_page2.md](features/filter_page2.md)):
 
 | Pad | Extent | Size | Occupied by |
@@ -63,14 +63,14 @@ In the FILTER page 2 test images only, on top of the build (not in `patch.json`;
 | `FUN_40178e02` | `0x40178e02..0x40178e44` | 66 B | S37 its fill; S42 `rd_hook2`, PORT and LEG only, `0x40178e02..0x40178e1e`; from S43 `rd_hook2` with VED and KEY: the whole pad. Vetted below |
 | `FUN_401778a4` | `0x401778a4..0x401778d8` | 52 B | S37 its fill; S42 `fwd_ext` and `inv_ext`, 20 B; from S43 44 B, to `0x401778d0`; the rest keeps its fill. Vetted below |
 
-Free code space: 124 B in fourteen blocks, none larger than 18 B: 18 B at `0x401282ce` (fill), 16 B
-at `0x400152c0`, 16 B at `0x400bedf2`, 14 B at `0x40124b24` (fill), 10 B at `0x400156da`, 8 B at
-`0x400bf1e0`, 8 B at `0x40037ad6`, 6 B at `0x400c1392`, 6 B at `0x400bed96`, 6 B at `0x400bee64`,
-6 B at `0x400f8118` (the CFO oscillator's pad, fill), 6 B at `0x400ee0d2` (portamento's
-`FUN_400ee05e`, fill), 2 B at `0x40177192` (the STL span's tail, fill) and 2 B at `0x400c107e`. Chain
-Recording's code in the pads: [features/chain_record.md](features/chain_record.md#where-the-code-lives).
-The FILTER page 2 test image S52 takes 12 B at `0x40124b24` and the 18 B at `0x401282ce` for its KEY
-text; its four pads are full from S50 but for 8 B at `0x401778d0`.
+Free code space: 102 B in fourteen blocks, none larger than 16 B: 16 B at `0x400152c0`, 16 B at
+`0x400bedf2`, 10 B at `0x400156da`, 8 B at `0x400bf1e0`, 8 B at `0x40037ad6`, 8 B at `0x401778d0`
+(FILTER page 2's `FUN_401778a4`, fill), 6 B at `0x400c1392`, 6 B at `0x400bed96`, 6 B at
+`0x400bee64`, 6 B at `0x400f8118` (the CFO oscillator's pad, fill), 6 B at `0x400ee0d2` (portamento's
+`FUN_400ee05e`, fill), 2 B at `0x40124b30` (the soft-float pad's last `rts`), 2 B at `0x40177192` (the
+STL span's tail, fill) and 2 B at `0x400c107e`. Chain Recording's code in the pads:
+[features/chain_record.md](features/chain_record.md#where-the-code-lives). FILTER page 2's KEY text
+took 12 B at `0x40124b24` and the 18 B at `0x401282ce` that v0.2.1 left free.
 
 ## Why each pad is dead in this image
 
@@ -351,7 +351,7 @@ from S30 `0x40252f00`, 27 B, the names `PORT`, `Portamento`, `LEG` and `Legato`;
 `0x40252f1c`, 16 B, PORT's text object; from S33 `0x40252f2c`, 192 B, the 48-entry slot → stored index
 table. That leaves `0x40252ed9..0x40252f00` (39 B) and, from S33, `0x40252fec..0x40253000` (20 B).
 
-In the FILTER page 2 test images (on top of the build; [features/filter_page2.md](features/filter_page2.md)):
+FILTER page 2 (in the build from v0.2.2; [features/filter_page2.md](features/filter_page2.md)):
 from S39 `0x40252ed9`, 37 B, the names `VED`, `Vel to Env Depth`, `KEY` and `Keytracking`; from S43
 `0x40252fec`, 8 B, the slot → stored index table's entries 48 and 49; from S51 `0x40252ff4`, 8 B, the
 manager and invoker of KEY's text object (`0x40252fec`, its storage the two entries before them). That

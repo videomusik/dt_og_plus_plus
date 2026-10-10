@@ -44,10 +44,11 @@ Stages, written to out/1.54/stages/ (only with --stages):
        between its own routines become bsr.w
   S27  S26 + the Source found from the machines (the nearest non-POLY track before), not POLY's pool
        map
-This script does not change patch.json: make_port.py merges S27 into it, with portamento on top. The
-build without the CFO oscillator (BUILD_SECTION3, Chain Recording's build) comes back from
-patch.json either way: its features before cfo_oscillator, with the bytes of the build that the CFO
-oscillator rewrites given back (build_without_cfo)."""
+This script does not change patch.json: make_port.py merged S27 into it, with portamento on top, and
+make_filt.py writes it now, with FILTER page 2 on top of both. The build without the CFO oscillator
+(BUILD_SECTION3, Chain Recording's build) comes back from patch.json either way: its features before
+cfo_oscillator, with the bytes of the build that the CFO oscillator rewrites, and those of earlier
+features that a later one rewrites (LATER_SITES), given back (build_without_cfo)."""
 import json, os, shutil, subprocess, sys, tempfile
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", "..", "..", ".."))
@@ -145,10 +146,17 @@ def build_sites():
             [(ICON_PTR[0], ICON_PTR[1], "poly_icon")])
 
 
+# Bytes of the features before the CFO oscillator that a feature merged after it rewrites, as those
+# features hold them: FILTER page 2 (from v0.2.2) puts KEY's text in two leftovers of the pad fill of
+# Chain Recording's pads, so in patch.json those bytes are listed under filter_page2.
+LATER_SITES = [(0x40124b24, "42804e7542804e7542804e754e75", "pad_fill"),
+               (0x401282ce, "4e7542804e7542804e7542804e7542804e75", "pad_fill")]
+
+
 def build_without_cfo(stock, patch):
     """The build without the CFO oscillator, from patch.json: its features before cfo_oscillator, and
-    the bytes of build_sites() given back. It must hash to BUILD_SECTION3. Returns the image and who owns
-    each byte it changes ({address: (feature, kind)})."""
+    the bytes of build_sites() and LATER_SITES given back. It must hash to BUILD_SECTION3. Returns the
+    image and who owns each byte it changes ({address: (feature, kind)})."""
     ids = [f["id"] for f in patch["features"]]
     img, owner = bytearray(stock), {}
     for f in patch["features"][:ids.index(FID) if FID in ids else len(ids)]:
@@ -157,7 +165,7 @@ def build_without_cfo(stock, patch):
             img[a - BASE:a - BASE + len(d)] = d
             for k in range(len(d)):
                 owner[a + k] = (f["id"], r.get("kind", "code"))
-    for a, want, fid in build_sites():
+    for a, want, fid in build_sites() + LATER_SITES:
         d = bytes.fromhex(want)
         img[a - BASE:a - BASE + len(d)] = d
         for k in range(len(d)):

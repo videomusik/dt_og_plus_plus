@@ -55,7 +55,7 @@ public class EmuCursorCore extends GhidraScript {
   static final int    MAIN_SIZE = 2479680;
   static final long   MAIN_BASE = 0x40000400L;
   static final String STOCK_MAIN_SHA256 = "5c58bf9e3949ef09977c5fc007a61e8d026931f67f1621238379dfb8ee4d31a2";
-  static final String REF_MAIN_SHA256   = "d6fac1a35cf565c37fc43ae51bd0c76f1ee7e23c0668ff1d245bb2839e51509c";
+  static final String REF_MAIN_SHA256   = "3b88fa95268a05cba3181c8765b3379a46237b00def0820d1c8c4da499506f37";
 
   byte[] padBytes;
 

@@ -11,9 +11,9 @@
   "section3_size": 2479680
  },
  "result": {
-  "section3_sha256": "d6fac1a35cf565c37fc43ae51bd0c76f1ee7e23c0668ff1d245bb2839e51509c",
-  "syx_sha256_reference": "9df62a0bccfc70598afceea169d048b16ca4cb81a500bf9e4e03a64d76418390",
-  "syx_size_reference": 1351456,
+  "section3_sha256": "3b88fa95268a05cba3181c8765b3379a46237b00def0820d1c8c4da499506f37",
+  "syx_sha256_reference": "701a6c2880bf36c742a85e47e7d5fd42a3075c7d7b8bf3487c0c36a2934b9598",
+  "syx_size_reference": 1351712,
   "syx_reference_note": "only with the pinned tool",
   "pinned_tool": "github.com/mischa85/elektron-firmware-tool 065d18f4195793e61891e387813488ee59f6d1ca + build/tool_patches/cap_window_1mb.patch"
  },
@@ -420,28 +420,13 @@
      "kind": "code"
     },
     {
-     "addr": "0x40124b24",
-     "bytes": "42804e7542804e75",
-     "kind": "code"
-    },
-    {
-     "addr": "0x40124b2d",
+     "addr": "0x401282d5",
      "bytes": "80",
      "kind": "code"
     },
     {
-     "addr": "0x40124b2f",
-     "bytes": "75",
-     "kind": "code"
-    },
-    {
-     "addr": "0x401282ce",
-     "bytes": "4e75",
-     "kind": "code"
-    },
-    {
-     "addr": "0x401282d1",
-     "bytes": "804e7542804e7542804e754280",
+     "addr": "0x401282da",
+     "bytes": "4e",
      "kind": "code"
     }
    ]
@@ -2097,7 +2082,12 @@
     },
     {
      "addr": "0x40079738",
-     "bytes": "202f00087210b2af0004650e6710722db2806418722fb280640242804e757223b2",
+     "bytes": "202f00087210b2af0004650e6710722db2806418",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40079752",
+     "bytes": "42804e757223b2",
      "kind": "code"
     },
     {
@@ -2112,7 +2102,12 @@
     },
     {
      "addr": "0x40079771",
-     "bytes": "71202f00087210b2af0004650e6710722db2806418722fb280640242804e757233b2",
+     "bytes": "71202f00087210b2af0004650e6710722db2806418",
+     "kind": "code"
+    },
+    {
+     "addr": "0x4007978c",
+     "bytes": "42804e757233b2",
      "kind": "code"
     },
     {
@@ -2136,18 +2131,8 @@
      "kind": "code"
     },
     {
-     "addr": "0x4007a2ad",
-     "bytes": "0e6d52",
-     "kind": "code"
-    },
-    {
      "addr": "0x4007a5fb",
      "bytes": "252f2c",
-     "kind": "code"
-    },
-    {
-     "addr": "0x4007a615",
-     "bytes": "60",
      "kind": "code"
     },
     {
@@ -2523,6 +2508,272 @@
     {
      "addr": "0x40252feb",
      "bytes": "2f",
+     "kind": "data"
+    }
+   ]
+  },
+  {
+   "id": "filter_page2",
+   "title": "FILTER page 2: VED and KEY on every audio track's second FILTER page, saved with the sound and lockable per trig; VED (0-100 %) sets how much the velocity decides the filter envelope's depth around velocity 100, KEY (-394..394 % in 6.25 % steps) moves the cutoff with the note",
+   "runs": [
+    {
+     "addr": "0x400376b3",
+     "bytes": "05",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400376bc",
+     "bytes": "62",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400376bf",
+     "bytes": "00",
+     "kind": "code"
+    },
+    {
+     "addr": "0x4003773d",
+     "bytes": "82",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40037749",
+     "bytes": "78",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400728a5",
+     "bytes": "0d266e",
+     "kind": "code"
+    },
+    {
+     "addr": "0x4007974c",
+     "bytes": "4ef9401778a4",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40079786",
+     "bytes": "4ef9401778bc",
+     "kind": "code"
+    },
+    {
+     "addr": "0x4007a2ad",
+     "bytes": "178e02",
+     "kind": "code"
+    },
+    {
+     "addr": "0x4007a615",
+     "bytes": "64",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400d266e",
+     "bytes": "226f0070202f000441f980001f1873f00a00048100006400c3e9002e4841c3fc529048414845c3c54845e981da",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400d269c",
+     "bytes": "4c85736900304a814ef940178f20",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40124b24",
+     "bytes": "202f0008c1fc0019600037a0",
+     "kind": "code"
+    },
+    {
+     "addr": "0x401282ce",
+     "bytes": "048000063e00e4",
+     "kind": "code"
+    },
+    {
+     "addr": "0x401282d6",
+     "bytes": "2f400008",
+     "kind": "code"
+    },
+    {
+     "addr": "0x401282db",
+     "bytes": "f94005fd14",
+     "kind": "code"
+    },
+    {
+     "addr": "0x4015334a",
+     "bytes": "58",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40153356",
+     "bytes": "d59c",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40153364",
+     "bytes": "d3cc",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40153394",
+     "bytes": "40252f",
+     "kind": "code"
+    },
+    {
+     "addr": "0x401533a4",
+     "bytes": "d4dc",
+     "kind": "code"
+    },
+    {
+     "addr": "0x401533c0",
+     "bytes": "4e",
+     "kind": "code"
+    },
+    {
+     "addr": "0x401533c2",
+     "bytes": "40178f5c",
+     "kind": "code"
+    },
+    {
+     "addr": "0x401568ca",
+     "bytes": "52",
+     "kind": "code"
+    },
+    {
+     "addr": "0x401568e4",
+     "bytes": "54",
+     "kind": "code"
+    },
+    {
+     "addr": "0x401778a4",
+     "bytes": "722fb28064105580722fb28064067231b280640242804e75722f",
+     "kind": "code"
+    },
+    {
+     "addr": "0x401778bf",
+     "bytes": "80640c7231b280650454804e7542",
+     "kind": "code"
+    },
+    {
+     "addr": "0x401778ce",
+     "bytes": "4e7542804e754280",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40178e02",
+     "bytes": "202b",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40178e05",
+     "bytes": "782200028180fffeff670242802540",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40178e15",
+     "bytes": "7071eb00800c80000064006302428035400074716b00824a806f044a006704303c40003540007641f9401ac58c",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40178f20",
+     "bytes": "6732048100004000672a41f9439d118020300c000480003c0000e080c1c12200e7889081d0804c80222f004cd2804c812f41004c4ef9400734124e7148794197d1dc48794197e3904e942ebc",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40178f6d",
+     "bytes": "97e3e44e94508f4e75",
+     "kind": "code"
+    },
+    {
+     "addr": "0x401aa0d0",
+     "bytes": "0000000600000030",
+     "kind": "data"
+    },
+    {
+     "addr": "0x401aa0de",
+     "bytes": "64",
+     "kind": "data"
+    },
+    {
+     "addr": "0x401aa0e8",
+     "bytes": "ffffffff",
+     "kind": "data"
+    },
+    {
+     "addr": "0x401aa0f9",
+     "bytes": "252edd",
+     "kind": "data"
+    },
+    {
+     "addr": "0x401aa0fe",
+     "bytes": "699d",
+     "kind": "data"
+    },
+    {
+     "addr": "0x401aa101",
+     "bytes": "252ed90000000600000031",
+     "kind": "data"
+    },
+    {
+     "addr": "0x401aa10e",
+     "bytes": "01",
+     "kind": "data"
+    },
+    {
+     "addr": "0x401aa112",
+     "bytes": "7f",
+     "kind": "data"
+    },
+    {
+     "addr": "0x401aa116",
+     "bytes": "40",
+     "kind": "data"
+    },
+    {
+     "addr": "0x401aa11c",
+     "bytes": "ffffffff",
+     "kind": "data"
+    },
+    {
+     "addr": "0x401aa12d",
+     "bytes": "252ef2",
+     "kind": "data"
+    },
+    {
+     "addr": "0x401aa132",
+     "bytes": "699d",
+     "kind": "data"
+    },
+    {
+     "addr": "0x401aa135",
+     "bytes": "252eee",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252ed9",
+     "bytes": "564544",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252edd",
+     "bytes": "56656c20746f20456e76204465707468",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252eee",
+     "bytes": "4b4559",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252ef2",
+     "bytes": "4b6579747261636b696e67",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252fef",
+     "bytes": "32",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252ff3",
+     "bytes": "3340060d8840124b24",
      "kind": "data"
     }
    ]

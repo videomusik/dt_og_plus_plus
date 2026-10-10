@@ -71,7 +71,7 @@ The CFO oscillator and portamento ([features/cfo_oscillator.md](features/cfo_osc
 ✅ These ran on the test unit with OS 1.54: the build that holds them (`.syx` `9df62a0b…`, the
 portamento stage S36) started and ran ([README.md](README.md#the-test-unit)).
 
-FILTER page 2 (test images only, not in `patch.json`; [features/filter_page2.md](features/filter_page2.md)):
+FILTER page 2 (in the build from v0.2.2; by stage in [features/filter_page2.md](features/filter_page2.md)):
 
 - ✅ The filter stage's hook (`0x400728a2` → `filt_hook` in `0x400d266e`) runs for every track on every
   audio tick (the filter stage is called per track at `0x400780c4`; objdump). It reads the track's
@@ -90,4 +90,4 @@ FILTER page 2 (test images only, not in `patch.json`; [features/filter_page2.md]
   through ENV's stock text and picture (VED from S47 through Trig Probability's; KEY's text from S52
   through `key_txt`), and from S40 the page's own draw routine `FUN_40037564` with its five changed
   words.
-- ✅ The test images up to S52 started and ran on the test unit with OS 1.54, as reported.
+- ✅ Each test image up to S52 started and ran on the test unit with OS 1.54, as reported.

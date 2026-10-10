@@ -1,16 +1,19 @@
 #!/usr/bin/env python3
-"""FILTER page 2 (VED, KEY) for OS 1.54, on top of the build (portamento's S36): assemble filt.s with
-filt.ld, check every site against the stock image and the build, and write the emulator's load files;
-with --stages, build the stage images.
+"""FILTER page 2 (VED, KEY) for OS 1.54, on top of the build before it (v0.2.1, portamento's S36):
+assemble filt.s with filt.ld, check every site against the stock image and that build, and write the
+emulator's load files; with --stages, build the stage images; with --write, merge the last stage, S52,
+into os/1.54/build/patch.json as the feature filter_page2.
 
-    python3 os/1.54/src/filter_page2/make_filt.py            # check, write the load files
-    python3 os/1.54/src/filter_page2/make_filt.py --stages   # also build the stage images
+    python3 os/1.54/src/filter_page2/make_filt.py                    # check: is patch.json up to date?
+    python3 os/1.54/src/filter_page2/make_filt.py --stages           # also build the stage images
+    python3 os/1.54/src/filter_page2/make_filt.py --stages --write   # and rewrite patch.json
 
 Needs what make_port.py needs (m68k binutils, M68K_PREFIX; the stock section 3 from
 ./scripts/extract.sh 1.54; for --stages the stock .syx and the firmware tool).
 
-The build comes from patch.json and must give BUILD_SECTION3. Stages, written to out/1.54/stages/ (only
-with --stages):
+The build before this feature comes back from patch.json (build_without_filt: its features before
+filter_page2, and the bytes this feature rewrites given back) and must give BUILD_SECTION3. Stages,
+written to out/1.54/stages/ (only with --stages):
   S37  the build + the four new pads filled with 'clrl %d0 ; rts' (their fill test)
   S38  S37 + the filter stage's hook, its pad only jumping on to the envelope level getter
   S39  S38 + VED and KEY on FILTER page 2's knobs C and G: descriptor rows 1 and 2 (unused "Error" rows)
@@ -38,19 +41,34 @@ with --stages):
   S51  S50 + KEY's text callable copied at start-up from a constant copy of ENV's text object in the
        .rodata padding: KEY still shows -63..63 (the first run of that path)
   S52  S51 + that object's invoker becomes key_txt: KEY shows its keytracking in percent
-patch.json is not changed: the feature is test images."""
-import os, shutil, subprocess, sys, tempfile
+S52 is the build from v0.2.2: patch.json holds the build before it, then filter_page2 (S52 less that
+build). Each byte is listed once, under the last feature that wrote it, so portamento's three sites and
+the writer's loop count that this feature rewrites, and the two leftovers of Chain Recording's pad fill
+that hold KEY's text, are listed under filter_page2."""
+import json, os, shutil, subprocess, sys, tempfile
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", "..", "..", ".."))
 sys.path.insert(0, os.path.join(ROOT, "os", "1.54", "build"))
 sys.path.insert(0, os.path.join(ROOT, "os", "1.54", "src", "cfo_oscillator"))
 sys.path.insert(0, os.path.join(ROOT, "os", "1.54", "src", "portamento"))
 import build  # noqa: E402
+import make_listing  # noqa: E402
 import make_cfo as cfo  # noqa: E402
 import make_port as port  # noqa: E402
 PFX = os.environ.get("M68K_PREFIX", "m68k-elf-")
 BASE = 0x40000400
-BUILD_SECTION3 = "d6fac1a35cf565c37fc43ae51bd0c76f1ee7e23c0668ff1d245bb2839e51509c"   # the build, v0.2.1
+BUILD_SECTION3 = "d6fac1a35cf565c37fc43ae51bd0c76f1ee7e23c0668ff1d245bb2839e51509c"   # the build before it, v0.2.1
+FID = "filter_page2"
+TITLE = ("FILTER page 2: VED and KEY on every audio track's second FILTER page, saved with the sound and "
+         "lockable per trig; VED (0-100 %) sets how much the velocity decides the filter envelope's depth "
+         "around velocity 100, KEY (-394..394 % in 6.25 % steps) moves the cutoff with the note")
+# The build's bytes that S52 rewrites, as the build before it holds them, and their feature: portamento's
+# reader call and lookup tests and the writer's loop count, and Chain Recording's pad fill where KEY's
+# text goes. build_without_filt gives them back once patch.json holds filter_page2.
+REWRITES = [(0x4007a2ac, "400e6d52", "portamento"), (0x4007974c, "722fb2806402", "portamento"),
+            (0x40079786, "722fb2806402", "portamento"), (0x4007a614, "7260", "portamento"),
+            (0x40124b24, "42804e7542804e7542804e754e75", "pad_fill"),
+            (0x401282ce, "4e7542804e7542804e7542804e7542804e75", "pad_fill")]
 LD = os.path.join(HERE, "filt.ld")
 # The four new pads (vetted in notes/landing_pads.md): extent, from the stock rts.
 PADS = {".filt_ved": (0x400d266e, 0x400d26aa),     # FUN_400d266e, counts the set bits of a bitmap
@@ -171,6 +189,58 @@ def row_bytes(i, syms, row=None):
     return b"".join((x & 0xffffffff).to_bytes(4, "big") for x in w)
 
 
+def build_without_filt(stock, patch):
+    """The build before FILTER page 2, from patch.json: its features before filter_page2 and, once that
+    is merged, the bytes of REWRITES given back. It must hash to BUILD_SECTION3. Returns the image and
+    who owns each byte it changes ({address: (feature, kind)})."""
+    ids = [f["id"] for f in patch["features"]]
+    img, owner = bytearray(stock), {}
+    for f in patch["features"][:ids.index(FID) if FID in ids else len(ids)]:
+        for r in f["runs"]:
+            a, d = int(r["addr"], 16), bytes.fromhex(r["bytes"])
+            img[a - BASE:a - BASE + len(d)] = d
+            for k in range(len(d)):
+                owner[a + k] = (f["id"], r.get("kind", "code"))
+    if FID in ids:
+        for a, want, fid in REWRITES:
+            d = bytes.fromhex(want)
+            img[a - BASE:a - BASE + len(d)] = d
+            for k in range(len(d)):
+                if d[k] != stock[a - BASE + k]:
+                    owner[a + k] = (fid, "code")
+    h = build.sha256_bytes(bytes(img))
+    if h != BUILD_SECTION3:
+        sys.exit("the build before FILTER page 2 does not come back from patch.json (section 3 %s)" % h)
+    return img, owner
+
+
+def merged_features(stock, patch, img, owner, s52):
+    """patch.json's features before filter_page2, and filter_page2 = S52 on the build before it (img,
+    whose changed bytes owner attributes): each byte S52 changes, under the last feature that wrote it.
+    Runs are maximal per feature and kind, as make_port.py writes them; outside the code windows, data."""
+    def kind(a):
+        return "code" if any(lo <= a < hi for lo, hi in make_listing.CODE_WINDOWS) else "data"
+    attr = {}
+    for i in range(len(stock)):
+        if s52[i] != stock[i]:
+            a = BASE + i
+            attr[a] = (FID, kind(a)) if s52[i] != img[i] else owner[a]
+    runs, cur = {}, None
+    for a in sorted(attr):
+        fid, k = attr[a]
+        if cur and cur["fid"] == fid and cur["kind"] == k and cur["end"] == a:
+            cur["b"].append(s52[a - BASE]); cur["end"] = a + 1
+        else:
+            cur = {"fid": fid, "kind": k, "start": a, "end": a + 1, "b": [s52[a - BASE]]}
+            runs.setdefault(fid, []).append(cur)
+    ids = [f["id"] for f in patch["features"]]
+    earlier = patch["features"][:ids.index(FID) if FID in ids else len(ids)]
+    features = [(f["id"], f["title"]) for f in earlier] + [(FID, TITLE)]
+    return [{"id": i, "title": t,
+             "runs": [{"addr": "0x%08x" % x["start"], "bytes": bytes(x["b"]).hex(), "kind": x["kind"]}
+                      for x in runs.get(i, [])]} for i, t in features]
+
+
 def place(im, secs):
     """Each code section into its pad (the rest of the pad keeps its fill), the names into the
     .rodata padding."""
@@ -184,18 +254,14 @@ def place(im, secs):
 
 
 def main():
-    stages = "--stages" in sys.argv
+    stages, write = "--stages" in sys.argv, "--write" in sys.argv
+    if write and not stages:
+        sys.exit("--write needs --stages (patch.json carries the .syx hash of the S52 build)")
     stock = build.read(cfo.STOCK3)
-    patch, runs = build.load_patch(cfo.PATCH)
-    img = bytearray(stock)
-    owner = {}
-    for a, d, f, _k in runs:
-        img[a - BASE:a - BASE + len(d)] = d
-        for k in range(len(d)):
-            owner[a + k] = f
-    if build.sha256_bytes(bytes(img)) != BUILD_SECTION3:
-        sys.exit("patch.json does not give the build this feature starts from (section 3 %s)"
-                 % build.sha256_bytes(bytes(img)))
+    with open(cfo.PATCH) as f:
+        patch = json.load(f)
+    assert build.sha256_bytes(stock) == patch["stock"]["section3_sha256"], "work/dt_1.54 is not the stock section 3"
+    img, owner = build_without_filt(stock, patch)
     tmp = tempfile.mkdtemp(prefix="filt-")
     try:
         asm = {v: assemble(tmp, o) for v, o in VARIANTS.items()}
@@ -221,7 +287,7 @@ def main():
         assert stock[HOOK[0] - BASE:HOOK[0] - BASE + 6].hex() == HOOK[1], "the hook site is not stock"
         # the two leftovers: the build's pad fill, or stock bytes the build leaves (the pads' last rts)
         for name, (lo, hi) in FRAGS.items():
-            assert all(owner.get(a) == "pad_fill" or (a not in owner and img[a - BASE] == stock[a - BASE])
+            assert all(owner.get(a, ("",))[0] == "pad_fill" or (a not in owner and img[a - BASE] == stock[a - BASE])
                        for a in range(lo, hi)), "%s is not the build's leftover fill" % name
             print("%-50s 0x%08x..0x%08x  the build's fill" % (name, lo, hi))
         assert stock[SNAP_SITE[0] - BASE:SNAP_SITE[0] - BASE + 6].hex() == SNAP_SITE[1], "the display build's site is not stock"
@@ -235,7 +301,7 @@ def main():
         for addr, want, sym, what in [READER_OP] + EXT_SITES:
             n = len(want) // 2
             assert img[addr - BASE:addr - BASE + n].hex() == want, "0x%08x is not %s" % (addr, what)
-            assert all(owner.get(a) == "portamento" for a in range(addr, addr + n) if img[a - BASE] != stock[a - BASE])
+            assert all(owner.get(a, ("",))[0] == "portamento" for a in range(addr, addr + n) if img[a - BASE] != stock[a - BASE])
             print("%-50s 0x%08x..0x%08x  portamento's" % (what, addr, addr + n))
         for addr, want, new, what in (WRITER, INV_EXT):
             n = len(want) // 2
@@ -349,12 +415,18 @@ def main():
                 for n, a in sy.items():
                     f.write("sym %s %08x\n" % (n, a))
         print("load files:", ", ".join(os.path.join("work", "dt_1.54-filt", n + ".load") for n in built))
+        feats = merged_features(stock, patch, img, owner, built["S52"])
+        s52 = build.sha256_bytes(built["S52"])
+        same = feats == patch["features"] and s52 == patch["result"]["section3_sha256"]
+        print("S52 section 3 %s; patch.json %s" % (s52, "is up to date" if same else
+                                                   "differs (%s)" % patch["result"]["section3_sha256"]))
         if not stages:
             print("no stage images built (--stages)")
             return
         dest = os.path.join(ROOT, "out", "1.54", "stages")
         os.makedirs(dest, exist_ok=True)
         syx, tool = build.DEFAULT_SYX, build.DEFAULT_TOOL
+        res = {}
         for name, p3 in built.items():
             sel, i = [], 0
             while i < len(stock):
@@ -377,12 +449,21 @@ def main():
                 build.pack(tool, syx, pb, packed)
                 build.check_report(tool, packed)
                 build.roundtrip(tool, packed, p3, st, os.path.join(t2, "verify"))
-                h = build.sha256_file(packed)
+                h, size = build.sha256_file(packed), os.path.getsize(packed)
                 final = os.path.join(dest, "dt_og_plus_plus_v0.2.1-%s_%s.syx" % (name, h[:8]))
                 os.replace(packed, final)
             finally:
                 shutil.rmtree(t2, ignore_errors=True)
+            res[name] = (h, size)
             print("%s section 3 %s .syx %s -> %s" % (name, build.sha256_bytes(p3), h, final))
+        if write:
+            patch["features"] = feats
+            patch["result"] = dict(patch["result"], section3_sha256=s52,
+                                   syx_sha256_reference=res["S52"][0], syx_size_reference=res["S52"][1])
+            with open(cfo.PATCH, "w") as f:
+                json.dump(patch, f, indent=1)
+                f.write("\n")
+            print("wrote", cfo.PATCH)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
     print("Nothing was sent to a device.")

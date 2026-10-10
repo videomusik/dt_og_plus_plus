@@ -200,11 +200,12 @@ The code is written in assembly, in [src/chain_record/](../../src/chain_record/)
 - no other feature's run is at a hook site;
 - the build without Chain Recording, rebuilt from `patch.json`, has section 3 `5a7eb2a4…`.
 
-`patch.json` also holds the features merged after Chain Recording, the CFO oscillator and portamento.
-`make_chain.py` takes them off first (`make_cfo.build_without_cfo`, which gives the bytes CFOO rewrites
-their earlier values), then compares its own `chain_record` runs and S8's section 3 with that build
-(`efc90606…`). Its `--write` is refused while features follow Chain Recording in `patch.json`;
-`make_port.py --stages --write` writes the file ([portamento.md](portamento.md#checks)). `build.py`
+`patch.json` also holds the features merged after Chain Recording: the CFO oscillator, portamento and
+FILTER page 2. `make_chain.py` takes them off first (`make_cfo.build_without_cfo`, which gives the bytes
+CFOO rewrites, and the pad fill FILTER page 2 rewrites in this feature's pads, their earlier values),
+then compares its own `chain_record` runs and S8's section 3 with that build (`efc90606…`). Its
+`--write` is refused while features follow Chain Recording in `patch.json`; the last feature's
+generator writes the file (`make_filt.py --stages --write`, [filter_page2.md](filter_page2.md#checks)). `build.py`
 itself needs only `patch.json`.
 
 ```

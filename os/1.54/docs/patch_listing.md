@@ -12,14 +12,14 @@ Addresses are load addresses: section 3 (MAIN OS) loads at 0x40000400, so file o
 - **Data** (icons, tables, strings) is shown as hex and ASCII, patched bytes only; `--` is an unpatched byte. Data runs of one feature less than 16 bytes apart share one dump.
 - The `+`/`~` marks count every patched byte, whichever feature it belongs to.
 
-Section 3: stock `5c58bf9e3949ef09977c5fc007a61e8d026931f67f1621238379dfb8ee4d31a2` -> patched `d6fac1a35cf565c37fc43ae51bd0c76f1ee7e23c0668ff1d245bb2839e51509c`.
+Section 3: stock `5c58bf9e3949ef09977c5fc007a61e8d026931f67f1621238379dfb8ee4d31a2` -> patched `3b88fa95268a05cba3181c8765b3379a46237b00def0820d1c8c4da499506f37`.
 Disassembler: GNU objdump (GNU Binutils for Debian) 2.40.
 
 | feature | runs | bytes | |
 |---|---:|---:|---|
 | [`slice_round_robin`](#slice-round-robin) | 39 | 253 | SLICE machine: round-robin slice select (RRBN) and the robin icon |
 | [`poly_engine`](#poly-engine) | 31 | 566 | POLY machine: engine |
-| [`pad_fill`](#pad-fill) | 12 | 60 | Landing pads: fill bytes left in the cleared unused functions |
+| [`pad_fill`](#pad-fill) | 9 | 37 | Landing pads: fill bytes left in the cleared unused functions |
 | [`poly_ui`](#poly-ui) | 12 | 138 | POLY machine: parameter pages show and edit the source track |
 | [`pool_cursors`](#pool-cursors) | 11 | 191 | POLY machine: one playhead cursor per voice on SRC page 2 |
 | [`midi_loopback`](#midi-loopback) | 25 | 513 | Virtual MIDI Loopback: a MIDI track with CHAN at TRK1-TRK8 plays an audio track without a cable, with the TRK number display |
@@ -30,8 +30,9 @@ Disassembler: GNU objdump (GNU Binutils for Debian) 2.40.
 | [`tick_wipe_fix`](#tick-wipe-fix) | 2 | 23 | Fix: a note released and re-triggered in the same audio tick no longer hangs |
 | [`chain_record`](#chain-record) | 32 | 614 | Chain Recording: the recorder fills a sample chain one slot at a time (encoder D sets the slot count, armed by the user or re-armed automatically) |
 | [`cfo_oscillator`](#cfo-oscillator) | 197 | 3925 | CFO oscillator: the CFOO machine, a 3-oscillator 8-bit FM synth, with its own SRC page, knobs, value names, icon and LFO destinations |
-| [`portamento`](#portamento) | 90 | 467 | Portamento and legato: PORT and LEG on every audio track's TRIG page, saved with the sound and lockable per trig; with LEG on, a note before the last one's LEN ends glides and keeps the amp envelope running |
-| **total** | 485 | 6963 | |
+| [`portamento`](#portamento) | 90 | 451 | Portamento and legato: PORT and LEG on every audio track's TRIG page, saved with the sound and lockable per trig; with LEG on, a note before the last one's LEN ends glides and keeps the amp envelope running |
+| [`filter_page2`](#filter-page2) | 52 | 410 | FILTER page 2: VED and KEY on every audio track's second FILTER page, saved with the sound and lockable per trig; VED (0-100 %) sets how much the velocity decides the filter envelope's depth around velocity 100, KEY (-394..394 % in 6.25 % steps) moves the cutoff with the note |
+| **total** | 534 | 7334 | |
 
 <a id="slice-round-robin"></a>
 
@@ -467,7 +468,7 @@ Runs: 0x400c11aa +11, 0x400c11b6 +36.
 
 ## pad_fill
 
-Landing pads: fill bytes left in the cleared unused functions. 12 runs, 60 bytes.
+Landing pads: fill bytes left in the cleared unused functions. 9 runs, 37 bytes.
 
 ### 0x400152c0-0x400152ce, 2 runs, 13 B (code)
 
@@ -519,32 +520,16 @@ Runs: 0x400152c0 +1, 0x400152c2 +12.
 + 400bee66:  4e75                 rts
 ```
 
-### 0x40124b24-0x40124b30, 3 runs, 10 B (code)
-
-Runs: 0x40124b24 +8, 0x40124b2d +1, 0x40124b2f +1.
+### 0x401282d5, 1 B (code)
 
 ```
-+ 40124b24:  4280                 clrl %d0
-+ 40124b26:  4e75                 rts
-+ 40124b28:  4280                 clrl %d0
-+ 40124b2a:  4e75                 rts
-~ 40124b2c:  4280                 clrl %d0
-~ 40124b2e:  4e75                 rts
++ 401282d4:  e480                 asrl #2,%d0
 ```
 
-### 0x401282ce-0x401282de, 2 runs, 15 B (code)
-
-Runs: 0x401282ce +2, 0x401282d1 +13.
+### 0x401282da, 1 B (code)
 
 ```
-+ 401282ce:  4e75                 rts
-~ 401282d0:  4280                 clrl %d0
-+ 401282d2:  4e75                 rts
-+ 401282d4:  4280                 clrl %d0
-+ 401282d6:  4e75                 rts
-+ 401282d8:  4280                 clrl %d0
-+ 401282da:  4e75                 rts
-+ 401282dc:  4280                 clrl %d0
++ 401282da:  4ef9 4005 fd14       jmp 0x4005fd14
 ```
 
 <a id="poly-ui"></a>
@@ -2603,7 +2588,7 @@ Runs: 0x40252c2c +16, 0x40252c3f +1, 0x40252c43 +1, 0x40252c47 +9, 0x40252c54 +1
 
 ## portamento
 
-Portamento and legato: PORT and LEG on every audio track's TRIG page, saved with the sound and lockable per trig; with LEG on, a note before the last one's LEN ends glides and keeps the amp envelope running. 90 runs, 467 bytes.
+Portamento and legato: PORT and LEG on every audio track's TRIG page, saved with the sound and lockable per trig; with LEG on, a note before the last one's LEN ends glides and keeps the amp envelope running. 90 runs, 451 bytes.
 
 ### 0x40075690, 6 B (code)
 
@@ -2631,9 +2616,7 @@ Portamento and legato: PORT and LEG on every audio track's TRIG page, saved with
 + 40078076:  4e71                 nop
 ```
 
-### 0x40079738-0x4007975c, 2 runs, 35 B (code)
-
-Runs: 0x40079738 +33, 0x4007975a +2.
+### 0x40079738, 20 B (code)
 
 ```
 + 40079738:  202f 0008            movel %sp@(8),%d0
@@ -2644,9 +2627,13 @@ Runs: 0x40079738 +33, 0x4007975a +2.
 + 40079746:  722d                 moveq #45,%d1
 + 40079748:  b280                 cmpl %d0,%d1
 + 4007974a:  6418                 bccs 0x40079764
-+ 4007974c:  722f                 moveq #47,%d1
-+ 4007974e:  b280                 cmpl %d0,%d1
-+ 40079750:  6402                 bccs 0x40079754
+```
+
+### 0x40079752-0x4007975c, 2 runs, 9 B (code)
+
+Runs: 0x40079752 +7, 0x4007975a +2.
+
+```
 + 40079752:  4280                 clrl %d0
 + 40079754:  4e75                 rts
 + 40079756:  7223                 moveq #35,%d1
@@ -2654,9 +2641,9 @@ Runs: 0x40079738 +33, 0x4007975a +2.
 + 4007975a:  65f6                 bcss 0x40079752
 ```
 
-### 0x4007976e-0x40079796, 3 runs, 38 B (code)
+### 0x4007976e-0x40079786, 2 runs, 23 B (code)
 
-Runs: 0x4007976e +2, 0x40079771 +34, 0x40079794 +2.
+Runs: 0x4007976e +2, 0x40079771 +21.
 
 ```
 + 4007976e:  4e75                 rts
@@ -2669,9 +2656,13 @@ Runs: 0x4007976e +2, 0x40079771 +34, 0x40079794 +2.
 + 40079780:  722d                 moveq #45,%d1
 + 40079782:  b280                 cmpl %d0,%d1
 + 40079784:  6418                 bccs 0x4007979e
-+ 40079786:  722f                 moveq #47,%d1
-+ 40079788:  b280                 cmpl %d0,%d1
-+ 4007978a:  6402                 bccs 0x4007978e
+```
+
+### 0x4007978c-0x40079796, 2 runs, 9 B (code)
+
+Runs: 0x4007978c +7, 0x40079794 +2.
+
+```
 + 4007978c:  4280                 clrl %d0
 + 4007978e:  4e75                 rts
 + 40079790:  7233                 moveq #51,%d1
@@ -2688,24 +2679,16 @@ Runs: 0x400797a8 +2, 0x400797ab +1.
 ~ 400797aa:  4e71                 nop
 ```
 
-### 0x4007a2aa-0x4007a2b0, 2 runs, 5 B (code)
-
-Runs: 0x4007a2aa +2, 0x4007a2ad +3.
+### 0x4007a2aa, 2 B (code)
 
 ```
-~ 4007a2aa:  4eb9 400e 6d52       jsr 0x400e6d52
+~ 4007a2aa:  4eb9 4017 8e02       jsr 0x40178e02
 ```
 
 ### 0x4007a5fb, 3 B (code)
 
 ```
 ~ 4007a5f8:  41f9 4025 2f2c       lea 0x40252f2c,%a0
-```
-
-### 0x4007a615, 1 B (code)
-
-```
-~ 4007a614:  7260                 moveq #96,%d1
 ```
 
 ### 0x4007aded, 3 B (code)
@@ -2880,4 +2863,285 @@ Runs: 0x40252f00 +4, 0x40252f05 +10, 0x40252f10 +3, 0x40252f14 +6, 0x40252f24 +8
 40252fc0  -- -- -- 2d -- -- -- 25 -- -- -- 26 -- -- -- 27  |   -   %   &   '|
 40252fd0  -- -- -- 28 -- -- -- 29 -- -- -- 2a -- -- -- 2b  |   (   )   *   +|
 40252fe0  -- -- -- 2c -- -- -- 2e -- -- -- 2f -- -- -- --  |   ,   .   /    |
+```
+
+<a id="filter-page2"></a>
+
+## filter_page2
+
+FILTER page 2: VED and KEY on every audio track's second FILTER page, saved with the sound and lockable per trig; VED (0-100 %) sets how much the velocity decides the filter envelope's depth around velocity 100, KEY (-394..394 % in 6.25 % steps) moves the cutoff with the note. 52 runs, 410 bytes.
+
+### 0x400376b3, 1 B (code)
+
+```
+~ 400376b2:  7205                 moveq #5,%d1
+```
+
+### 0x400376bc-0x400376c0, 2 runs, 2 B (code)
+
+Runs: 0x400376bc +1, 0x400376bf +1.
+
+```
+~ 400376bc:  6266                 bhis 0x40037724
+~ 400376be:  7200                 moveq #0,%d1
+```
+
+### 0x4003773d, 1 B (code)
+
+```
+~ 4003773c:  6082                 bras 0x400376c0
+```
+
+### 0x40037749, 1 B (code)
+
+```
+~ 40037746:  6000 ff78            braw 0x400376c0
+```
+
+### 0x400728a5, 3 B (code)
+
+```
+~ 400728a2:  4eb9 400d 266e       jsr 0x400d266e
+```
+
+### 0x4007974c, 6 B (code)
+
+```
++ 4007974c:  4ef9 4017 78a4       jmp 0x401778a4
+```
+
+### 0x40079786, 6 B (code)
+
+```
++ 40079786:  4ef9 4017 78bc       jmp 0x401778bc
+```
+
+### 0x4007a2ad, 3 B (code)
+
+```
+~ 4007a2aa:  4eb9 4017 8e02       jsr 0x40178e02
+```
+
+### 0x4007a615, 1 B (code)
+
+```
+~ 4007a614:  7264                 moveq #100,%d1
+```
+
+### 0x400d266e-0x400d26aa, 2 runs, 59 B (code)
+
+Runs: 0x400d266e +45, 0x400d269c +14.
+
+```
++ 400d266e:  226f 0070            moveal %sp@(112),%a1
++ 400d2672:  202f 0004            movel %sp@(4),%d0
++ 400d2676:  41f9 8000 1f18       lea 0x80001f18,%a0
++ 400d267c:  73f0 0a00            mvzw %a0@(0,%d0:l:2),%d1
++ 400d2680:  0481 0000 6400       subil #25600,%d1
++ 400d2686:  c3e9 002e            mulsw %a1@(46),%d1
++ 400d268a:  4841                 swap %d1
++ 400d268c:  c3fc 5290            mulsw #21136,%d1
++ 400d2690:  4841                 swap %d1
++ 400d2692:  4845                 swap %d5
++ 400d2694:  c3c5                 mulsw %d5,%d1
++ 400d2696:  4845                 swap %d5
++ 400d2698:  e981                 asll #4,%d1
+~ 400d269a:  da81                 addl %d1,%d5
++ 400d269c:  4c85                 satsl %d5
++ 400d269e:  7369 0030            mvsw %a1@(48),%d1
++ 400d26a2:  4a81                 tstl %d1
++ 400d26a4:  4ef9 4017 8f20       jmp 0x40178f20
+```
+
+### 0x40124b24, 12 B (code)
+
+```
++ 40124b24:  202f 0008            movel %sp@(8),%d0
++ 40124b28:  c1fc 0019            mulsw #25,%d0
++ 40124b2c:  6000 37a0            braw 0x401282ce
+```
+
+### 0x401282ce-0x401282e0, 3 runs, 16 B (code)
+
+Runs: 0x401282ce +7, 0x401282d6 +4, 0x401282db +5.
+
+```
++ 401282ce:  0480 0006 3e00       subil #409088,%d0
++ 401282d4:  e480                 asrl #2,%d0
++ 401282d6:  2f40 0008            movel %d0,%sp@(8)
++ 401282da:  4ef9 4005 fd14       jmp 0x4005fd14
+```
+
+### 0x4015334a, 1 B (code)
+
+```
+~ 4015334a:  58b9 4197 e34c       addql #4,0x4197e34c
+```
+
+### 0x40153356, 2 B (code)
+
+```
+~ 40153352:  4879 4197 d59c       pea 0x4197d59c
+```
+
+### 0x40153364, 2 B (code)
+
+```
+~ 40153360:  4879 4197 d3cc       pea 0x4197d3cc
+```
+
+### 0x40153394, 3 B (code)
+
+```
+~ 40153392:  4879 4025 2fec       pea 0x40252fec
+```
+
+### 0x401533a4, 2 B (code)
+
+```
+~ 401533a0:  4879 4197 d4dc       pea 0x4197d4dc
+```
+
+### 0x401533c0-0x401533c6, 2 runs, 5 B (code)
+
+Runs: 0x401533c0 +1, 0x401533c2 +4.
+
+```
+~ 401533c0:  4eb9 4017 8f5c       jsr 0x40178f5c
+```
+
+### 0x401568ca, 1 B (code)
+
+```
+~ 401568ca:  52b9 4197 e0cc       addql #1,0x4197e0cc
+```
+
+### 0x401568e4, 1 B (code)
+
+```
+~ 401568e4:  54b9 4197 e0dc       addql #2,0x4197e0dc
+```
+
+### 0x401778a4-0x401778d6, 3 runs, 48 B (code)
+
+Runs: 0x401778a4 +26, 0x401778bf +14, 0x401778ce +8.
+
+```
++ 401778a4:  722f                 moveq #47,%d1
++ 401778a6:  b280                 cmpl %d0,%d1
++ 401778a8:  6410                 bccs 0x401778ba
++ 401778aa:  5580                 subql #2,%d0
++ 401778ac:  722f                 moveq #47,%d1
++ 401778ae:  b280                 cmpl %d0,%d1
++ 401778b0:  6406                 bccs 0x401778b8
++ 401778b2:  7231                 moveq #49,%d1
++ 401778b4:  b280                 cmpl %d0,%d1
++ 401778b6:  6402                 bccs 0x401778ba
++ 401778b8:  4280                 clrl %d0
++ 401778ba:  4e75                 rts
++ 401778bc:  722f                 moveq #47,%d1
+~ 401778be:  b280                 cmpl %d0,%d1
++ 401778c0:  640c                 bccs 0x401778ce
++ 401778c2:  7231                 moveq #49,%d1
++ 401778c4:  b280                 cmpl %d0,%d1
++ 401778c6:  6504                 bcss 0x401778cc
++ 401778c8:  5480                 addql #2,%d0
++ 401778ca:  4e75                 rts
+~ 401778cc:  4280                 clrl %d0
++ 401778ce:  4e75                 rts
++ 401778d0:  4280                 clrl %d0
++ 401778d2:  4e75                 rts
++ 401778d4:  4280                 clrl %d0
+```
+
+### 0x40178e02-0x40178e42, 3 runs, 62 B (code)
+
+Runs: 0x40178e02 +2, 0x40178e05 +15, 0x40178e15 +45.
+
+```
+~ 40178e02:  202b 0078            movel %a3@(120),%d0
++ 40178e06:  2200                 movel %d0,%d1
++ 40178e08:  0281 80ff feff       andil #-2130706689,%d1
++ 40178e0e:  6702                 beqs 0x40178e12
++ 40178e10:  4280                 clrl %d0
+~ 40178e12:  2540 0070            movel %d0,%a2@(112)
++ 40178e16:  71eb 0080            mvzw %a3@(128),%d0
++ 40178e1a:  0c80 0000 6400       cmpil #25600,%d0
++ 40178e20:  6302                 blss 0x40178e24
++ 40178e22:  4280                 clrl %d0
++ 40178e24:  3540 0074            movew %d0,%a2@(116)
++ 40178e28:  716b 0082            mvsw %a3@(130),%d0
++ 40178e2c:  4a80                 tstl %d0
++ 40178e2e:  6f04                 bles 0x40178e34
++ 40178e30:  4a00                 tstb %d0
++ 40178e32:  6704                 beqs 0x40178e38
++ 40178e34:  303c 4000            movew #16384,%d0
++ 40178e38:  3540 0076            movew %d0,%a2@(118)
++ 40178e3c:  41f9 401a c58c       lea 0x401ac58c,%a0
+```
+
+### 0x40178f20-0x40178f76, 2 runs, 85 B (code)
+
+Runs: 0x40178f20 +76, 0x40178f6d +9.
+
+```
++ 40178f20:  6732                 beqs 0x40178f54
++ 40178f22:  0481 0000 4000       subil #16384,%d1
++ 40178f28:  672a                 beqs 0x40178f54
++ 40178f2a:  41f9 439d 1180       lea 0x439d1180,%a0
++ 40178f30:  2030 0c00            movel %a0@(0,%d0:l:4),%d0
++ 40178f34:  0480 003c 0000       subil #3932160,%d0
++ 40178f3a:  e080                 asrl #8,%d0
++ 40178f3c:  c1c1                 mulsw %d1,%d0
++ 40178f3e:  2200                 movel %d0,%d1
++ 40178f40:  e788                 lsll #3,%d0
++ 40178f42:  9081                 subl %d1,%d0
++ 40178f44:  d080                 addl %d0,%d0
++ 40178f46:  4c80                 satsl %d0
++ 40178f48:  222f 004c            movel %sp@(76),%d1
++ 40178f4c:  d280                 addl %d0,%d1
++ 40178f4e:  4c81                 satsl %d1
++ 40178f50:  2f41 004c            movel %d1,%sp@(76)
++ 40178f54:  4ef9 4007 3412       jmp 0x40073412
++ 40178f5a:  4e71                 nop
++ 40178f5c:  4879 4197 d1dc       pea 0x4197d1dc
++ 40178f62:  4879 4197 e390       pea 0x4197e390
++ 40178f68:  4e94                 jsr %a4@
+~ 40178f6a:  2ebc 4197 e3e4       movel #1100473316,%sp@
++ 40178f70:  4e94                 jsr %a4@
++ 40178f72:  508f                 addql #8,%sp
++ 40178f74:  4e75                 rts
+```
+
+### 0x401aa0d0-0x401aa138, 13 runs, 44 B (data)
+
+Runs: 0x401aa0d0 +8, 0x401aa0de +1, 0x401aa0e8 +4, 0x401aa0f9 +3, 0x401aa0fe +2, 0x401aa101 +11, 0x401aa10e +1, 0x401aa112 +1, 0x401aa116 +1, 0x401aa11c +4, 0x401aa12d +3, 0x401aa132 +2, 0x401aa135 +3.
+
+```
+401aa0d0  00 00 00 06 00 00 00 30 -- -- -- -- -- -- 64 --  |.......0      d |
+401aa0e0  -- -- -- -- -- -- -- -- ff ff ff ff -- -- -- --  |        ....    |
+401aa0f0  -- -- -- -- -- -- -- -- -- 25 2e dd -- -- 69 9d  |         %..  i.|
+401aa100  -- 25 2e d9 00 00 00 06 00 00 00 31 -- -- 01 --  | %.........1  . |
+401aa110  -- -- 7f -- -- -- 40 -- -- -- -- -- ff ff ff ff  |  .   @     ....|
+401aa120  -- -- -- -- -- -- -- -- -- -- -- -- -- 25 2e f2  |             %..|
+401aa130  -- -- 69 9d -- 25 2e ee -- -- -- -- -- -- -- --  |  i. %..        |
+```
+
+### 0x40252ed9-0x40252efd, 4 runs, 33 B (data)
+
+Runs: 0x40252ed9 +3, 0x40252edd +16, 0x40252eee +3, 0x40252ef2 +11.
+
+```
+40252ed0  -- -- -- -- -- -- -- -- -- 56 45 44 -- 56 65 6c  |         VED Vel|
+40252ee0  20 74 6f 20 45 6e 76 20 44 65 70 74 68 -- 4b 45  | to Env Depth KE|
+40252ef0  59 -- 4b 65 79 74 72 61 63 6b 69 6e 67 -- -- --  |Y Keytracking   |
+```
+
+### 0x40252fef-0x40252ffc, 2 runs, 10 B (data)
+
+Runs: 0x40252fef +1, 0x40252ff3 +9.
+
+```
+40252fe0  -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 32  |               2|
+40252ff0  -- -- -- 33 40 06 0d 88 40 12 4b 24 -- -- -- --  |   3@...@.K$    |
 ```

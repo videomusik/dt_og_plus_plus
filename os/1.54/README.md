@@ -3,14 +3,15 @@
 DT OG++ is a modified OS 1.54 for the Digitakt (the original model). It adds round-robin slice
 selection for the Slice machine, a Poly machine that lets one Sound play several notes at the same
 time, a way for MIDI tracks to play the audio tracks without a cable, Chain Recording, CFOO (an
-8-bit FM synth machine), and portamento and legato on every audio track. This repository contains no
+8-bit FM synth machine), portamento and legato on every audio track, and velocity to filter envelope
+depth and filter keytracking on every audio track's FILTER page. This repository contains no
 Elektron firmware. You build DT OG++ yourself, on your own computer, from your own copy of Elektron's
 stock OS 1.54 update file, and the build refuses any other input. DT OG++ is not affiliated with or
 endorsed by Elektron.
 
 SLICE: RRBN, the Poly machine and Virtual MIDI Loopback are the features of the OS 1.52A build,
-carried over to OS 1.54. Chain Recording, the CFO oscillator and portamento are new in OS 1.54 and
-exist only in this build. Everything else in OS 1.54, including its Outbox 8 support, is Elektron's
+carried over to OS 1.54. Chain Recording, the CFO oscillator, portamento and the FILTER page's VED
+and KEY are new in OS 1.54 and exist only in this build. Everything else in OS 1.54, including its Outbox 8 support, is Elektron's
 and unchanged.
 
 Other OS versions and the shared documentation: [README.md](../../README.md).
@@ -197,6 +198,28 @@ Every audio track's TRIG page gets two knobs, G and H, which are empty on stock:
   opens with PORT OFF and LEG OFF.
 - The glide moves once per audio tick, every 0.67 ms.
 
+### FILTER: VED AND KEY
+
+Every audio track's second FILTER page gets two knobs, C and G, which are empty on stock:
+
+| Knob | Name | Range | What it does |
+|---|---|---|---|
+| C | VED, Vel to Env Depth | 0–100 % | how much the velocity decides the filter envelope's depth; at 0 %, the default, every note gets ENV's whole depth, as on stock |
+| G | KEY, Keytracking | −394 % to 394 %, in steps of 6.25 % | moves the cutoff with the note; at 0 %, the default, the cutoff is as on stock |
+
+- **VED** multiplies the envelope's depth by 1 − VED × (100 − velocity) / 127. A trig at velocity 100,
+  the default, gets the whole depth whatever VED is. At VED 100 %, a note at velocity 127 gets 1.21
+  times the depth, one at 64 gets 0.72 times and one at 0 gets 0.21 times; at 50 % the change is half
+  as large. It works the same way with a negative ENV.
+- **KEY** moves the cutoff by the note's distance from C4: at 100 % the cutoff follows the pitch, at
+  200 % it moves two octaves for an octave played, and negative values move it the other way. It
+  follows the pitch the track plays, so with PORT on the cutoff glides with the note.
+- VED shows its percentage in its picture, with its name below; KEY shows a knob with a centre mark
+  and its percentage.
+- [FUNC] + knob steps VED to 0, 50 or 100 %, and KEY to −394 %, 0 or 394 %, in the direction turned.
+- VED and KEY belong to the sound: they are saved with it, can be locked per trig, and their locks are
+  saved with the pattern. A project saved on stock firmware opens with VED and KEY at 0 %.
+
 For how each feature works inside the firmware, see the feature list in
 [notes/README.md](notes/README.md#the-features-in-this-build).
 
@@ -233,7 +256,7 @@ The build runs on macOS and Linux; on Windows, use WSL2
    ```
    bash build/build_tool.sh
    python3 os/1.54/build/build.py
-   python3 os/1.54/build/verify.py out/1.54/dt_og_plus_plus_v0.2.1_<hash8>.syx --tool tool/bin/elektron-firmware-tool-capped
+   python3 os/1.54/build/verify.py out/1.54/dt_og_plus_plus_v0.2.2_<hash8>.syx --tool tool/bin/elektron-firmware-tool-capped
    ```
 
    In the last command, use the file name that `build.py` prints at `[7/7] wrote`.
@@ -252,7 +275,7 @@ What the three commands do:
   writes the binary somewhere else.
 - `os/1.54/build/build.py` checks your stock file, applies `os/1.54/build/patch.json`, packs and
   re-checks the result, and only then writes
-  `out/1.54/dt_og_plus_plus_v0.2.1_<first 8 hex digits of its SHA-256>.syx`. This is the file you
+  `out/1.54/dt_og_plus_plus_v0.2.2_<first 8 hex digits of its SHA-256>.syx`. This is the file you
   flash. It prints the name at `[7/7] wrote`. `--syx FILE`, `--tool FILE` and `--out DIR` override
   the default locations.
 - `os/1.54/build/verify.py` tells you what a `.syx` file is: stock Digitakt OS 1.54, DT OG++
@@ -284,6 +307,7 @@ you flash, in either direction.
 | A sample recorded with Chain Recording | An ordinary sample. |
 | A track with the CFOO machine | The track most likely comes back with the Oneshot machine, which reads CFOO's knob values as its own. |
 | PORT and LEG, and their locks | Most likely ignored: every note plays at its own pitch, and the locks have no effect. |
+| VED and KEY, and their locks | Most likely ignored: the filter envelope and the cutoff act as on stock, and the locks have no effect. |
 
 A project made on stock firmware loads unchanged on DT OG++. Details:
 [notes/compatibility.md](notes/compatibility.md).
