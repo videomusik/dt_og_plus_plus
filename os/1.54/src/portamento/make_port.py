@@ -1,15 +1,18 @@
 #!/usr/bin/env python3
 """Portamento for OS 1.54, on top of the CFO oscillator's last stage (S27): assemble port.s with
-port.ld, check every site against the stock image, the current build and S27, and write the emulator's
-load files; with --stages, build the stage images.
+port.ld, check every site against the stock image, the build and S27, and write the emulator's load
+files; with --stages, build the stage images; with --write, merge the CFO oscillator and portamento into
+os/1.54/build/patch.json.
 
-    python3 os/1.54/src/portamento/make_port.py            # check, write the load files
-    python3 os/1.54/src/portamento/make_port.py --stages   # also build stage images
+    python3 os/1.54/src/portamento/make_port.py                    # check: is patch.json up to date?
+    python3 os/1.54/src/portamento/make_port.py --stages           # also build the stage images
+    python3 os/1.54/src/portamento/make_port.py --stages --write   # and rewrite patch.json
 
 Needs what make_cfo.py needs (m68k binutils, M68K_PREFIX; the stock section 3 from
 ./scripts/extract.sh 1.54; for --stages the stock .syx and the firmware tool).
 
-S27 is rebuilt with make_cfo.py's own routines and must give its recorded section-3 hash. Stages, written
+The build without the CFO oscillator comes back from patch.json (make_cfo.build_without_cfo), and S27 is
+rebuilt on it with make_cfo.py's own routines and must give its recorded section-3 hash. Stages, written
 to out/1.54/stages/ (only with --stages):
   S28  S27 + the two new pads filled with 'clrl %d0 ; rts' (their fill test)
   S29  S28 + both hooks, each pad only replaying the instructions its hook replaced
@@ -28,16 +31,24 @@ to out/1.54/stages/ (only with --stages):
        bit S31 to S34 test stays set after a sequenced trig's LEN, so every note was legato)
   S36  S35 + a note is legato when no NoteOff came since the track's last NoteOn (the release byte
        the amp envelope gets: LEN's countdown, note-off events, a stop), not by the envelope's state
-patch.json is not changed: the feature is a prototype."""
-import os, re, shutil, subprocess, sys, tempfile
+S36 is the build: patch.json holds the build without the CFO oscillator, then cfo_oscillator (S27 less
+that build) and portamento (S36 less S27). Each byte is listed once, under the last feature that wrote
+it, so the build's bytes that the CFO oscillator rewrites are listed under cfo_oscillator, and the CFO
+oscillator's note operand that S31 points at the glided note under portamento."""
+import json, os, re, shutil, subprocess, sys, tempfile
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", "..", "..", ".."))
 sys.path.insert(0, os.path.join(ROOT, "os", "1.54", "build"))
 sys.path.insert(0, os.path.join(ROOT, "os", "1.54", "src", "cfo_oscillator"))
 import build  # noqa: E402
+import make_listing  # noqa: E402
 import make_cfo as cfo  # noqa: E402
 PFX = os.environ.get("M68K_PREFIX", "m68k-elf-")
 BASE = 0x40000400
+FID = "portamento"
+TITLE = ("Portamento and legato: PORT and LEG on every audio track's TRIG page, saved with the sound and "
+         "lockable per trig; with LEG on, a note before the last one's LEN ends glides and keeps the amp "
+         "envelope running")
 CODE_END = 0x4017cc64                   # the end of the code (the branch scan's range)
 S27_SHA = "703cedf780d68ee9a4187956d6a5b87d46d284804fc962fa2950f0ae4c189ff0"   # S27's section 3
 CFO_LD = os.path.join(ROOT, "os", "1.54", "src", "cfo_oscillator", "lz4_stream.ld")
@@ -237,17 +248,41 @@ def apply_save(im, syms, secs):
     apply_sites(im, syms, SAVE_SITES)
 
 
+def merged_features(stock, patch, img, owner, s27, s36):
+    """patch.json's features with S27 and S36 merged on the build without the CFO oscillator (img, whose
+    changed bytes owner attributes): each byte S36 changes, under the last feature that wrote it. Runs
+    are maximal per feature and kind, as make_chain.py writes them; outside the code windows, data."""
+    def kind(a):
+        return "code" if any(lo <= a < hi for lo, hi in make_listing.CODE_WINDOWS) else "data"
+    attr = {}
+    for i in range(len(stock)):
+        if s36[i] != stock[i]:
+            a = BASE + i
+            attr[a] = (FID, kind(a)) if s36[i] != s27[i] else \
+                (cfo.FID, kind(a)) if s27[i] != img[i] else owner[a]
+    runs, cur = {}, None
+    for a in sorted(attr):
+        fid, k = attr[a]
+        if cur and cur["fid"] == fid and cur["kind"] == k and cur["end"] == a:
+            cur["b"].append(s36[a - BASE]); cur["end"] = a + 1
+        else:
+            cur = {"fid": fid, "kind": k, "start": a, "end": a + 1, "b": [s36[a - BASE]]}
+            runs.setdefault(fid, []).append(cur)
+    ids = [f["id"] for f in patch["features"]]
+    earlier = patch["features"][:ids.index(cfo.FID) if cfo.FID in ids else len(ids)]
+    features = [(f["id"], f["title"]) for f in earlier] + [(cfo.FID, cfo.TITLE), (FID, TITLE)]
+    return [{"id": i, "title": t,
+             "runs": [{"addr": "0x%08x" % x["start"], "bytes": bytes(x["b"]).hex(), "kind": x["kind"]}
+                      for x in runs.get(i, [])]} for i, t in features]
+
+
 def main():
-    stages = "--stages" in sys.argv
+    stages, write = "--stages" in sys.argv, "--write" in sys.argv
+    if write and not stages:
+        sys.exit("--write needs --stages (patch.json carries the .syx hash of the S36 build)")
     stock = build.read(cfo.STOCK3)
-    patch, runs = build.load_patch(cfo.PATCH)
-    img = bytearray(stock)
-    owner = set()
-    for a, d, _f, _k in runs:
-        img[a - BASE:a - BASE + len(d)] = d
-        owner.update(range(a, a + len(d)))
-    if build.sha256_bytes(bytes(img)) != patch["result"]["section3_sha256"]:
-        sys.exit("patch.json does not reproduce its own section-3 hash")
+    patch, _runs = build.load_patch(cfo.PATCH)
+    img, owner = cfo.build_without_cfo(stock, patch)
     tmp = tempfile.mkdtemp(prefix="port-")
     try:
         s27, h27 = s27_image(stock, img, tmp)
@@ -352,12 +387,18 @@ def main():
                     f.write("sym %s %08x\n" % (n, a))
                 f.write("sym cfo_note %08x\n" % cfo_note)
         print("load files:", ", ".join(os.path.join("work", "dt_1.54-port", n + ".load") for n in built))
+        feats = merged_features(stock, patch, img, owner, s27, built["S36"])
+        s36 = build.sha256_bytes(built["S36"])
+        current = patch["result"]["section3_sha256"]
+        same = feats == patch["features"] and s36 == current
+        print("S36 section 3 %s; patch.json %s" % (s36, "is up to date" if same else "differs (%s)" % current))
         if not stages:
             print("no stage images built (--stages)")
             return
         dest = os.path.join(ROOT, "out", "1.54", "stages")
         os.makedirs(dest, exist_ok=True)
         syx, tool = build.DEFAULT_SYX, build.DEFAULT_TOOL
+        res = {}
         for name in built:
             p3 = built[name]
             sel, i = [], 0
@@ -381,12 +422,21 @@ def main():
                 build.pack(tool, syx, pb, packed)
                 build.check_report(tool, packed)
                 build.roundtrip(tool, packed, p3, st, os.path.join(t2, "verify"))
-                h = build.sha256_file(packed)
+                h, size = build.sha256_file(packed), os.path.getsize(packed)
                 final = os.path.join(dest, "dt_og_plus_plus_v0.1-%s_%s.syx" % (name, h[:8]))
                 os.replace(packed, final)
             finally:
                 shutil.rmtree(t2, ignore_errors=True)
+            res[name] = (h, size)
             print("%s section 3 %s .syx %s -> %s" % (name, build.sha256_bytes(p3), h, final))
+        if write:
+            patch["features"] = feats
+            patch["result"] = dict(patch["result"], section3_sha256=s36,
+                                   syx_sha256_reference=res["S36"][0], syx_size_reference=res["S36"][1])
+            with open(cfo.PATCH, "w") as f:
+                json.dump(patch, f, indent=1)
+                f.write("\n")
+            print("wrote", cfo.PATCH)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
     print("Nothing was sent to a device.")

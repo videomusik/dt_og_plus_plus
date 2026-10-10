@@ -47,14 +47,14 @@ marker `0xC4A1`, which only this build writes
 | `0x439d1060` | 128 B | MIDI Loopback: the byte ring, 32 slots × 4 B |
 | `0x439d10e0` | 1 B | MIDI Loopback: the ring index, masked to 0..31 |
 
-Planned, not in the build (the CFO oscillator's test images S11–S14,
+The CFO oscillator (from S11; in the build;
 [features/cfo_oscillator.md](features/cfo_oscillator.md)):
 - `0x439d1100`, 96 B: the phase accumulators, 8 tracks × 3 (u32). Their start-up contents do not
   matter: any phase is a valid start.
 - `0x439d1160`, 32 B: the level each track ended its last tick on (u32, `0..0x7fff`). A start-up value
   above `0x7fff` is taken as "no level yet"; one below starts a single tick's ramp from it.
 
-Planned, not in the build (the portamento test image S31, on top of the CFO oscillator's S27;
+Portamento (from S31, on top of the CFO oscillator's S27; in the build;
 [features/portamento.md](features/portamento.md)): `0x439d1180`, 40 B, the portamento state:
 - `+0`, 8 longs: the note sum each track plays;
 - `+32`, long: the marker `0x504f5254` (`PORT`) once the block is initialised;

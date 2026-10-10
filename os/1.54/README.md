@@ -2,14 +2,16 @@
 
 DT OG++ is a modified OS 1.54 for the Digitakt (the original model). It adds round-robin slice
 selection for the Slice machine, a Poly machine that lets one Sound play several notes at the same
-time, and a way for MIDI tracks to play the audio tracks without a cable. This repository contains
-no Elektron firmware. You build DT OG++ yourself, on your own computer, from your own copy of
-Elektron's stock OS 1.54 update file, and the build refuses any other input. DT OG++ is not
-affiliated with or endorsed by Elektron.
+time, a way for MIDI tracks to play the audio tracks without a cable, Chain Recording, CFOO (an
+8-bit FM synth machine), and portamento and legato on every audio track. This repository contains no
+Elektron firmware. You build DT OG++ yourself, on your own computer, from your own copy of Elektron's
+stock OS 1.54 update file, and the build refuses any other input. DT OG++ is not affiliated with or
+endorsed by Elektron.
 
-The features are the same as in the OS 1.52A build, carried over to OS 1.54, plus Chain Recording,
-which records a sample chain for the Slice machine one hit at a time. Everything else in OS 1.54,
-including its Outbox 8 support, is Elektron's and unchanged.
+SLICE: RRBN, the Poly machine and Virtual MIDI Loopback are the features of the OS 1.52A build,
+carried over to OS 1.54. Chain Recording, the CFO oscillator and portamento are new in OS 1.54 and
+exist only in this build. Everything else in OS 1.54, including its Outbox 8 support, is Elektron's
+and unchanged.
 
 Other OS versions and the shared documentation: [README.md](../../README.md).
 
@@ -137,6 +139,75 @@ Chain Recording has been tested on a Digitakt with OS 1.54. One display glitch i
 screen that asks whether to apply the new sample to a track, the top and bottom of the screen may stay
 black, with only the sample showing.
 
+### CFO OSCILLATOR
+
+CFOO is a sixth machine: a synth voice of three oscillators with 8-bit waveforms, where OSC2, OSC3 or
+both frequency-modulate OSC1. It plays where a sample would, so the filter, the amp envelope, the LFOs
+and the effects act on it as on a sample. CFOO is the sixth machine in the MACHINE select menu, after
+POLY, with an icon of two rising ramps.
+
+A CFOO track's SRC page:
+
+| Knob | Name | Range | What it does |
+|---|---|---|---|
+| A | WAV1, OSC1 Wave | 0–127 | OSC1's waveform: SIN at 0, TRI at 42, SAW at 85, SQR at 127, blended in between |
+| B | FMSR, FM Source | OSC2, 2+3, OSC3 | which oscillators modulate OSC1 |
+| C | WAV2, OSC2 Wave | 0–127 | OSC2's waveform, as A |
+| D | WAV3, OSC3 Wave | 0–127 | OSC3's waveform, as A |
+| E | MIX, Osc Mix | 0–127 | what you hear: OSC1 alone at 0, OSC1+2 at 42, all three at 85, OSC2+3 at 127, crossfaded in between |
+| F | FM, FM Amount | 0–127 | the FM depth |
+| G | DET2, OSC2 Detune | −24.00 to +24.00 | OSC2's pitch against OSC1, in semitones and hundredths |
+| H | DET3, OSC3 Detune | −24.00 to +24.00 | OSC3's pitch against OSC1 |
+
+- OSC1 plays the trig's note. The FM depth follows OSC1's pitch, so a sound keeps its timbre across
+  the keyboard. The oscillators read their waveforms without smoothing between table entries, which
+  keeps the raw 8-bit sound.
+- The wave knobs read `SIN`, `TRI`, `SAW` and `SQR` at their four points, and MIX reads `OSC1`, `1+2`,
+  `123` and `2+3`.
+- **[FUNC] + knob** steps A, C, D and E to the next of 0, 42, 85 and 127, and G and H through −24, −17,
+  −12, −5, 0, +7, +12, +19 and +24 semitones.
+- A new CFOO track plays a plain sine: OSC1 SIN alone, no FM, both detunes at 0.
+- The level follows the trig's velocity; the AMP page sets the volume.
+- On the LFO page, DEST lists CFOO's parameters (`CFOO:OSC1 Wave` … `CFOO:OSC3 Detune`).
+- A Poly track can follow a CFOO track: every voice of the pool plays the synth with the CFOO track's
+  knobs.
+- [TRK] + a track key and the SRC page show a CFOO track as `CFOO`, with no sample name, and a Poly
+  track as `POLY` and its source track's machine (for example `POLY: CFOO`).
+
+The CFO oscillator has been tested on a Digitakt with OS 1.54. Its icon is a placeholder.
+
+### PORTAMENTO AND LEGATO
+
+Every audio track's TRIG page gets two knobs, G and H, which are empty on stock:
+
+| Knob | Name | Range | What it does |
+|---|---|---|---|
+| G | PORT, Portamento | OFF, 1–127 | the glide time; at OFF, the default, every note plays at its own pitch at once, as on stock |
+| H | LEG, Legato | OFF, ON | ON: only a legato note glides, and it does not restart the amp envelope |
+
+- With PORT above OFF, a new note starts from the pitch the track is playing and glides to its own.
+  The higher PORT, the slower the glide: its time constant is about 6 ms at 8, 86 ms at 32, 0.34 s at
+  64 and 1.34 s at 127, and an octave takes about two and a half time constants to come within a
+  semitone.
+- **LEG OFF:** every note glides, and every note restarts the envelopes as usual.
+- **LEG ON:** a note is legato when its trig comes before the previous note's LEN has ended. A legato
+  note glides and leaves the amp envelope running, without a new attack, as on a mono synth in legato
+  mode. Any other note starts at its own pitch, with a new attack. So with LEN shorter than the
+  distance to the next trig every note restarts; with LEN as long as that distance or longer, every
+  note after the first is legato. LEN INF, which never ends, counts as ended: every note restarts.
+  LEG holds the amp envelope at any PORT, OFF included; the filter envelope keeps following FLT.T.
+- The glide works on Oneshot, Werp and Slice samples, on each voice of a Poly pool (from that voice's
+  own last note) and on CFOO's OSC1 (OSC2 and OSC3 follow at their detunes). Repitch, whose rate
+  follows the tempo, and the Slice machine with SLICE at NOTE do not glide.
+- A note change without a new note trig (a trigless lock with a NOTE lock) glides too.
+- PORT and LEG belong to the sound, like the AMP page's parameters: they are saved with it, can be
+  locked per trig, and their locks are saved with the pattern. A project saved on stock firmware
+  opens with PORT OFF and LEG OFF.
+- With LEG ON a sample still starts again at a legato note; only its amp envelope carries on.
+- The glide moves once per audio tick, every 0.67 ms.
+
+Portamento and legato have been tested on a Digitakt with OS 1.54.
+
 For how each feature works inside the firmware, see the feature list in
 [notes/README.md](notes/README.md#the-features-in-this-build).
 
@@ -222,6 +293,8 @@ you flash, in either direction.
 | A track with the Poly machine | The track most likely comes back with the Oneshot machine. |
 | A MIDI track with CHAN at TRK1–TRK8 | Most likely the value is kept, and that MIDI track sends nothing. |
 | A sample recorded with Chain Recording | An ordinary sample. |
+| A track with the CFOO machine | The track most likely comes back with the Oneshot machine, which reads CFOO's knob values as its own. |
+| PORT and LEG, and their locks | Most likely ignored: every note plays at its own pitch, and the locks have no effect. |
 
 A project made on stock firmware loads unchanged on DT OG++. Details:
 [notes/compatibility.md](notes/compatibility.md).

@@ -190,7 +190,7 @@ The code is written in assembly, in [src/chain_record/](../../src/chain_record/)
 
 - `chain_record.s` holds the hooks and the pads;
 - `chain_record.ld` places each section at its hook site or pad;
-- `make_chain.py` assembles the code, checks it, and writes the `chain_record` runs into
+- `make_chain.py` assembles the code, checks it, and checks the `chain_record` runs in
   `os/1.54/build/patch.json`.
 
 `make_chain.py` makes these checks:
@@ -200,7 +200,12 @@ The code is written in assembly, in [src/chain_record/](../../src/chain_record/)
 - no other feature's run is at a hook site;
 - the build without Chain Recording, rebuilt from `patch.json`, has section 3 `5a7eb2a4…`.
 
-`build.py` itself needs only `patch.json`.
+`patch.json` also holds the features merged after Chain Recording, the CFO oscillator and portamento.
+`make_chain.py` takes them off first (`make_cfo.build_without_cfo`, which gives the bytes CFOO rewrites
+their earlier values), then compares its own `chain_record` runs and S8's section 3 with that build
+(`efc90606…`). Its `--write` is refused while features follow Chain Recording in `patch.json`;
+`make_port.py --stages --write` writes the file ([portamento.md](portamento.md#checks)). `build.py`
+itself needs only `patch.json`.
 
 ```
 python3 os/1.54/src/chain_record/make_chain.py            # is patch.json up to date?
@@ -259,7 +264,7 @@ changes one thing from an image that ran on the unit:
 |---|---|---|---|
 | S6 | `4aae845e` | `5ae51b30…` | S3 + the frame-registration pad `0x40128244..0x401282e0` filled with `clrl %d0 ; rts` (its fill test) |
 | S7 | `ad7c9a72` | `aaedd690…` | S6 + every hook of this build, each pad only replaying the stock code it displaced (the first code through the new hook at `0x400a9878`) |
-| S8 | `3fd4b0a3` | `efc90606…` | S6 + Chain Recording: the reference build, `patch.json` |
+| S8 | `3fd4b0a3` | `efc90606…` | S6 + Chain Recording: the build before the CFO oscillator and portamento |
 
 What to check:
 

@@ -1,7 +1,9 @@
 # Portamento: PORT and LEG on the TRIG page
 
-Not in the build: test images on top of the CFO oscillator's last stage, S27
-([cfo_oscillator.md](cfo_oscillator.md)). Source: [src/portamento/](../../src/portamento/).
+In the build: `os/1.54/build/patch.json` holds it as the feature `portamento`, its last stage, S36,
+less the CFO oscillator's last stage, S27, on which the stages are built
+([cfo_oscillator.md](cfo_oscillator.md)). The build is S36, byte for byte. Source:
+[src/portamento/](../../src/portamento/).
 
 ## What it does
 
@@ -239,13 +241,24 @@ The rest of each pad keeps its fill. No hook calls anything but the stock routin
 
 ## Checks
 
-- **The build** (`make_port.py`): S27 rebuilt with `make_cfo.py`'s own routines gives its recorded
-  section-3 hash; every touched range is stock in the stock image, untouched by `patch.json` and by
-  S27; each section lies in its pad or in the zero `.rodata` padding; no stock instruction branches
-  into a hook site; the CFO oscillator's note read is found exactly once. Each stage image passes
-  `build.py`'s checks (protected ranges, the MAIN OS section only, round trip). Extracted again, S28
-  to S31 differ from S27 only in the ranges listed, and every other section equals S27's. Rebuilding
-  gives every image byte for byte.
+- **The build** (`make_port.py`): the build without the CFO oscillator comes back from `patch.json`
+  (`make_cfo.build_without_cfo`, Chain Recording's build, section 3 `efc90606…`); S27 rebuilt on it
+  with `make_cfo.py`'s own routines gives its recorded section-3 hash; every touched range is stock in
+  the stock image, untouched by that build and by S27; each section lies in its pad or in the zero
+  `.rodata` padding; no stock instruction branches into a hook site; the CFO oscillator's note read is
+  found exactly once. Each stage image passes `build.py`'s checks (protected ranges, the MAIN OS
+  section only, round trip). Extracted again, S28 to S31 differ from S27 only in the ranges listed, and
+  every other section equals S27's. Rebuilding gives every image byte for byte.
+- **The merge** (`make_port.py --stages --write`): `patch.json` gets the CFO oscillator and portamento
+  from S27 and S36. Every byte that S36 changes from stock is listed once, under the last feature that
+  wrote it: portamento's, else the CFO oscillator's, else the earlier feature's. So the 23 bytes of
+  `poly_engine`, `poly_icon` and `midi_loopback` that CFOO rewrites are listed under `cfo_oscillator`,
+  and the CFO oscillator's 4-byte note operand (`0x400f7840`) under `portamento`; no other run of the
+  earlier features changes. Runs are maximal per feature and kind; a run outside the code windows is
+  data. `build.py` on the result gives `.syx` `9df62a0b…`, section 3 `d6fac1a3…`: S36. Without
+  `--write` the script reports whether `patch.json` is up to date. `make_chain.py` and `make_cfo.py`
+  rebuild their own stages from the merged `patch.json` byte for byte, and `make_chain.py --write` is
+  refused once features follow Chain Recording.
 - **`EmuPortamento`** ([scripts/emu/README.md](../../scripts/emu/README.md)) runs each hook at its site
   in the stock ISR code and compares the rate loop's `%d6` with a model, every track, every tick:
   PORT 0 at once; a detached note glides up, and down; PORT 16 arrives exactly (347 ticks) and stays;
@@ -361,13 +374,11 @@ Not reported yet: S28 to S30 on their own, and what existing projects hold in PO
 - The two new pads ran this build's code on the unit (S31, above); S28's fill test on its own is not
   reported.
 - ⚠️ Slots 46 and 47 unused in stock: by the scans above; S30 shows what existing projects hold.
-- ⚠️ A lock on LEG is expected to work as the lock on PORT does (the slot map, and `FUN_40074b0a`
-  writing the ISR's copy by slot).
+- ✅ A lock on LEG works as the lock on PORT does: S33 on the unit, above.
 - ⚠️ Other places that store or copy a sound's values outside the record above (a kit's copy, a sound
   pool) are not traced beyond the writer, the reader and the mirror; S33's reload test covers the
   common path.
 - The glide is stepped once per tick (0.67 ms); on the shortest glides that is 1,500 steps a second.
 - At a legato note with LEG ON a sample still restarts; only the amp envelope carries on (S34).
-- Code space left: 10 B in `FUN_400ee05e`; `FUN_400e6d1c` is full from S34; `.rodata` padding
-  `0x40252fec..0x40253000` (20 B) and `0x40252ed9..0x40252f00` (39 B).
-- The feature is not in `patch.json`.
+- Code space left: 6 B in `FUN_400ee05e` (from S35; 10 B in S31 to S34); `FUN_400e6d1c` is full from
+  S34; `.rodata` padding `0x40252fec..0x40253000` (20 B) and `0x40252ed9..0x40252f00` (39 B).

@@ -10,13 +10,19 @@ samples, so the rest of the track's chain applies to it unchanged:
 - the filters and their envelope;
 - the amp envelope, the mix and the effects.
 
-⚠️ **Not in the reference build.** `os/1.54/build/patch.json` does not contain it. The prototype exists as
-test images S9–S11 ([Testing on the unit](#testing-on-the-unit)), which add it to the reference build in
-three steps. Its code lives in a new pad, `FUN_400f77da` ([Code space](#code-space)). Nothing of it has
-run on a unit yet.
+**In the build.** `os/1.54/build/patch.json` holds it as the feature `cfo_oscillator`: its last stage,
+S27, less Chain Recording's build that the stages start from ([Testing on the unit](#testing-on-the-unit)).
+It came into `patch.json` together with portamento, which points the synth's note read at the glided
+note ([portamento.md](portamento.md)); `make_port.py` writes both. The build's bytes that CFOO rewrites
+(the machine-5 bounds, the name and icon pointers, the label pads' jumps) are listed under
+`cfo_oscillator`. Its code lives in a new pad, `FUN_400f77da` ([Code space](#code-space)). The stages
+ran on the test unit ([Testing on the unit](#testing-on-the-unit)).
 
-**Prototype stage.** Until the synth is a machine of its own, it plays on any ONESHOT track whose SAMP
-is OFF (sample slot 0), and reads its controls from that track's SRC page:
+The sections below follow the stages. S11 was a prototype, and CFOO, machine 5, starts in S12
+([below](#cfoo-machine-5-in-s12)); the build plays the synth on CFOO tracks only.
+
+**The prototype, S11.** Before the synth became a machine of its own, it played on any ONESHOT track
+whose SAMP was OFF (sample slot 0), and read its controls from that track's SRC page:
 
 | SRC parameter | Prototype meaning |
 |---|---|
@@ -234,9 +240,11 @@ the pad's 2,372. The routes:
 
 ## Testing on the unit
 
-`make_cfo.py lz4_stream.ld --stages` builds nineteen images on top of the reference build (section 3
+`make_cfo.py lz4_stream.ld --stages` builds nineteen images on top of Chain Recording's build (section 3
 `efc90606…`, `.syx` `3fd4b0a3`), each adding one step to the stage named in its row. They are meant to
-be flashed in order, S9 to S27:
+be flashed in order, S9 to S27. That build comes back from `patch.json` by `build_without_cfo`: the
+features before `cfo_oscillator`, with the bytes CFOO rewrites given back their earlier values; it
+must hash to `efc90606…`, and every stage rebuilds byte for byte from the merged `patch.json`.
 
 | Stage | `.syx` | Section 3 | Contents |
 |---|---|---|---|
@@ -323,6 +331,9 @@ Results on the unit, OS 1.54, each stage flashed on the one before from S8:
   POLY and a CFOO track as CFOO, but the SRC page shows a POLY track's Source's machine instead (CFOO
   alone, or the machine and its sample for SLICE and the others): its machine comes through POLY's
   alias, `FUN_4002b5d4`. S26 makes the three texts agree.
+- ⚠️ **S27:** its own change, the POLY track's text after a machine change, was not reported on its
+  own. ✅ S27's code ran on the unit in every portamento stage built on it, and a CFOO track plays and
+  glides there ([portamento.md](portamento.md#on-the-unit)).
 
 What to check:
 - **S9:** nothing changes anywhere. A live caller of the pad would now get 0 at once.
