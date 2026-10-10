@@ -133,11 +133,6 @@ that it does not fit in the sample memory, and the time reads as seconds and hun
   threshold above the tail of your sounds.
 - Keep RLEN and the tempo the same for all slots of a chain; otherwise the slots differ in length.
 - With RLEN at MAX, or D at OFF, the recorder works as on stock.
-- The chain setting is not saved with the project.
-
-Chain Recording has been tested on a Digitakt with OS 1.54. One display glitch is known: after the
-screen that asks whether to apply the new sample to a track, the top and bottom of the screen may stay
-black, with only the sample showing.
 
 ### CFO OSCILLATOR
 
@@ -174,8 +169,6 @@ A CFOO track's SRC page:
 - [TRK] + a track key and the SRC page show a CFOO track as `CFOO`, with no sample name, and a Poly
   track as `POLY` and its source track's machine (for example `POLY: CFOO`).
 
-The CFO oscillator has been tested on a Digitakt with OS 1.54. Its icon is a placeholder.
-
 ### PORTAMENTO AND LEGATO
 
 Every audio track's TRIG page gets two knobs, G and H, which are empty on stock:
@@ -196,17 +189,13 @@ Every audio track's TRIG page gets two knobs, G and H, which are empty on stock:
   distance to the next trig every note restarts; with LEN as long as that distance or longer, every
   note after the first is legato. LEN INF, which never ends, counts as ended: every note restarts.
   LEG holds the amp envelope at any PORT, OFF included; the filter envelope keeps following FLT.T.
-- The glide works on Oneshot, Werp and Slice samples, on each voice of a Poly pool (from that voice's
-  own last note) and on CFOO's OSC1 (OSC2 and OSC3 follow at their detunes). Repitch, whose rate
-  follows the tempo, and the Slice machine with SLICE at NOTE do not glide.
+- The glide works wherever the trig's note sets the pitch: on samples, on each voice of a Poly pool
+  (from that voice's own last note) and on CFOO's OSC1 (OSC2 and OSC3 follow at their detunes).
 - A note change without a new note trig (a trigless lock with a NOTE lock) glides too.
 - PORT and LEG belong to the sound, like the AMP page's parameters: they are saved with it, can be
   locked per trig, and their locks are saved with the pattern. A project saved on stock firmware
   opens with PORT OFF and LEG OFF.
-- With LEG ON a sample still starts again at a legato note; only its amp envelope carries on.
 - The glide moves once per audio tick, every 0.67 ms.
-
-Portamento and legato have been tested on a Digitakt with OS 1.54.
 
 For how each feature works inside the firmware, see the feature list in
 [notes/README.md](notes/README.md#the-features-in-this-build).
@@ -244,7 +233,7 @@ The build runs on macOS and Linux; on Windows, use WSL2
    ```
    bash build/build_tool.sh
    python3 os/1.54/build/build.py
-   python3 os/1.54/build/verify.py out/1.54/dt_og_plus_plus_v0.1_<hash8>.syx --tool tool/bin/elektron-firmware-tool-capped
+   python3 os/1.54/build/verify.py out/1.54/dt_og_plus_plus_v0.2.1_<hash8>.syx --tool tool/bin/elektron-firmware-tool-capped
    ```
 
    In the last command, use the file name that `build.py` prints at `[7/7] wrote`.
@@ -263,7 +252,7 @@ What the three commands do:
   writes the binary somewhere else.
 - `os/1.54/build/build.py` checks your stock file, applies `os/1.54/build/patch.json`, packs and
   re-checks the result, and only then writes
-  `out/1.54/dt_og_plus_plus_v0.1_<first 8 hex digits of its SHA-256>.syx`. This is the file you
+  `out/1.54/dt_og_plus_plus_v0.2.1_<first 8 hex digits of its SHA-256>.syx`. This is the file you
   flash. It prints the name at `[7/7] wrote`. `--syx FILE`, `--tool FILE` and `--out DIR` override
   the default locations.
 - `os/1.54/build/verify.py` tells you what a `.syx` file is: stock Digitakt OS 1.54, DT OG++

@@ -64,7 +64,7 @@ MIDI IN. Details: [OS 1.54](os/1.54/README.md#virtual-midi-loopback),
 OS 1.54 only. On the recorder page, data entry knob D sets a number of slots (4 to 64), armed by you
 for each slot or, turned the other way, automatically. Each slot records RLEN steps, until the chain
 is full and goes to the normal save. All slots have the same length, so the Slice machine with GRID
-set to the number of slots plays one hit per slice. Tested on a Digitakt.
+set to the number of slots plays one hit per slice.
 Details: [OS 1.54](os/1.54/README.md#chain-recording)
 
 ### CFO OSCILLATOR
@@ -74,7 +74,7 @@ waveforms, where OSC2, OSC3 or both frequency-modulate OSC1. Its SRC page sets e
 waveform (SIN, TRI, SAW, SQR and the blends between them), the FM source and amount, the mix of the
 three oscillators and the detunes of OSC2 and OSC3 (±24 semitones). It plays where a sample would, so
 the filter, the amp envelope, the LFOs and the effects act on it, and a Poly track can follow it.
-Tested on a Digitakt. Details: [OS 1.54](os/1.54/README.md#cfo-oscillator)
+Details: [OS 1.54](os/1.54/README.md#cfo-oscillator)
 
 ### PORTAMENTO AND LEGATO
 
@@ -82,7 +82,7 @@ OS 1.54 only. Every audio track's TRIG page gets PORT, the glide time (OFF, 1–
 switch. With PORT above OFF a new note glides from the pitch the track is playing to its own. With LEG
 ON only a legato note glides, one whose trig comes before the previous note's LEN has ended, and it
 leaves the amp envelope running without a new attack. PORT and LEG are saved with the sound and can
-be locked per trig. Tested on a Digitakt. Details: [OS 1.54](os/1.54/README.md#portamento-and-legato)
+be locked per trig. Details: [OS 1.54](os/1.54/README.md#portamento-and-legato)
 
 For how each feature works inside the firmware, see the feature list in the OS folder's notes
 (OS 1.54: [os/1.54/notes/README.md](os/1.54/notes/README.md#the-features-in-this-build)).
@@ -116,12 +116,13 @@ The build runs on macOS and Linux; on Windows, use WSL2
    git -C ../elektron-firmware-tool checkout 065d18f
    ```
 
-3. From the repository root, run, with `<os>` the OS folder of your stock file:
+3. From the repository root, run, with `<os>` the OS folder of your stock file and `<version>` its
+   build's version (v0.2.1 for OS 1.54, v0.1 for OS 1.52A):
 
    ```
    bash build/build_tool.sh
    python3 os/<os>/build/build.py
-   python3 os/<os>/build/verify.py out/<os>/dt_og_plus_plus_v0.1_<hash8>.syx --tool tool/bin/elektron-firmware-tool-capped
+   python3 os/<os>/build/verify.py out/<os>/dt_og_plus_plus_<version>_<hash8>.syx --tool tool/bin/elektron-firmware-tool-capped
    ```
 
    OS 1.54:
@@ -129,7 +130,7 @@ The build runs on macOS and Linux; on Windows, use WSL2
    ```
    bash build/build_tool.sh
    python3 os/1.54/build/build.py
-   python3 os/1.54/build/verify.py out/1.54/dt_og_plus_plus_v0.1_<hash8>.syx --tool tool/bin/elektron-firmware-tool-capped
+   python3 os/1.54/build/verify.py out/1.54/dt_og_plus_plus_v0.2.1_<hash8>.syx --tool tool/bin/elektron-firmware-tool-capped
    ```
 
    In the last command, use the file name that `build.py` prints at `[7/7] wrote`.

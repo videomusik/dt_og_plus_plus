@@ -87,7 +87,7 @@ The hashes of the result are recorded in [`os/1.54/build/patch.json`](../build/p
 | patched section 3 (`result.section3_sha256`) | `d6fac1a35cf565c37fc43ae51bd0c76f1ee7e23c0668ff1d245bb2839e51509c` | 2,479,680 B |
 | reference `.syx` (`result.syx_sha256_reference`), pinned tool only | `9df62a0bccfc70598afceea169d048b16ca4cb81a500bf9e4e03a64d76418390` | 1,351,456 B |
 
-With the pinned tool, `python3 os/1.54/build/build.py` writes `out/1.54/dt_og_plus_plus_v0.1_9df62a0b.syx`. `python3 os/1.54/build/verify.py` labels the two files `stock Digitakt OS 1.54` and `DT OG++ (reference build)`, and, with `--tool`, their MAIN OS sections `stock MAIN OS` and `DT OG++ MAIN OS`.
+With the pinned tool, `python3 os/1.54/build/build.py` writes `out/1.54/dt_og_plus_plus_v0.2.1_9df62a0b.syx`. `python3 os/1.54/build/verify.py` labels the two files `stock Digitakt OS 1.54` and `DT OG++ (reference build)`, and, with `--tool`, their MAIN OS sections `stock MAIN OS` and `DT OG++ MAIN OS`.
 
 The image still reports OS version 1.54 on the device; the build does not set a version string.
 
