@@ -8,6 +8,9 @@ is for OS 1.52A: its stock file, or the DT OG++ build made from it. Where these 
 Digitakt manual, they cite its OS1.50 edition, the reference edition of the manual pipeline
 ([scripts/manual/README.md](../../../scripts/manual/README.md)).
 
+The OS 1.52A build is on hold: it has not been developed past its last feature, and these notes
+describe it as it stands. New features are developed for OS 1.54 only.
+
 Conventions, marks and method: [notes/README.md](../../../notes/README.md).
 
 ## The test unit

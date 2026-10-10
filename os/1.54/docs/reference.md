@@ -84,10 +84,10 @@ The hashes of the result are recorded in [`os/1.54/build/patch.json`](../build/p
 
 | | SHA-256 | size |
 |---|---|---:|
-| patched section 3 (`result.section3_sha256`) | `efc90606b8d0d1637f41d6eac9cc19652e2c78800178bb9b6bcac3524bdef29e` | 2,479,680 B |
-| reference `.syx` (`result.syx_sha256_reference`), pinned tool only | `3fd4b0a39567330fcdf89e8fb9d7b877f63bbf3db2c6fb314197abba9ee866e3` | 1,348,896 B |
+| patched section 3 (`result.section3_sha256`) | `d6fac1a35cf565c37fc43ae51bd0c76f1ee7e23c0668ff1d245bb2839e51509c` | 2,479,680 B |
+| reference `.syx` (`result.syx_sha256_reference`), pinned tool only | `9df62a0bccfc70598afceea169d048b16ca4cb81a500bf9e4e03a64d76418390` | 1,351,456 B |
 
-With the pinned tool, `python3 os/1.54/build/build.py` writes `out/1.54/dt_og_plus_plus_v0.1_3fd4b0a3.syx`. `python3 os/1.54/build/verify.py` labels the two files `stock Digitakt OS 1.54` and `DT OG++ (reference build)`, and, with `--tool`, their MAIN OS sections `stock MAIN OS` and `DT OG++ MAIN OS`.
+With the pinned tool, `python3 os/1.54/build/build.py` writes `out/1.54/dt_og_plus_plus_v0.2.1_9df62a0b.syx`. `python3 os/1.54/build/verify.py` labels the two files `stock Digitakt OS 1.54` and `DT OG++ (reference build)`, and, with `--tool`, their MAIN OS sections `stock MAIN OS` and `DT OG++ MAIN OS`.
 
 The image still reports OS version 1.54 on the device; the build does not set a version string.
 
@@ -122,4 +122,4 @@ Elektron's own OS 1.54 image keeps every back-reference in the compressed MAIN O
 - `target`, `section` and `load_base`: Digitakt OS 1.54, section 3, `0x40000400`.
 - `stock`: the SHA-256 and size of the stock `.syx` and of its section 3, as under [The stock file](#the-stock-file).
 - `result`: the SHA-256 of the patched section 3, and the reference `.syx` SHA-256 and size, as under [Expected result](#expected-result). They hold only with the pinned tool that `pinned_tool` names.
-- `features`: the 11 features of this build, each with its runs. [patch_listing.md](patch_listing.md) lists them with their runs and bytes, and shows every run, with the disassembly for code and a hex dump for data.
+- `features`: the 14 features of this build, each with its runs. [patch_listing.md](patch_listing.md) lists them with their runs and bytes, and shows every run, with the disassembly for code and a hex dump for data. Each changed byte is listed once, under the last feature that wrote it: the bytes of `poly_engine`, `poly_icon` and `midi_loopback` that the CFO oscillator rewrites (its sixth machine, its names and its icon) are listed under `cfo_oscillator`, and the CFO oscillator's note operand that portamento points at the glided note under `portamento`. The generators in `os/1.54/src/` write these runs ([features/portamento.md](../notes/features/portamento.md#checks)).

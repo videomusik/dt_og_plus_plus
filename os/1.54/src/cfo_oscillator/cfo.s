@@ -1,11 +1,13 @@
-| CFO oscillator for DT OG++ on Digitakt OS 1.54: a 3-oscillator 8-bit wavetable synth with FM, rendered
+| CFO oscillator for DT OG++ on Digitakt OS 1.54: a 3-oscillator 8-bit FM synth, rendered
 | into a track's audio buffer where the sampler would put its samples. Everything after that point (the
 | level stage, SRR, the filters and their envelope, the amp envelope, the mix and the effects) runs
 | unchanged on it.
 |
-| PROTOTYPE STAGE: the synth plays on any ONESHOT track whose SAMP is OFF (sample slot 0), and reads
-| its controls from that track's SRC page. With --defsym MACHINE5=1 it plays on a track set to machine 5
-| (CFOO) instead, and the controls are the same eight SRC parameters:
+| The build is the last stage's assembly, S27, with every option on (make_cfo.py's KNOB_STAGES): the
+| machine CFOO with its own knobs, WAV1 FMSR WAV2 WAV3 / MIX FM DET2 DET3 (notes/features/cfo_oscillator.md).
+| Without options, the prototype (S11): the synth plays on any ONESHOT track whose SAMP is OFF (sample
+| slot 0), and reads its controls from that track's SRC page. With --defsym MACHINE5=1 alone (S12) it
+| plays on a track set to machine 5 (CFOO) instead, and the controls are the same eight SRC parameters:
 |   TUNE   pitch, as for a sample            PLAY   FM source: 0 OSC2, 1 OSC2+3, 2 OSC3, 3 none
 |   BR     oscillator mix: OSC1, 1+2, 1+2+3, 2+3 (crossfaded)
 |   STRT   OSC1 wave       LEN    FM amount       LOOP   OSC2 and OSC3 wave
@@ -13,7 +15,7 @@
 | OSC2 sits an octave below OSC1, OSC3 an octave and a fifth above. A wave value morphs SIN -> TRI ->
 | SAW -> SQR. The pitch follows the trig's note and TUNE through the stock pitch table.
 |
-| Assemble with cfo.ld after generating waves.inc (make_waves.py); make_cfo.py does both.
+| Assemble with lz4_stream.ld after generating waves.inc (make_waves.py); make_cfo.py does both.
 
 | A call or jump between this build's own routines: an absolute jsr/jmp up to S25; with --defsym SHORT
 | (S26 on) a bsr.w/bra.w, 2 B shorter, as all of them lie in one pad.

@@ -10,9 +10,12 @@ Needs: m68k binutils (M68K_PREFIX, default 'm68k-elf-', as in scripts/common.sh)
 from ./scripts/extract.sh 1.54 (work/dt_1.54/section_3_MAIN_OS.bin) and, for --stages, what build.py
 needs (the stock .syx in sysex/ and the firmware tool).
 
-The build without Chain Recording is rebuilt from patch.json first (its chain_record runs dropped, the
-landing pads it uses given back their earlier contents), and must hash to BASE_SECTION3, so the merge
-always starts from the same image. Stages, written to out/1.54/stages/:
+The build without Chain Recording is rebuilt from patch.json first (the features merged after it taken
+off by make_cfo.build_without_cfo, its chain_record runs dropped, the landing pads it uses given back
+their earlier contents), and must hash to BASE_SECTION3, so the merge always starts from the same image.
+Once patch.json holds features merged after Chain Recording, the check compares Chain Recording's own
+runs and S8 with make_cfo.BUILD_SECTION3, and --write is refused: make_port.py rewrites patch.json.
+Stages, written to out/1.54/stages/:
   S6   that build + the two pads Chain Recording adds, 0x40124a6c..0x40124b32 and
        0x40128244..0x401282e0, filled with 'clrl %d0 ; rts' (their fill test)
   S7   S6 + every Chain Recording hook, each pad only replaying what its hook displaced (INERT)
@@ -21,7 +24,9 @@ import json, os, shutil, subprocess, sys, tempfile
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", "..", "..", ".."))
 sys.path.insert(0, os.path.join(ROOT, "os", "1.54", "build"))
+sys.path.insert(0, os.path.join(ROOT, "os", "1.54", "src", "cfo_oscillator"))
 import build  # noqa: E402
+import make_cfo as cfo  # noqa: E402
 PFX = os.environ.get("M68K_PREFIX", "m68k-elf-")
 BASE = 0x40000400
 PATCH = os.path.join(ROOT, "os", "1.54", "build", "patch.json")
@@ -87,17 +92,11 @@ def assemble(variant, tmp):
 
 def base_image(stock, patch):
     """The build without Chain Recording, and who owns each changed byte of it."""
-    img, owner = bytearray(stock), {}
-    for f in patch["features"]:
-        if f["id"] == FID:
-            continue
-        for r in f["runs"]:
-            a, d = int(r["addr"], 16), bytes.fromhex(r["bytes"])
-            if f["id"] == "pad_fill" and any(lo <= a < hi for lo, hi in NEWPAD):
-                continue
-            img[a - BASE:a - BASE + len(d)] = d
-            for k in range(len(d)):
-                owner[a + k] = (f["id"], r.get("kind", "code"))
+    img, owner = cfo.build_without_cfo(stock, patch)
+    for a, (fid, _k) in list(owner.items()):
+        if fid == FID or (fid == "pad_fill" and any(lo <= a < hi for lo, hi in NEWPAD)):
+            img[a - BASE] = stock[a - BASE]
+            del owner[a]
     for lo, hi, was in PADS.values():
         if was == "fill":
             img[lo - BASE:hi - BASE] = fill(*STL_SPAN)[lo - STL_SPAN[0]:]
@@ -194,6 +193,11 @@ def main():
     stock = build.read(STOCK3)
     patch = json.load(open(PATCH))
     assert build.sha256_bytes(stock) == patch["stock"]["section3_sha256"], "work/dt_1.54 is not the stock section 3"
+    ids = [f["id"] for f in patch["features"]]
+    n = ids.index(FID)
+    if write and n + 1 < len(ids):
+        sys.exit("patch.json holds features merged after Chain Recording (%s); make_port.py --stages --write "
+                 "rewrites it" % ", ".join(ids[n + 1:]))
     img2, owner = base_image(stock, patch)
     img3 = bytearray(img2)
     for lo, hi in NEWPAD:
@@ -209,11 +213,15 @@ def main():
             print("%-3s %-5s: %d sections; pad bytes %s" % (name, variant, len(secs), used))
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
-    features = [f for f in patch["features"] if f["id"] != FID] + [{"id": FID, "title": TITLE}]
+    features = patch["features"][:n] + [{"id": FID, "title": TITLE}]
     feats = patch_runs(stock, imgs["S8"], owner, mine, features)
     s8 = build.sha256_bytes(imgs["S8"])
-    current = patch["result"]["section3_sha256"]
-    same = feats == patch["features"] and s8 == current
+    if n + 1 < len(ids):            # features merged after Chain Recording: its own runs, and the build before them
+        current = cfo.BUILD_SECTION3
+        same = feats[-1] == patch["features"][n] and s8 == current
+    else:
+        current = patch["result"]["section3_sha256"]
+        same = feats == patch["features"] and s8 == current
     print("S8 section 3 %s; patch.json %s" % (s8, "is up to date" if same else "differs (%s)" % current))
     if stages:
         out = os.path.join(ROOT, "out", "1.54", "stages")

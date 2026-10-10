@@ -14,7 +14,7 @@
 // throughout, as after the lanes' fade at a sample's end, and must not be used. A voice that is on
 // (+0x28) with a trig next tick (bit in 0x8000122c) gets level 0, the lanes' de-click.
 //
-// The model reads the stock pitch table (0x4019b4c0) and the wavetables from the emulator's memory, so
+// The model reads the stock pitch table (0x4019b4c0) and the waveform tables from the emulator's memory, so
 // a wrong table address shows as a wrong pitch or shape, not as agreement.
 //
 // Arguments: a load file, one line per section ('<hex addr> <hex bytes>') and 'sym <name> <hex addr>'

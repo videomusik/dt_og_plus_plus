@@ -7,6 +7,10 @@ no Elektron firmware. You build DT OG++ yourself, on your own computer, from you
 Elektron's stock OS 1.52A update file, and the build refuses any other input. DT OG++ is not
 affiliated with or endorsed by Elektron.
 
+**On hold.** This build has not been developed past its last feature, and development has stopped
+here. It still builds and works as described on this page. The newer features (Chain Recording, the
+CFO oscillator, portamento and legato) exist only in the OS 1.54 build, where DT OG++ is developed.
+
 Other OS versions and the shared documentation: [README.md](../../README.md).
 
 ## NEW FEATURES

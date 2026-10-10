@@ -14,6 +14,9 @@ that held the code before Chain Recording have run on the test unit with OS 1.54
 filled with `clrl %d0 ; rts` started and ran, and so did the build whose features live in them
 ([README.md](README.md#the-test-unit)). ✅ So have the tenth, `FUN_40124a6c` + `FUN_40124ac4`, and the
 eleventh, `FUN_40128244` + `FUN_40128288`: each its fill test, and then Chain Recording's code in it.
+✅ So have the CFO oscillator's `FUN_400f77da` (its fill test, S9, then the synth from S11) and
+portamento's `FUN_400e6d1c` and `FUN_400ee05e` (their code from S31; their fill test, S28, was not run
+on its own).
 
 ## The pads
 
@@ -35,17 +38,27 @@ occupants are the same code as in the patch listing ([docs/patch_listing.md](../
 | `FUN_40124a6c` + `FUN_40124ac4` | `0x40124a6c..0x40124b32` | 198 B | Chain Recording: `enc_pad` and `arm_pad`, `0x40124a6c..0x40124b24`; the rest keeps its fill. Vetted below |
 | `FUN_40128244` + `FUN_40128288` | `0x40128244..0x401282e0` | 156 B | Chain Recording: `fmt_arm`/`fmt_armed` and `no_pad`, `0x40128244..0x401282ce`; the rest keeps its fill. Vetted below |
 
-In the CFO oscillator's test images only (not in `patch.json`):
+The CFO oscillator ([features/cfo_oscillator.md](features/cfo_oscillator.md)), stage by stage; the
+build holds S27's:
 
 | Pad | Extent | Size | Occupied by |
 |---|---|---:|---|
 | `FUN_400f77da` | `0x400f77da..0x400f811e` | 2,372 B | the CFO oscillator: in S11 `0x400f77da..0x400f7aac`; in S12 the code to `0x400f7abe` and the machine name table with its strings `0x400f7ac0..0x400f7b09`; in S13 and S14 the code to `0x400f7b26` and the name tables `0x400f7b28..0x400f7c01`; in S15 the code to `0x400f7b40` and the name tables `0x400f7b40..0x400f7c19`; in S16 the code to `0x400f7bcc` and the name and range tables `0x400f7bcc..0x400f7d41`; in S17 the code to `0x400f7dda` and the name, range and display tables `0x400f7ddc..0x400f7f79`; in S18 the code to `0x400f7f40` and the tables `0x400f7f40..0x400f8111`, 13 B short of the pad's end; in S19 the code to `0x400f7eb6` and the tables `0x400f7eb8..0x400f8089`, 149 B short; from S20 on code only, the tables in the .rodata padding at `0x40252c80`: S20 to `0x400f7ede`, S21 to `0x400f7f52`, S22 to `0x400f7f70`, S23 to `0x400f8060`, S24 to `0x400f80a4`, S25 to `0x400f80c6`, S26 to `0x400f811c`, 2 B short, S27 to `0x400f8118`, 6 B short; the rest keeps its fill. LZ4's streaming compressor, admitted by the recipe's library exception (the candidate list below); its fill test is the stage image S9 |
 
-Free code space: 112 B in twelve blocks, none larger than 18 B: 18 B at `0x401282ce` (fill), 16 B
+Portamento ([features/portamento.md](features/portamento.md)), stage by stage on the CFO oscillator's
+S27; the build holds S36's:
+
+| Pad | Extent | Size | Occupied by |
+|---|---|---:|---|
+| `FUN_400e6d1c` | `0x400e6d1c..0x400e6d88` | 108 B | S28 its fill; S29 and S30 `port_on`'s inert replay, 8 B; S31 `port_on`, `0x400e6d1c..0x400e6d40`; S32 and `port_text` to `0x400e6d52`; S33 and `rd_hook` to `0x400e6d6e`; S34 and `amp_hook`: the whole pad; until then the rest keeps its fill. Vetted below |
+| `FUN_400ee05e` | `0x400ee05e..0x400ee0d8` | 122 B | S28 its fill; S29 and S30 `port_glide`'s inert replay, 12 B; S31 to S34 `port_glide`, `0x400ee05e..0x400ee0ce`; from S35 to `0x400ee0d2`; the rest keeps its fill. Vetted below |
+
+Free code space: 124 B in fourteen blocks, none larger than 18 B: 18 B at `0x401282ce` (fill), 16 B
 at `0x400152c0`, 16 B at `0x400bedf2`, 14 B at `0x40124b24` (fill), 10 B at `0x400156da`, 8 B at
 `0x400bf1e0`, 8 B at `0x40037ad6`, 6 B at `0x400c1392`, 6 B at `0x400bed96`, 6 B at `0x400bee64`,
-2 B at `0x40177192` (the STL span's tail, fill) and 2 B at `0x400c107e`. Chain Recording's code in the
-pads: [features/chain_record.md](features/chain_record.md#where-the-code-lives).
+6 B at `0x400f8118` (the CFO oscillator's pad, fill), 6 B at `0x400ee0d2` (portamento's
+`FUN_400ee05e`, fill), 2 B at `0x40177192` (the STL span's tail, fill) and 2 B at `0x400c107e`. Chain
+Recording's code in the pads: [features/chain_record.md](features/chain_record.md#where-the-code-lives).
 
 ## Why each pad is dead in this image
 
@@ -148,6 +161,45 @@ The controls of steps 3 and 4 gave their known counts in the same run
 ✅ Its fill test, the stage image S6, started and ran on the test unit with OS 1.54, and so did the
 stages with Chain Recording's code in it ([features/chain_record.md](features/chain_record.md#testing-on-the-unit)).
 
+## The portamento pads: `FUN_400e6d1c` and `FUN_400ee05e`
+
+Two leaf functions with no calls, no peripheral addresses and no MAC instructions (objdump):
+
+- `FUN_400e6d1c` (108 B) packs its stack arguments into a 28 B record at `%a0`: a byte from its
+  argument less 32, the constant 2, bytes, words and longs, and a word whose top bit is set from a
+  flag; it returns `%a0`.
+- `FUN_400ee05e` (122 B), while the counter `0x421f53d0` is positive, counts it down and swaps 32
+  pairs of longs between two buffers (its arguments) and a ring of 90 entries at `0x421f5090`, whose
+  index it keeps at `0x421f5360`. ⚠️ An unused branch of its module, by inference: no other code
+  names the ring or its index; `FUN_400edaf4` (called from the audio ISR at `0x400775dc`) sets the
+  counter to 128 or 0, and `FUN_400edf30` (called from the ISR at `0x400781ac` and `0x40078318`)
+  returns at once while it is positive, so this routine would be the one that runs then, and nothing
+  calls it.
+
+✅ The vetting steps of [landing_pad_method.md](../../../notes/landing_pad_method.md#vetting-a-new-pad),
+read in this image, with the controls of steps 3 and 4 giving their known counts in the same run
+([Vetting controls on this image](#vetting-controls-on-this-image)):
+
+1. **Candidate.** Both are leaves with no indirect call among the candidates below (`ghRefs=0`,
+   `ptrWord=-`, `opLit=-`).
+2. **objdump.** Extents `0x400e6d1c..0x400e6d88` and `0x400ee05e..0x400ee0d8`, from their `rts`.
+3. **Raw pointer scan**, every byte offset: `FUN_400ee05e` 0; `FUN_400e6d1c` 1, the odd word at
+   `0x40084d7f`, which straddles `moveb %d0,%a2@(3693)` (displacement `0x0e6d`) and the next opcode:
+   not a pointer.
+4. **Listing scan**, hex operands and decimal immediates: 0 for both.
+5. **Switch tables.** Within ±32 KB there are 2 indexed `jmp`/`movew` around `FUN_400ee05e` and 3
+   around `FUN_400e6d1c`; walking 512 table words from each base finds no entry landing in either.
+6. **Live twins.** `FUN_400ee05e`'s ring and index appear nowhere else; its counter is the module's
+   (above). `FUN_400e6d1c`'s record offsets and constants appear elsewhere only in different records.
+7. **Fall-through.** Each is preceded by an `rts` (`0x400e6d1a`, `0x400ee05c`) and followed by a fresh
+   function (`0x400e6d88`, `0x400ee0d8`).
+8. **Moat.** Outside every protected range ([update_moat.md](update_moat.md)); the nearest, the flash
+   driver module `0x400e8c68..0x400ea596`, lies between them.
+
+✅ S31, with `port_on` and `port_glide` in them, ran on the test unit with OS 1.54, and its glide works
+([features/portamento.md](features/portamento.md#on-the-unit)). Their fill test, the stage image S28,
+is not reported on its own.
+
 ## The candidate list on this image
 
 `os/1.54/scripts/ghidra/FindDeadFunctions.java` is the method's script, with the ten known-live
@@ -186,8 +238,10 @@ Spans of adjacent leaf candidates of 120 B or more, other than the pads in use:
 
 Most of the smaller leaf candidates call through a vtable (`jsr %a0@`) and are not leaves in fact. Those
 with no indirect call, outside the I/O region, the audio code and the second code window, are
-`0x400ee05e` (122 B), `0x400e6d1c` (108 B), `0x400e8544` (86 B), `0x40178f20` (86 B), `0x40178e02`
-(66 B), `0x400d266e` (60 B), `0x400c2242` (54 B) and `0x401778a4` (52 B): 634 B, not yet vetted.
+`0x400ee05e` (122 B) and `0x400e6d1c` (108 B), vetted for portamento
+([above](#the-portamento-pads-fun_400e6d1c-and-fun_400ee05e)), and `0x400e8544` (86 B), `0x40178f20`
+(86 B), `0x40178e02` (66 B), `0x400d266e` (60 B), `0x400c2242` (54 B) and `0x401778a4` (52 B): 404 B,
+not yet vetted.
 
 ⛔ A row here is a candidate, never a budget ([landing_pad_method.md](../../../notes/landing_pad_method.md#where-candidates-come-from)).
 
@@ -225,12 +279,12 @@ The `Bitmap` structs point at the `Bitmap` vtable (`0x401b7734`, the RTTI vtable
 and at stock masks: `0x4024de68` for the robin, a 17 × 17 all-ones mask (`ffff8000` seventeen
 times; hexdump), and `0x4023e0a0` for the POLY icon.
 
-In the CFO oscillator's test images only (not in `patch.json`;
+The CFO oscillator, stage by stage (in the build: S27's;
 [features/cfo_oscillator.md](features/cfo_oscillator.md)):
 
 | Address | Size | Contents |
 |---|---|---|
-| `0x40252724` | 1,048 B | the four wavetables (1,024 B) and the mix points (24 B); S11 to S14 |
+| `0x40252724` | 1,048 B | the four waveform tables (1,024 B) and the mix points (24 B); S11 to S14 |
 | `0x40252c2c` | 12 B | the machine-picker selector table with CFOO's entry, replacing the one at `0x40252bf8`; S14 |
 | `0x40252c38` | 28 B | CFOO's icon `Bitmap` struct, with POLY's mask `0x4023e0a0`; S14 |
 | `0x40252c54` | 44 B | CFOO's icon colour plane; S14 |
@@ -239,6 +293,12 @@ In the CFO oscillator's test images only (not in `patch.json`;
 That leaves `0x40252b3c..0x40252b50` (20 B), the byte at `0x40252c2b` and `0x40252c80..0x40253000`
 (896 B) free in S14, and from `0x40252ed9` on (295 B) in S26. The build's own selector table at
 `0x40252bf8` stays in place, unused.
+
+Portamento, stage by stage on top of S27 (in the build: S36's;
+[features/portamento.md](features/portamento.md)):
+from S30 `0x40252f00`, 27 B, the names `PORT`, `Portamento`, `LEG` and `Legato`; from S32
+`0x40252f1c`, 16 B, PORT's text object; from S33 `0x40252f2c`, 192 B, the 48-entry slot → stored index
+table. That leaves `0x40252ed9..0x40252f00` (39 B) and, from S33, `0x40252fec..0x40253000` (20 B).
 
 ## Related notes
 

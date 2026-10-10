@@ -35,13 +35,24 @@ Then, for Chain Recording, which the build in this folder adds on top of that
 6. that first Chain Recording build (`.syx` `688066c9…`): a chain of four slots of 8 steps, each armed
    with YES and started by the threshold, was recorded, normalised, trimmed and saved. FUNC+NO between
    slots did nothing, and encoder D moved much faster than encoder G;
-7. the build in this folder (`.syx` `3fd4b0a3…`), which changes those two and adds auto re-arm,
+7. the Chain Recording build (`.syx` `3fd4b0a3…`), which changes those two and adds auto re-arm,
    after its two stages (the new pad filled, `.syx` `4aae845e…`; every hook replaying stock code,
    `.syx` `ad7c9a72…`): the three images started and ran, and what was checked on them worked,
    reported as a whole. ⚠️ One
    display glitch is open: after the screen that asks whether to apply the new sample to a track, the
    top and bottom of the screen stay black
    ([features/chain_record.md](features/chain_record.md#open-the-screen-after-saving)).
+
+Then the CFO oscillator and portamento, each stage flashed on the one before:
+
+8. the CFO oscillator's stages S9 to S27 on that build
+   ([features/cfo_oscillator.md](features/cfo_oscillator.md#testing-on-the-unit)): S9 to S25 worked as
+   described, as reported, with the faults of S16 to S18 explained by the code and fixed in S19. S26
+   showed a POLY track without its source track's machine; S27 changes that, and S27's own change was
+   not reported on its own. S27's code ran in every portamento stage after it;
+9. portamento's stages on S27 ([features/portamento.md](features/portamento.md#on-the-unit)): S31 to
+   S33 and S36 worked as described, as reported; the legato tests of S34 and S35 failed and were
+   replaced. S36 (`.syx` `9df62a0b…`) is the build in this folder, byte for byte.
 
 ## The features in this build
 
@@ -68,23 +79,34 @@ New in this image, not in the OS 1.52A build:
   auto re-arm; the recorder then fills a sample chain one slot of RLEN steps at a time, for the SLICE
   machine's GRID. ✅ Run on the test unit; ⚠️ one display glitch open.
   [features/chain_record.md](features/chain_record.md).
+- **CFO oscillator.** CFOO, machine 5: a 3-oscillator 8-bit FM synth, written into a track's audio
+  buffer where the sampler's samples go, with its own SRC page (knobs, ranges, value names, [FUNC] +
+  knob steps), picker icon, LFO destination names and track texts. ✅ Run on the test unit (S9 to
+  S27, above). [features/cfo_oscillator.md](features/cfo_oscillator.md).
+- **Portamento.** PORT and LEG on every audio track's TRIG page: the note glides to each new note, or
+  with LEG on only to a legato one (its trig before the last note's LEN ends), for samples and the
+  CFO oscillator; with LEG on a legato note does not restart the amp envelope; both are saved with the
+  sound and their locks with the pattern. ✅ On the test unit: the glide, LEG and a lock on PORT
+  (S31), PORT's OFF and LEG's cell (S32), saving and recall (S33), legato by LEN with the amp
+  envelope held (S36). [features/portamento.md](features/portamento.md).
 
-In progress, not in the build:
-
-- **CFO oscillator.** A 3-oscillator 8-bit wavetable synth with FM, written into a track's audio
-  buffer where the sampler's samples go. The code is checked in the emulator; it is waiting for a
-  landing pad. [features/cfo_oscillator.md](features/cfo_oscillator.md).
+The CFO oscillator and portamento came into `patch.json` together, from their last stages:
+`make_port.py --stages --write` (in [src/portamento/](../src/portamento/)) rebuilds the build without
+them from `patch.json`, the CFO oscillator's S27 on it and portamento's S36 on that, and writes the
+runs. The build is S36, byte for byte. Each changed byte is listed once, under the last feature that
+wrote it ([docs/reference.md](../docs/reference.md#what-patchjson-holds)).
 
 The other features have run on the test unit ([The test unit](#the-test-unit)).
 
 Where each feature's code sits in this image: [function_ledger.md](function_ledger.md) and
 [docs/patch_listing.md](../docs/patch_listing.md).
 
-✅ Read in the code by emulation: the eight harnesses in
+✅ Read in the code by emulation: the ten harnesses in
 [scripts/emu/README.md](../scripts/emu/README.md) pass on the reference build. They step the pad code
 of pool cursors, the MIDI Loopback private lane and display pads, the SLICE latch, the three POLY
-track aliases and the machine-list edit, and run the recorder engine with Chain Recording's hooks, in
-Ghidra's p-code emulator, with stubbed callees.
+track aliases and the machine-list edit, run the recorder engine with Chain Recording's hooks, run the
+CFO oscillator against a model of its arithmetic and its SRC page's code, and run portamento's hooks at
+their sites in the audio ISR, in Ghidra's p-code emulator, with stubbed callees.
 
 ## Addresses
 
@@ -121,10 +143,12 @@ How it is made, and its reference numbers: [analysis_reference.md](analysis_refe
 - [analysis_reference.md](analysis_reference.md): the Ghidra project of this image and its reference
   numbers.
 - [compatibility.md](compatibility.md): projects moved between this build and stock OS 1.54.
-- [features/cfo_oscillator.md](features/cfo_oscillator.md): the CFO oscillator, not in the build yet,
-  and where a track's samples come from.
+- [features/cfo_oscillator.md](features/cfo_oscillator.md): the CFO oscillator, and where a track's
+  samples come from.
 - [features/chain_record.md](features/chain_record.md): Chain Recording, and how the stock recorder
   works.
+- [features/portamento.md](features/portamento.md): portamento and legato, and how a sequenced trig's
+  LEN ends a note.
 - [function_ledger.md](function_ledger.md): the per-function ledger.
 - [landing_pads.md](landing_pads.md): the pads that hold the new code, why each is dead here, and the
   `.rodata` space.

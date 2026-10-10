@@ -11,9 +11,9 @@
   "section3_size": 2479680
  },
  "result": {
-  "section3_sha256": "efc90606b8d0d1637f41d6eac9cc19652e2c78800178bb9b6bcac3524bdef29e",
-  "syx_sha256_reference": "3fd4b0a39567330fcdf89e8fb9d7b877f63bbf3db2c6fb314197abba9ee866e3",
-  "syx_size_reference": 1348896,
+  "section3_sha256": "d6fac1a35cf565c37fc43ae51bd0c76f1ee7e23c0668ff1d245bb2839e51509c",
+  "syx_sha256_reference": "9df62a0bccfc70598afceea169d048b16ca4cb81a500bf9e4e03a64d76418390",
+  "syx_size_reference": 1351456,
   "syx_reference_note": "only with the pinned tool",
   "pinned_tool": "github.com/mischa85/elektron-firmware-tool 065d18f4195793e61891e387813488ee59f6d1ca + build/tool_patches/cap_window_1mb.patch"
  },
@@ -224,26 +224,6 @@
    "title": "POLY machine: engine",
    "runs": [
     {
-     "addr": "0x400225f1",
-     "bytes": "04",
-     "kind": "code"
-    },
-    {
-     "addr": "0x40022f81",
-     "bytes": "14",
-     "kind": "code"
-    },
-    {
-     "addr": "0x40022fb3",
-     "bytes": "14",
-     "kind": "code"
-    },
-    {
-     "addr": "0x40022fe7",
-     "bytes": "05",
-     "kind": "code"
-    },
-    {
      "addr": "0x4002a60b",
      "bytes": "037a24",
      "kind": "code"
@@ -311,31 +291,6 @@
     {
      "addr": "0x400777a2",
      "bytes": "4eb940037a4e",
-     "kind": "code"
-    },
-    {
-     "addr": "0x4007910d",
-     "bytes": "04",
-     "kind": "code"
-    },
-    {
-     "addr": "0x4007911b",
-     "bytes": "0c1034",
-     "kind": "code"
-    },
-    {
-     "addr": "0x4007912d",
-     "bytes": "04",
-     "kind": "code"
-    },
-    {
-     "addr": "0x4007913b",
-     "bytes": "0c1038",
-     "kind": "code"
-    },
-    {
-     "addr": "0x4007a2d1",
-     "bytes": "06",
      "kind": "code"
     },
     {
@@ -664,7 +619,17 @@
     },
     {
      "addr": "0x40015647",
-     "bytes": "f94000fe8a222f00080c810000008c66204878ffff2f022f0a2052206800544e904fef000c4a806a08203c401cca3f4e754ef94000feac4879421a9d3c4e942240206900042f4800301210588f7181e888487800202f112f0820720c",
+     "bytes": "f940",
+     "kind": "code"
+    },
+    {
+     "addr": "0x4001564c",
+     "bytes": "222f00080c810000008c66204878ffff2f022f0a2052206800544e904fef000c4a806a08203c401cca3f4e754ef940",
+     "kind": "code"
+    },
+    {
+     "addr": "0x4001567e",
+     "bytes": "4879421a9d3c4e942240206900042f4800301210588f7181e888487800202f112f0820720c",
      "kind": "code"
     },
     {
@@ -744,11 +709,6 @@
    "title": "POLY machine: menu icon",
    "runs": [
     {
-     "addr": "0x40029e81",
-     "bytes": "04",
-     "kind": "code"
-    },
-    {
      "addr": "0x40029e89",
      "bytes": "0452804e7542004e754e75",
      "kind": "code"
@@ -760,7 +720,7 @@
     },
     {
      "addr": "0x40029ef6",
-     "bytes": "59807201",
+     "bytes": "598072",
      "kind": "code"
     },
     {
@@ -775,7 +735,12 @@
     },
     {
      "addr": "0x400bee44",
-     "bytes": "41f940252bf822300c004ef940029f0c",
+     "bytes": "41f94025",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400bee4a",
+     "bytes": "22300c004ef940029f0c",
      "kind": "code"
     },
     {
@@ -1111,6 +1076,1453 @@
     {
      "addr": "0x40252c1b",
      "bytes": "5945533a204155544f2025642f2564",
+     "kind": "data"
+    }
+   ]
+  },
+  {
+   "id": "cfo_oscillator",
+   "title": "CFO oscillator: the CFOO machine, a 3-oscillator 8-bit FM synth, with its own SRC page, knobs, value names, icon and LFO destinations",
+   "runs": [
+    {
+     "addr": "0x4000f2bc",
+     "bytes": "4ef9400f7c3e4e71",
+     "kind": "code"
+    },
+    {
+     "addr": "0x4000f324",
+     "bytes": "4ef9400f7cbc4e71",
+     "kind": "code"
+    },
+    {
+     "addr": "0x4000f537",
+     "bytes": "0f7bc0",
+     "kind": "code"
+    },
+    {
+     "addr": "0x4000f5ff",
+     "bytes": "0f7bb0",
+     "kind": "code"
+    },
+    {
+     "addr": "0x4000ff23",
+     "bytes": "0f7bc0",
+     "kind": "code"
+    },
+    {
+     "addr": "0x4000ffaf",
+     "bytes": "0f7bb6",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40010055",
+     "bytes": "0f7f08",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400100c7",
+     "bytes": "0f7bc0",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40010157",
+     "bytes": "0f7bc0",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40010d53",
+     "bytes": "0f7bc0",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40015649",
+     "bytes": "0f7b2e",
+     "kind": "code"
+    },
+    {
+     "addr": "0x4001567b",
+     "bytes": "0f7b62",
+     "kind": "code"
+    },
+    {
+     "addr": "0x4002213b",
+     "bytes": "0f7bc0",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400225f1",
+     "bytes": "05",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40022f81",
+     "bytes": "18",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40022fb3",
+     "bytes": "18",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40022fe7",
+     "bytes": "06",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40029e81",
+     "bytes": "05",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40029ef9",
+     "bytes": "02",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400326ad",
+     "bytes": "0f7bbc",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40032b77",
+     "bytes": "0f7eaa",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40032d19",
+     "bytes": "0f7cfe",
+     "kind": "code"
+    },
+    {
+     "addr": "0x4003a6db",
+     "bytes": "0f80f8",
+     "kind": "code"
+    },
+    {
+     "addr": "0x4003b51f",
+     "bytes": "0f80da",
+     "kind": "code"
+    },
+    {
+     "addr": "0x4003b5a0",
+     "bytes": "4eb9400f7ee6",
+     "kind": "code"
+    },
+    {
+     "addr": "0x4003bd6d",
+     "bytes": "0f80c6",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400657e6",
+     "bytes": "4ef9400f7b18",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400657ed",
+     "bytes": "71",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40065def",
+     "bytes": "0f7fdc",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40065e5e",
+     "bytes": "4eb9400f7ff6",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40065e65",
+     "bytes": "004e71",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40077fcb",
+     "bytes": "0f77da",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40078f72",
+     "bytes": "4ef9400f7b96",
+     "kind": "code"
+    },
+    {
+     "addr": "0x4007910d",
+     "bytes": "05",
+     "kind": "code"
+    },
+    {
+     "addr": "0x4007911b",
+     "bytes": "252e90",
+     "kind": "code"
+    },
+    {
+     "addr": "0x4007912d",
+     "bytes": "05",
+     "kind": "code"
+    },
+    {
+     "addr": "0x4007913b",
+     "bytes": "252e94",
+     "kind": "code"
+    },
+    {
+     "addr": "0x4007a2d1",
+     "bytes": "07",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400a44d0",
+     "bytes": "4eb9400f8020",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400a454c",
+     "bytes": "4eb9400f8036",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400bee48",
+     "bytes": "2c2c",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400f77dd",
+     "bytes": "2c",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400f77df",
+     "bytes": "ef",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400f77e2",
+     "bytes": "00a82c4f42ae",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400f77e9",
+     "bytes": "98202e",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400f77ed",
+     "bytes": "9841f94199f46673b008005b81660e2a6e00dcc0fc006adbc06100",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400f7809",
+     "bytes": "1e52ae00987008b0ae009866d44cef7cfc00a84fef",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400f781f",
+     "bytes": "d44ef940072478202e00982200d080d081e58849f9439d1100d9c0202e009841f9",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400f7844",
+     "bytes": "24300c000682000300002d42009c20026100015a2d4000a0720de2a873ad003e4c0108002d40009071ad00367202b280640220017202b08155c149c12d41008853807202b08155c149c12d41008c71ad",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400f7895",
+     "bytes": "3c6100010e610001c02f3c00007f00202e",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400f78a7",
+     "bytes": "9841f980001f1871f00a002f004eb940074c60508f222e00982401c2fc005e41f98000edec4a301800670c22398000122c05016702428042404840222e009841f9439d116041f01c00221020800c8100007fff6302",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400f78fd",
+     "bytes": "00240094812d4200a4eb892d41009471ed00406100",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400f7913",
+     "bytes": "6ed0ae009c610000962c0071ad003861000082610000e045ec000447d66100015871ed",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400f7937",
+     "bytes": "4261000046d0ae009c6100006e2c0071ad003a6100",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400f794d",
+     "bytes": "5a610000b845ec000847ee",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400f7959",
+     "bytes": "406100012e71ad003461",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400f7964",
+     "bytes": "0042610000a02c2e00a0202e0098ef88266e00d8d7c0244c600001320c80000028006c06203c000028000c80000058006f06203c00005800048000004000e1884e75727fb280640220014e754a806a02700093c90c80005700006f0a0480000c0000528960ee223c000001804c41",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400f79d3",
+     "bytes": "0041f94019b4c020300c00720de2a8223c000001654c0108",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400f79ed",
+     "bytes": "0967160c80400000006508203c7fffffff4e75d080538960e64e75610000142a00e18941f940252724d1c143e801004e7572000c800000002a65227202048000000055641806800000002b7201e188d08006800000002b80fc0056600ee188d08006800000002a80fc005471c04e756100ffc0c2fc000641f940252b24d1c143ee008076027350756800069481c5c0e082d48132c2548853836aea4e7528127e1fd88620047218e2a873300800753108009481c5c5e082d48136c253876ae224844e7549d64bee004028127e1f715c735d2400c4ae00882601c6ae008cd4834c2e28000090d486d882c1ee0082c3ee0084d08122047418e4a975301800773118009682c7c5e083d483c5ee0080d082222e0094d2ae00a42d410094ea814c01080026c053",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400f7b12",
+     "bytes": "6aa624844e757205b2806608203c4197ded84e75203c4197df5c4e75202f00080480",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400f7b35",
+     "bytes": "00006c7207b280651e2f002f0c4eb94002b5d4588f221f5b80660c41f940252c8020301c004e754ef94000fe8a202f00080480",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400f7b69",
+     "bytes": "00006c7207b280651e2f002f0a4eb940",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400f7b7a",
+     "bytes": "b5d4588f221f5b80660c41f940252ca020301c004e754ef94000feac7405b480660270007403b48065064ef940078f784ef940078f54226f0024600c226f",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400f7bb9",
+     "bytes": "1c6006224b6002224a202f000404800000006c7207b28065",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400f7bd2",
+     "bytes": "2f",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400f7bd4",
+     "bytes": "2f002f0961000032588f221f205f5b8066202001e5882200d080d08143f940252d4cd3c020992159",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400f7bfd",
+     "bytes": "042151000820084e754ef940078f0c206f0004201004804017ee5867100680000000800c80000002",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400f7c26",
+     "bytes": "6512600a20280010670a2f40",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400f7c33",
+     "bytes": "044ef94002200a70ff4e75202f000804800000006c7207b28065602f2f00046100ffb8588f5b806652202f0008",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400f7c61",
+     "bytes": "800000006ce5882200d080d08141f940252d4cd1c0222f000c02810000",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400f7c80",
+     "bytes": "92906a027200202800049090b081640222",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400f7c92",
+     "bytes": "2240203c000078004c00180020094c4010012f41000c70702f4000084fefffec48d7007c4ef9",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400f7cb9",
+     "bytes": "00f2c4202f000804800000006c7207b28065242f2f00046100ff3a588f5b806616",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400f7cdb",
+     "bytes": "2f000804800000006c222f",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400f7ce7",
+     "bytes": "0c206f00106000",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400f7cef",
+     "bytes": "544fefffec48d70c1c4ef94000f32c202f000404800000006c7207b280652e2f0a4eb94002b5d4588f5b806620",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400f7d1d",
+     "bytes": "2f000404800000006c222f000841f94197de986100",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400f7d33",
+     "bytes": "10203c4197de984e754ef9400657ee028100",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400f7d46",
+     "bytes": "ffff0c800000",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400f7d4d",
+     "bytes": "06640000cee0890c8000000001670000ac2240707fb0816402220020095b806700004270004a81672070040c810000002a671670080c8100000055670c700c0c8100",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400f7d90",
+     "bytes": "007f6600001c220943f940252e285981660643f940252e38227108006000000a4eba000c42104e7510d966fc4e754a816a0610fc002d44817064b2",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400f7dcc",
+     "bytes": "6516702f52800481000000646af606810000006410c06006700ab2806514702f528004810000000a6af606",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400f7df8",
+     "bytes": "0000000a10c006810000003010c14e757002b0816402220043f940252df422711c006000ff9c0c81000028006c06223c000028",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400f7e2c",
+     "bytes": "0c81000058006f06223c00005800048100004000660a43f940252e2060",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400f7e4a",
+     "bytes": "ff6e6a0810fc002d4481600410fc002b70644c001800068100000080e08970000c8100000064650a048100000064528060ee224122006100ff3c10fc002e2209702f528004810000000a6af60681",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400f7e99",
+     "bytes": "00000a10c006810000003010c142104e75202f000404800000006c7207b28065262f0a4eb94002b5d4588f5b806618202f000404800000006c41f940252e0020300c002f40",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400f7edf",
+     "bytes": "044ef9400657942400726fb282",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400f7eed",
+     "bytes": "142f0a4eb94002b5d4588f5b8066067000726f4e7570ef726f4e75202f000404800000006c7207b280652c72dd010167262f002f0a6100fce8588f221f5b80661641f940252d687006b280650641f940252d7820084e754ef940065794206f00042050202f00084aaf000c670e6b0e73584a816b06b2806ff620014e75224073584a816bf6b2896cf2200160f270004e754eb9401388822f004eb940014d862e804eb94001d24e2e8061000006588f4e754eb9401388822f004eb940014d922eaf00082f004eb94000d9c8508f4e7504800000006c7207b28065102f006100ffb25b806604201f4e75588f70ff4e7520036100ffdc4a",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400f7fe4",
+     "bytes": "6b0a41f940252ed42f4800084ef94017af2020036100ffc24a806b0c41f940252c8020300c004e75200372344c01080041f9401aa09c",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400f801b",
+     "bytes": "3008304e75225f2f3308282f062f092f08200241f940252ca0601a225f2f3328302f062f092f08200280fc003471c041f940252c802f086100ff68205f4a806b1220300c002f40",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400f8063",
+     "bytes": "0c41f940252ed42f48",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400f806d",
+     "bytes": "08205f4e755980670e5380660841f940252dea22884e757007b08165f02f092f",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400f808e",
+     "bytes": "53976b2e6100ff0a598067f458802e804eb94007912c588f225f2340000841f940252ec02348",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400f80b5",
+     "bytes": "0441f940252ded22884e75588f225f60b443ef00082005222e",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400f80cf",
+     "bytes": "086100ffa04ef940093ab0202f00080c80401c41c0660c43ef00082004220b6100ff82",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400f80f3",
+     "bytes": "f9",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400f80f5",
+     "bytes": "093ab02f2a00744eb94001d24e2e806100fe98221f43ef00086100ff624ef940000e824e754280",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40252725",
+     "bytes": "0306090c101316191c1f2225282b2e313336393c3f414447494c4e515355585a5c5e60626466686a6b6d6f70717374757678797a7a7b7c7d7d7e7e7e7f7f7f7f7f7f7f7e7e7e7d7d7c7b7a7a79787675747371706f6d6b6a68666462605e5c5a585553514e4c494744413f3c393633312e2b2825221f1c191613100c090603",
+     "kind": "data"
+    },
+    {
+     "addr": "0x402527a5",
+     "bytes": "fdfaf7f4f0edeae7e4e1dedbd8d5d2cfcdcac7c4c1bfbcb9b7b4b2afadaba8a6a4a2a09e9c9a9896959391908f8d8c8b8a88878686858483838282828181818181818182828283838485868687888a8b8c8d8f9091939596989a9c9ea0a2a4a6a8abadafb2b4b7b9bcbfc1c4c7cacdcfd2d5d8dbdee1e4e7eaedf0f4f7fafd",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252825",
+     "bytes": "020406080a0c0e10121416181a1c1e20222426282a2c2e30323436383a3c3e4041434547494b4d4f51535557595b5d5f61636567696b6d6f71737577797b7d7f7d7b79777573716f6d6b69676563615f5d5b59575553514f4d4b4947454341403e3c3a38363432302e2c2a28262422201e1c1a18161412100e0c0a08060402",
+     "kind": "data"
+    },
+    {
+     "addr": "0x402528a5",
+     "bytes": "fefcfaf8f6f4f2f0eeeceae8e6e4e2e0dedcdad8d6d4d2d0cecccac8c6c4c2c0bfbdbbb9b7b5b3b1afadaba9a7a5a3a19f9d9b99979593918f8d8b8987858381838587898b8d8f91939597999b9d9fa1a3a5a7a9abadafb1b3b5b7b9bbbdbfc0c2c4c6c8caccced0d2d4d6d8dadcdee0e2e4e6e8eaeceef0f2f4f6f8fafcfe",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252925",
+     "bytes": "0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfeff7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f818181818181818181818181818181818181818181818181818181818181818181818181818181818181818181818181818181818181818181818181818181818181818181818181818181818181818181818181818181818181818181818181818181818181818181818181818181818181818181818181818181818181818101",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252b2b",
+     "bytes": "80",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252b2d",
+     "bytes": "80",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252b31",
+     "bytes": "55",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252b33",
+     "bytes": "55",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252b35",
+     "bytes": "56",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252b39",
+     "bytes": "80",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252b3b",
+     "bytes": "80",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252c2c",
+     "bytes": "421fa35c40252bdc40252c38401b7734",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252c3f",
+     "bytes": "0b",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252c43",
+     "bytes": "07",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252c47",
+     "bytes": "0140252c544023e0a0",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252c54",
+     "bytes": "e0",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252c58",
+     "bytes": "f0",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252c5c",
+     "bytes": "f8",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252c60",
+     "bytes": "fc",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252c64",
+     "bytes": "fe",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252c68",
+     "bytes": "c0",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252c6c",
+     "bytes": "e0",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252c70",
+     "bytes": "f0",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252c74",
+     "bytes": "f8",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252c78",
+     "bytes": "fc",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252c7c",
+     "bytes": "fe",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252c80",
+     "bytes": "40252d0440252cfb40252d0c40252cc040252d",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252c94",
+     "bytes": "40252d0940252cc540252cca40252d2340252d1140252ccf40252cd940252d1b40252d2d40252ce340252cef57415633",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252cc5",
+     "bytes": "44455432",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252cca",
+     "bytes": "44455433",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252ccf",
+     "bytes": "4f5343322057617665",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252cd9",
+     "bytes": "4f5343332057617665",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252ce3",
+     "bytes": "4f53433220446574756e65",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252cef",
+     "bytes": "4f53433320446574756e65",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252cfb",
+     "bytes": "464d5352",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252d00",
+     "bytes": "4d4958",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252d04",
+     "bytes": "57415631",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252d09",
+     "bytes": "464d",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252d0c",
+     "bytes": "57415632",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252d11",
+     "bytes": "464d20536f75726365",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252d1b",
+     "bytes": "4f7363204d6978",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252d23",
+     "bytes": "4f5343312057617665",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252d2d",
+     "bytes": "464d20416d6f756e74",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252d37",
+     "bytes": "4f5343322b332057617665",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252d43",
+     "bytes": "4c6576656c",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252d52",
+     "bytes": "7f",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252d5e",
+     "bytes": "02",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252d6a",
+     "bytes": "7f",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252d76",
+     "bytes": "7f",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252d82",
+     "bytes": "7f",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252d8e",
+     "bytes": "7f",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252d96",
+     "bytes": "28",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252d9a",
+     "bytes": "58",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252d9e",
+     "bytes": "40",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252da2",
+     "bytes": "28",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252da6",
+     "bytes": "58",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252daa",
+     "bytes": "40",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252dac",
+     "bytes": "40252dcc",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252db4",
+     "bytes": "400f7f7a400f7f4a40252dd6",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252dc4",
+     "bytes": "400f7f7a400f7f4a",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252dce",
+     "bytes": "2a",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252dd0",
+     "bytes": "55",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252dd2",
+     "bytes": "7f",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252dd4",
+     "bytes": "ffff28",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252dd8",
+     "bytes": "2f",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252dda",
+     "bytes": "34",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252ddc",
+     "bytes": "3b",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252dde",
+     "bytes": "40",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252de0",
+     "bytes": "47",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252de2",
+     "bytes": "4c",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252de4",
+     "bytes": "53",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252de6",
+     "bytes": "58",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252de8",
+     "bytes": "ffff2573",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252ded",
+     "bytes": "25733a202573",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252df4",
+     "bytes": "40252e7c40252e8140252e85",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252e03",
+     "bytes": "6e",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252e07",
+     "bytes": "6d",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252e0b",
+     "bytes": "6e",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252e0f",
+     "bytes": "6e",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252e13",
+     "bytes": "6e",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252e17",
+     "bytes": "6e",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252e1b",
+     "bytes": "6c",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252e1f",
+     "bytes": "6c302e3030",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252e28",
+     "bytes": "40252e4840252e4c40252e5040252e5440252e5840252e5d40252e6140252e8153494e",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252e4c",
+     "bytes": "545249",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252e50",
+     "bytes": "534157",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252e54",
+     "bytes": "535152",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252e58",
+     "bytes": "4f534331",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252e5d",
+     "bytes": "312b32",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252e61",
+     "bytes": "313233",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252e68",
+     "bytes": "40252e7840252e7c40252e8140252e854f4646",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252e7c",
+     "bytes": "4f534332",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252e81",
+     "bytes": "322b33",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252e85",
+     "bytes": "4f534333",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252e8a",
+     "bytes": "7374",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252e8d",
+     "bytes": "6374",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252e90",
+     "bytes": "401cc9f2401c6f07401c6975401c6975401c6f0c401cc9fa401cc9ff401c6f1f40252ec040252ec040252ec540252ed4504f4c59",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252ec5",
+     "bytes": "43464f204f5343494c4c41544f52",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252ed4",
+     "bytes": "43464f4f",
+     "kind": "data"
+    }
+   ]
+  },
+  {
+   "id": "portamento",
+   "title": "Portamento and legato: PORT and LEG on every audio track's TRIG page, saved with the sound and lockable per trig; with LEG on, a note before the last one's LEN ends glides and keeps the amp envelope running",
+   "runs": [
+    {
+     "addr": "0x40075690",
+     "bytes": "4eb9400ee05e",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40075698",
+     "bytes": "60024e71",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400779f6",
+     "bytes": "4eb9400e6d1c",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40078070",
+     "bytes": "4eb9400e6d6e4e71",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40079738",
+     "bytes": "202f00087210b2af0004650e6710722db2806418722fb280640242804e757223b2",
+     "kind": "code"
+    },
+    {
+     "addr": "0x4007975a",
+     "bytes": "65f6",
+     "kind": "code"
+    },
+    {
+     "addr": "0x4007976e",
+     "bytes": "4e75",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40079771",
+     "bytes": "71202f00087210b2af0004650e6710722db2806418722fb280640242804e757233b2",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40079794",
+     "bytes": "65f6",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400797a8",
+     "bytes": "4e75",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400797ab",
+     "bytes": "71",
+     "kind": "code"
+    },
+    {
+     "addr": "0x4007a2aa",
+     "bytes": "4eb9",
+     "kind": "code"
+    },
+    {
+     "addr": "0x4007a2ad",
+     "bytes": "0e6d52",
+     "kind": "code"
+    },
+    {
+     "addr": "0x4007a5fb",
+     "bytes": "252f2c",
+     "kind": "code"
+    },
+    {
+     "addr": "0x4007a615",
+     "bytes": "60",
+     "kind": "code"
+    },
+    {
+     "addr": "0x4007aded",
+     "bytes": "252f2c",
+     "kind": "code"
+    },
+    {
+     "addr": "0x4007af35",
+     "bytes": "252f2c",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400e6d1c",
+     "bytes": "05f9439d11a443f98000196c4ab12c006e06052effb7670605f9439d11a543e905bc4e754aaf000867064ef94005f8ce4ef9400658d0202b",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400e6d55",
+     "bytes": "782200028180fffeff670242802540",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400e6d65",
+     "bytes": "7041f9401ac58c4e7571b9439d11a74680c0831d40ffdc1d42ffdd4239439d11a7",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400ee05e",
+     "bytes": "41f980001f282a0e2c305c0041f9439d1180202800200c80504f5254670e203c504f52542140002042a800240be80026673c71aaedca0ba8002467140ba8002556c44a2aedcc67084a0467220be800274a80671ac0c0e6885280280698b05c004c4048044a846706d8b05c002c0421865c004e7542804e75",
+     "kind": "code"
+    },
+    {
+     "addr": "0x400f7840",
+     "bytes": "439d1180",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40153410",
+     "bytes": "40252f1c",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40153433",
+     "bytes": "03",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40153446",
+     "bytes": "58",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40153452",
+     "bytes": "d6ac",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40153460",
+     "bytes": "d37c",
+     "kind": "code"
+    },
+    {
+     "addr": "0x401565f8",
+     "bytes": "58",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40156612",
+     "bytes": "5a",
+     "kind": "code"
+    },
+    {
+     "addr": "0x401aa16c",
+     "bytes": "000000050000002e",
+     "kind": "data"
+    },
+    {
+     "addr": "0x401aa17a",
+     "bytes": "7f",
+     "kind": "data"
+    },
+    {
+     "addr": "0x401aa184",
+     "bytes": "ffff",
+     "kind": "data"
+    },
+    {
+     "addr": "0x401aa195",
+     "bytes": "252f05",
+     "kind": "data"
+    },
+    {
+     "addr": "0x401aa19d",
+     "bytes": "252f00000000050000002f",
+     "kind": "data"
+    },
+    {
+     "addr": "0x401aa1ae",
+     "bytes": "01",
+     "kind": "data"
+    },
+    {
+     "addr": "0x401aa1b8",
+     "bytes": "ffff",
+     "kind": "data"
+    },
+    {
+     "addr": "0x401aa1c9",
+     "bytes": "252f14",
+     "kind": "data"
+    },
+    {
+     "addr": "0x401aa1d1",
+     "bytes": "252f10",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252f00",
+     "bytes": "504f5254",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252f05",
+     "bytes": "506f7274616d656e746f",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252f10",
+     "bytes": "4c4547",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252f14",
+     "bytes": "4c656761746f",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252f24",
+     "bytes": "40060c92400e6d40",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252f33",
+     "bytes": "01",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252f37",
+     "bytes": "03",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252f3b",
+     "bytes": "05",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252f3f",
+     "bytes": "07",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252f43",
+     "bytes": "09",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252f47",
+     "bytes": "0b",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252f4b",
+     "bytes": "0d",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252f4f",
+     "bytes": "0f",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252f53",
+     "bytes": "02",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252f57",
+     "bytes": "04",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252f5b",
+     "bytes": "06",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252f5f",
+     "bytes": "08",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252f63",
+     "bytes": "0a",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252f67",
+     "bytes": "0c",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252f6b",
+     "bytes": "0e",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252f6f",
+     "bytes": "10",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252f73",
+     "bytes": "11",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252f77",
+     "bytes": "12",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252f7b",
+     "bytes": "13",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252f7f",
+     "bytes": "14",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252f83",
+     "bytes": "15",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252f87",
+     "bytes": "16",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252f8b",
+     "bytes": "17",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252f8f",
+     "bytes": "18",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252f93",
+     "bytes": "19",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252f97",
+     "bytes": "1a",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252f9b",
+     "bytes": "1b",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252f9f",
+     "bytes": "1c",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252fa3",
+     "bytes": "1d",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252fa7",
+     "bytes": "1e",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252fab",
+     "bytes": "1f",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252faf",
+     "bytes": "20",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252fb3",
+     "bytes": "21",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252fb7",
+     "bytes": "22",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252fbb",
+     "bytes": "23",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252fbf",
+     "bytes": "24",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252fc3",
+     "bytes": "2d",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252fc7",
+     "bytes": "25",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252fcb",
+     "bytes": "26",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252fcf",
+     "bytes": "27",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252fd3",
+     "bytes": "28",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252fd7",
+     "bytes": "29",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252fdb",
+     "bytes": "2a",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252fdf",
+     "bytes": "2b",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252fe3",
+     "bytes": "2c",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252fe7",
+     "bytes": "2e",
+     "kind": "data"
+    },
+    {
+     "addr": "0x40252feb",
+     "bytes": "2f",
      "kind": "data"
     }
    ]

@@ -44,3 +44,29 @@ Chain Recording ([features/chain_record.md](features/chain_record.md)):
 - ⚠️ Its view hooks (`0x400a7f40`, `0x400a8e7c`, `0x400a8f48`, `0x400a9026`) run only while the
   recorder page is shown, and so at the first paint only if the unit restores that page. The NO-key
   hook (`0x400a9878`) runs only on a key press on that page.
+
+The CFO oscillator and portamento ([features/cfo_oscillator.md](features/cfo_oscillator.md),
+[features/portamento.md](features/portamento.md)):
+
+- ✅ Three hooks in the audio ISR `FUN_40077420` run on every audio tick (objdump): the synth's render
+  hook (`0x40077fc8` → `cfo_pad` in `0x400f77da`, which renders the tracks whose machine is 5 and then
+  jumps on to `FUN_40072478`), portamento's glide at the top of the rate loop (`0x40075690` →
+  `port_glide`, every track) and the amp envelope's mask store (`0x40078070` → `amp_hook`). What they
+  keep in RAM is harmless at power-up: any phase is a valid start, a level above `0x7fff` gives no
+  ramp, and portamento takes no note sum as valid until its marker is set
+  ([memory_map.md](memory_map.md)). `EmuCfoOscillator` and `EmuPortamento` run them, power-up
+  contents included. Portamento's note-on hook (`0x400779f6` → `port_on`) runs only at a note-on.
+- ✅ The display-object builder `FUN_40152280`, which runs once at every boot on a zeroed `.bss`, holds
+  portamento's edits: ids 4 and 5's text, step profile, picture and flag word, and the TRIG layout's
+  knobs G and H (`0x40153410` to `0x40156612`). They store constants and call nothing new;
+  `EmuPortamento` runs them.
+- ⚠️ **Project-load code**, since the Digitakt loads a project when it starts: the machine bound at
+  `0x4007a2d0`, now 7; portamento's reader hook (`0x4007a2aa` → `rd_hook`); and the two stored-index
+  lookups rewritten in place (`FUN_40079738`, `FUN_40079772`).
+- ⚠️ **Draw-path hooks**, which run at the first paint if the unit restores that page: CFOO's layout
+  (`0x400657e6`), its cell picture and text (`0x4000f2bc`, `0x4000f324`), the encoder popup
+  (`0x40032d16`), the label pads' fall-through into the rename routines, the machine icon, the SRC
+  page's title and the LFO DEST cell; PORT's text object.
+
+✅ These ran on the test unit with OS 1.54: the build that holds them (`.syx` `9df62a0b…`, the
+portamento stage S36) started and ran ([README.md](README.md#the-test-unit)).

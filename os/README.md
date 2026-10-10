@@ -19,6 +19,9 @@ them; this page describes the layout, the command line and how a new OS folder i
 | `1.52A` | Digitakt OS 1.52A, for the original Digitakt | [1.52A/README.md](1.52A/README.md) | `python3 os/1.52A/build/build.py` |
 | `1.54` | Digitakt OS 1.54, for the original Digitakt | [1.54/README.md](1.54/README.md) | `python3 os/1.54/build/build.py` |
 
+DT OG++ is developed in `1.54`. `1.52A` is on hold: its build has not been developed past its last
+feature, and new features go into `1.54` only.
+
 To find out which OS folder a `.syx` file belongs to, run
 [`scripts/identify.py`](../scripts/identify.py) from the repo root:
 

@@ -83,7 +83,7 @@ into MAIN OS at any point (for example the flash driver) has not been traced.
 ## Routes the set does not cover
 
 These read or reach the flash and lie outside `PROTECTED`. No run of this build touches any of them
-(a check of every run against every function below, 140 functions in all):
+(a check of every run, 485 in all, against every function below, 140 functions in all):
 
 - **The MIDI RPC OS upgrade.** `OsUpgradeMenuView` (with `performFlashInBackground`), `OsUpgradeState`,
   the `elektron::MidiRpcOsUpgrade{Start,Write,End}{Request,Response}` classes and the
@@ -107,7 +107,7 @@ build's runs would be refused.
    and after packing re-extracts the file and requires sections 2, 4, 5 and 8 to equal stock. The
    reference build passes all seven of its checks.
 2. **Call rule.** The disassembly of every patched code range in
-   [docs/patch_listing.md](../docs/patch_listing.md) (795 instructions, 146 distinct direct branch
+   [docs/patch_listing.md](../docs/patch_listing.md) (1,703 instructions, 296 distinct direct branch
    and call targets) has no target in a protected range. Calls and jumps through a register (seven)
    are outside that check.
 

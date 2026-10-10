@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The CFO oscillator's four wavetables, 256 signed 8-bit entries each, in morph order SIN, TRI, SAW, SQR,
+"""The CFO oscillator's four waveform tables, 256 signed 8-bit entries each, in morph order SIN, TRI, SAW, SQR,
 written as an assembler include (`.byte` lines) to the path given, or to stdout.
 
 One phase convention for all four, so that a morph between neighbours blends shapes rather than

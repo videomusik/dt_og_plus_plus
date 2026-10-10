@@ -83,15 +83,17 @@ that the Ghidra wrapper creates, is skipped by the comparison.
 ## Checking a build
 
 ```sh
-python3 os/<os>/build/verify.py out/<os>/dt_og_plus_plus_v0.1_<hash8>.syx --tool tool/bin/elektron-firmware-tool-capped
+python3 os/<os>/build/verify.py out/<os>/dt_og_plus_plus_<version>_<hash8>.syx --tool tool/bin/elektron-firmware-tool-capped
 ```
 
 classifies the file (the stock file of that OS version, DT OG++ reference build, or unknown); see
-[`building.md`](building.md). To look inside a build with the scripts here, name its OS:
+[`building.md`](building.md). `<version>` is the build's version, which the OS folder's `build.py` puts
+in the file name (v0.2.1 for OS 1.54, v0.1 for OS 1.52A). To look inside a build with the scripts
+here, name its OS:
 
 ```sh
-./scripts/extract.sh <os>:out/<os>/dt_og_plus_plus_v0.1_<hash8>.syx    # -> work/dt_<os>-dt_og_plus_plus_v0.1_<hash8>/
-./scripts/roundtrip.sh <os>:out/<os>/dt_og_plus_plus_v0.1_<hash8>.syx
+./scripts/extract.sh <os>:out/<os>/dt_og_plus_plus_<version>_<hash8>.syx    # -> work/dt_<os>-dt_og_plus_plus_<version>_<hash8>/
+./scripts/roundtrip.sh <os>:out/<os>/dt_og_plus_plus_<version>_<hash8>.syx
 ```
 
 OS 1.52A:

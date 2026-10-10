@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""CFO oscillator for OS 1.54: generate the wavetables, assemble cfo.s with a placement linker script,
+"""CFO oscillator for OS 1.54: generate the waveform tables, assemble cfo.s with a placement linker script,
 check it against the stock image and the current build, and write an emulator load file.
 
     python3 os/1.54/src/cfo_oscillator/make_cfo.py <placement.ld>            # check, write the load file
@@ -44,7 +44,10 @@ Stages, written to out/1.54/stages/ (only with --stages):
        between its own routines become bsr.w
   S27  S26 + the Source found from the machines (the nearest non-POLY track before), not POLY's pool
        map
-patch.json is not changed: the feature is a prototype."""
+This script does not change patch.json: make_port.py merges S27 into it, with portamento on top. The
+build without the CFO oscillator (BUILD_SECTION3, Chain Recording's build) comes back from
+patch.json either way: its features before cfo_oscillator, with the bytes of the build that the CFO
+oscillator rewrites given back (build_without_cfo)."""
 import json, os, shutil, subprocess, sys, tempfile
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", "..", "..", ".."))
@@ -54,6 +57,10 @@ PFX = os.environ.get("M68K_PREFIX", "m68k-elf-")
 BASE = 0x40000400
 PATCH = os.path.join(ROOT, "os", "1.54", "build", "patch.json")
 STOCK3 = os.path.join(ROOT, "work", "dt_1.54", "section_3_MAIN_OS.bin")
+FID = "cfo_oscillator"
+TITLE = ("CFO oscillator: the CFOO machine, a 3-oscillator 8-bit FM synth, with its own SRC page, knobs, "
+         "value names, icon and LFO destinations")
+BUILD_SECTION3 = "efc90606b8d0d1637f41d6eac9cc19652e2c78800178bb9b6bcac3524bdef29e"   # without the CFO oscillator
 HOOKS = {
     ".hook_fill": (0x40077fc8, "4eb940072478"),          # jsr 0x40072478, after the two render lanes
     ".hook_layout": (0x400657e6, "203c4197df5c4e75"),    # FUN_400657cc's fallback: SLICE's record
@@ -125,6 +132,41 @@ REPL_SITES = [(0x40065e5e, "70344c0038002f303830", "cfo_lfocell", "2f004e71"),
 def fill(lo, hi):
     n = hi - lo
     return bytes.fromhex("42804e75") * (n // 4) + (bytes.fromhex("4e75") if n % 4 else b"")
+
+
+def build_sites():
+    """The build's bytes that the CFO oscillator rewrites, as the build holds them, and the feature of
+    the build they belong to: (address, bytes, feature). In patch.json they are listed under
+    cfo_oscillator."""
+    return ([(a, want, "poly_engine") for a, want, _new, _w in EDITS] +
+            [(a, want, "poly_engine") for a, want, _d in NAME_PTRS] +
+            [(a, want, "midi_loopback") for a, want, _s in RENAME_JMPS] +
+            [(a, want, "poly_icon") for a, want, _new, _w in ICON_EDITS] +
+            [(ICON_PTR[0], ICON_PTR[1], "poly_icon")])
+
+
+def build_without_cfo(stock, patch):
+    """The build without the CFO oscillator, from patch.json: its features before cfo_oscillator, and
+    the bytes of build_sites() given back. It must hash to BUILD_SECTION3. Returns the image and who owns
+    each byte it changes ({address: (feature, kind)})."""
+    ids = [f["id"] for f in patch["features"]]
+    img, owner = bytearray(stock), {}
+    for f in patch["features"][:ids.index(FID) if FID in ids else len(ids)]:
+        for r in f["runs"]:
+            a, d = int(r["addr"], 16), bytes.fromhex(r["bytes"])
+            img[a - BASE:a - BASE + len(d)] = d
+            for k in range(len(d)):
+                owner[a + k] = (f["id"], r.get("kind", "code"))
+    for a, want, fid in build_sites():
+        d = bytes.fromhex(want)
+        img[a - BASE:a - BASE + len(d)] = d
+        for k in range(len(d)):
+            if d[k] != stock[a - BASE + k]:
+                owner[a + k] = (fid, "code")
+    h = build.sha256_bytes(bytes(img))
+    if h != BUILD_SECTION3:
+        sys.exit("the build without the CFO oscillator does not come back from patch.json (section 3 %s)" % h)
+    return img, owner
 
 
 def run(*cmd):
@@ -284,14 +326,8 @@ def main():
     ld = os.path.abspath(sys.argv[1])
     stages = "--stages" in sys.argv
     stock = build.read(STOCK3)
-    patch, runs = build.load_patch(PATCH)
-    img = bytearray(stock)
-    owner = set()
-    for a, d, _f, _k in runs:
-        img[a - BASE:a - BASE + len(d)] = d
-        owner.update(range(a, a + len(d)))
-    if build.sha256_bytes(bytes(img)) != patch["result"]["section3_sha256"]:
-        sys.exit("patch.json does not reproduce its own section-3 hash")
+    patch, _runs = build.load_patch(PATCH)
+    img, owner = build_without_cfo(stock, patch)
     tmp = tempfile.mkdtemp(prefix="cfo-")
     try:
         secs, syms = assemble(ld, tmp)

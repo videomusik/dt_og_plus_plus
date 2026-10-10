@@ -1,22 +1,28 @@
-# CFO oscillator: a 3-oscillator 8-bit wavetable synth with FM
+# CFO oscillator: a 3-oscillator 8-bit FM synth
 
 ## What this is
 
 A synth voice for the Digitakt's audio tracks: three phase-accumulator oscillators that read 256-entry
-8-bit wavetables, OSC1 frequency-modulated by OSC2 and/or OSC3, each oscillator's wave morphing
+8-bit waveform tables, OSC1 frequency-modulated by OSC2 and/or OSC3, each oscillator's wave morphing
 SIN → TRI → SAW → SQR. It writes into a track's audio buffer at the point where the sampler writes its
 samples, so the rest of the track's chain applies to it unchanged:
 - the level stage and SRR;
 - the filters and their envelope;
 - the amp envelope, the mix and the effects.
 
-⚠️ **Not in the reference build.** `os/1.54/build/patch.json` does not contain it. The prototype exists as
-test images S9–S11 ([Testing on the unit](#testing-on-the-unit)), which add it to the reference build in
-three steps. Its code lives in a new pad, `FUN_400f77da` ([Code space](#code-space)). Nothing of it has
-run on a unit yet.
+**In the build.** `os/1.54/build/patch.json` holds it as the feature `cfo_oscillator`: its last stage,
+S27, less Chain Recording's build that the stages start from ([Testing on the unit](#testing-on-the-unit)).
+It came into `patch.json` together with portamento, which points the synth's note read at the glided
+note ([portamento.md](portamento.md)); `make_port.py` writes both. The build's bytes that CFOO rewrites
+(the machine-5 bounds, the name and icon pointers, the label pads' jumps) are listed under
+`cfo_oscillator`. Its code lives in a new pad, `FUN_400f77da` ([Code space](#code-space)). The stages
+ran on the test unit ([Testing on the unit](#testing-on-the-unit)).
 
-**Prototype stage.** Until the synth is a machine of its own, it plays on any ONESHOT track whose SAMP
-is OFF (sample slot 0), and reads its controls from that track's SRC page:
+The sections below follow the stages. S11 was a prototype, and CFOO, machine 5, starts in S12
+([below](#cfoo-machine-5-in-s12)); the build plays the synth on CFOO tracks only.
+
+**The prototype, S11.** Before the synth became a machine of its own, it played on any ONESHOT track
+whose SAMP was OFF (sample slot 0), and read its controls from that track's SRC page:
 
 | SRC parameter | Prototype meaning |
 |---|---|
@@ -158,7 +164,7 @@ within one sample. The last level per track is kept in this build's RAM at `0x43
 ([memory_map.md](../memory_map.md)). A stored value above `0x7fff` cannot be a level: it is what the
 RAM held at boot, and the track then starts at the new level with no ramp.
 
-**The wavetables** (`make_waves.py`): SIN, TRI, SAW, SQR, 256 signed bytes each, with one phase
+**The waveform tables** (`make_waves.py`): SIN, TRI, SAW, SQR, 256 signed bytes each, with one phase
 convention, so the morph blends shapes instead of cancelling them:
 - every table starts with a zero crossing at index 0;
 - SIN and TRI peak at 64 and bottom out at 192;
@@ -173,7 +179,7 @@ The tables (1,024 B) and the mix points (24 B) go into the `.rodata` padding at
 `EmuCfoOscillator` ([scripts/emu/README.md](../../scripts/emu/README.md)) runs the assembled code in
 Ghidra's p-code emulator. It runs over 3 to 200 consecutive ticks and compares every output sample with
 a model of the same integer arithmetic. The model is written in the harness and reads the stock pitch
-table and the wavetables from emulator memory. All cases pass:
+table and the waveform tables from emulator memory. All cases pass:
 - tracks that are not synth tracks keep their buffers exactly;
 - OSC1 alone; TUNE ±; the three morphs; the four mix points;
 - FM from OSC2, OSC2+3 and OSC3; half and zero level; notes 0 and 127;
@@ -234,9 +240,11 @@ the pad's 2,372. The routes:
 
 ## Testing on the unit
 
-`make_cfo.py lz4_stream.ld --stages` builds nineteen images on top of the reference build (section 3
+`make_cfo.py lz4_stream.ld --stages` builds nineteen images on top of Chain Recording's build (section 3
 `efc90606…`, `.syx` `3fd4b0a3`), each adding one step to the stage named in its row. They are meant to
-be flashed in order, S9 to S27:
+be flashed in order, S9 to S27. That build comes back from `patch.json` by `build_without_cfo`: the
+features before `cfo_oscillator`, with the bytes CFOO rewrites given back their earlier values; it
+must hash to `efc90606…`, and every stage rebuilds byte for byte from the merged `patch.json`.
 
 | Stage | `.syx` | Section 3 | Contents |
 |---|---|---|---|
@@ -323,6 +331,9 @@ Results on the unit, OS 1.54, each stage flashed on the one before from S8:
   POLY and a CFOO track as CFOO, but the SRC page shows a POLY track's Source's machine instead (CFOO
   alone, or the machine and its sample for SLICE and the others): its machine comes through POLY's
   alias, `FUN_4002b5d4`. S26 makes the three texts agree.
+- ⚠️ **S27:** its own change, the POLY track's text after a machine change, was not reported on its
+  own. ✅ S27's code ran on the unit in every portamento stage built on it, and a CFOO track plays and
+  glides there ([portamento.md](portamento.md#on-the-unit)).
 
 What to check:
 - **S9:** nothing changes anywhere. A live caller of the pad would now get 0 at once.
@@ -607,7 +618,10 @@ those slots from the engine block.
 
 ⛔ The table has no free rows. Ids up to 163 are in use (the MIDI track's pages end the table), and the
 records whose name reads `Error` are track-level records with page and slot `-1` and their own data in
-`+0x18`, not spare rows. So the eight records have to come from somewhere else:
+`+0x18`, not spare rows. (The descriptor sorter skips page −1 rows, so the CC words of rows 4 and 5,
+CC 7 and CC 10, reach no table; portamento reuses those two rows,
+[portamento.md](portamento.md#port-and-leg-as-sound-parameters). Two rows are not eight.) So the eight
+records have to come from somewhere else:
 
 - ⛔ **Serve ids at or above 164 from a second table.** Out: twenty accessors index from the same base
   (`lea 0x401aa09c,%a0`, forty `id < 164` checks), so each would need its own branch.
