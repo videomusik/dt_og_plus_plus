@@ -90,6 +90,14 @@ New in this image, not in the OS 1.52A build:
   (S31), PORT's OFF and LEG's cell (S32), saving and recall (S33), legato by LEN with the amp
   envelope held (S36). [features/portamento.md](features/portamento.md).
 
+In progress, not in the build:
+
+- **FILTER page 2: VED and KEY.** On every audio track's second FILTER page, VED (knob C, 0..100 %) sets
+  how much the velocity decides the filter envelope's depth, around velocity 100, and KEY (knob G, about
+  −394..394 % in 6.25 % steps) moves the cutoff with the note; knob B is kept for an envelope
+  destination. Test images S37 to S52 on the build; up to S52 run on the test unit with OS 1.54, as
+  reported. [features/filter_page2.md](features/filter_page2.md).
+
 The CFO oscillator and portamento came into `patch.json` together, from their last stages:
 `make_port.py --stages --write` (in [src/portamento/](../src/portamento/)) rebuilds the build without
 them from `patch.json`, the CFO oscillator's S27 on it and portamento's S36 on that, and writes the
@@ -147,6 +155,8 @@ How it is made, and its reference numbers: [analysis_reference.md](analysis_refe
   samples come from.
 - [features/chain_record.md](features/chain_record.md): Chain Recording, and how the stock recorder
   works.
+- [features/filter_page2.md](features/filter_page2.md): FILTER page 2 (VED, KEY), not in the build yet,
+  and how the filter stage forms its cutoff.
 - [features/portamento.md](features/portamento.md): portamento and legato, and how a sequenced trig's
   LEN ends a note.
 - [function_ledger.md](function_ledger.md): the per-function ledger.

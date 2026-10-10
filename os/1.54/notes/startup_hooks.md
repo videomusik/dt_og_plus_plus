@@ -70,3 +70,24 @@ The CFO oscillator and portamento ([features/cfo_oscillator.md](features/cfo_osc
 
 ✅ These ran on the test unit with OS 1.54: the build that holds them (`.syx` `9df62a0b…`, the
 portamento stage S36) started and ran ([README.md](README.md#the-test-unit)).
+
+FILTER page 2 (test images only, not in `patch.json`; [features/filter_page2.md](features/filter_page2.md)):
+
+- ✅ The filter stage's hook (`0x400728a2` → `filt_hook` in `0x400d266e`) runs for every track on every
+  audio tick (the filter stage is called per track at `0x400780c4`; objdump). It reads the track's
+  smoothed values, its velocity word and portamento's note sums, and keeps no state of its own, so
+  nothing it reads at power-up can be stale for longer than the tick's own values. `EmuFilter` runs it.
+- ✅ The display-object builder `FUN_40152280`, which runs once at every boot, holds its edits from S39:
+  ids 1 and 2's text and picture operands and FILTER page 2's knobs C and G (`0x40153354` to
+  `0x401568e4`); from S47 id 1's operands point at Trig Probability's objects, from S49 id 1's flags
+  store is `addql #4` (`0x4015334a`), from S51 id 2's text operand points at a constant object in the
+  `.rodata` padding. These store constants. From S45 a call at `0x401533c0` (`filt_spc`, in place of a
+  `clrl`): S45 only replays the `clrl`; from S46 it calls the build's own callable copier twice, as the
+  builder does for every other id. `EmuFilter` runs the whole builder.
+- ⚠️ **Project-load code**, since the Digitakt loads a project when it starts: from S42 the sound reader's
+  hook (`0x4007a2aa` → `rd_hook2`) and the two stored-index lookups' jumps (`0x4007974c`, `0x40079786`).
+- ⚠️ **Draw-path code**, at the first paint if the unit restores FILTER page 2: VED's and KEY's cells,
+  through ENV's stock text and picture (VED from S47 through Trig Probability's; KEY's text from S52
+  through `key_txt`), and from S40 the page's own draw routine `FUN_40037564` with its five changed
+  words.
+- ✅ The test images up to S52 started and ran on the test unit with OS 1.54, as reported.
