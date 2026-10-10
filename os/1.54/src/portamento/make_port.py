@@ -34,7 +34,9 @@ to out/1.54/stages/ (only with --stages):
 S36 is the build: patch.json holds the build without the CFO oscillator, then cfo_oscillator (S27 less
 that build) and portamento (S36 less S27). Each byte is listed once, under the last feature that wrote
 it, so the build's bytes that the CFO oscillator rewrites are listed under cfo_oscillator, and the CFO
-oscillator's note operand that S31 points at the glided note under portamento."""
+oscillator's note operand that S31 points at the glided note under portamento. Once patch.json holds a
+feature merged after portamento (filter_page2, v0.2.2), S36 is checked against its recorded hash and
+--write is refused: make_filt.py rewrites patch.json."""
 import json, os, re, shutil, subprocess, sys, tempfile
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", "..", "..", ".."))
@@ -51,6 +53,7 @@ TITLE = ("Portamento and legato: PORT and LEG on every audio track's TRIG page, 
          "envelope running")
 CODE_END = 0x4017cc64                   # the end of the code (the branch scan's range)
 S27_SHA = "703cedf780d68ee9a4187956d6a5b87d46d284804fc962fa2950f0ae4c189ff0"   # S27's section 3
+S36_SHA = "d6fac1a35cf565c37fc43ae51bd0c76f1ee7e23c0668ff1d245bb2839e51509c"   # S36's section 3, v0.2.1
 CFO_LD = os.path.join(ROOT, "os", "1.54", "src", "cfo_oscillator", "lz4_stream.ld")
 LD = os.path.join(HERE, "port.ld")
 # The two new pads (vetted in notes/landing_pads.md): extent, from the stock rts.
@@ -282,6 +285,11 @@ def main():
         sys.exit("--write needs --stages (patch.json carries the .syx hash of the S36 build)")
     stock = build.read(cfo.STOCK3)
     patch, _runs = build.load_patch(cfo.PATCH)
+    ids = [f["id"] for f in patch["features"]]
+    later = ids[ids.index(FID) + 1:] if FID in ids else []
+    if write and later:
+        sys.exit("patch.json holds features merged after portamento (%s); make_filt.py --stages --write "
+                 "rewrites it" % ", ".join(later))
     img, owner = cfo.build_without_cfo(stock, patch)
     tmp = tempfile.mkdtemp(prefix="port-")
     try:
@@ -390,8 +398,12 @@ def main():
         feats = merged_features(stock, patch, img, owner, s27, built["S36"])
         s36 = build.sha256_bytes(built["S36"])
         current = patch["result"]["section3_sha256"]
-        same = feats == patch["features"] and s36 == current
-        print("S36 section 3 %s; patch.json %s" % (s36, "is up to date" if same else "differs (%s)" % current))
+        if later:
+            print("S36 section 3 %s; %s; patch.json carries %s after it" % (
+                s36, "as recorded (v0.2.1)" if s36 == S36_SHA else "NOT as recorded (%s)" % S36_SHA, ", ".join(later)))
+        else:
+            same = feats == patch["features"] and s36 == current
+            print("S36 section 3 %s; patch.json %s" % (s36, "is up to date" if same else "differs (%s)" % current))
         if not stages:
             print("no stage images built (--stages)")
             return

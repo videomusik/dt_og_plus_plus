@@ -2,7 +2,9 @@
 
 In the build: `os/1.54/build/patch.json` holds it as the feature `portamento`, its last stage, S36,
 less the CFO oscillator's last stage, S27, on which the stages are built
-([cfo_oscillator.md](cfo_oscillator.md)). The build is S36, byte for byte. Source:
+([cfo_oscillator.md](cfo_oscillator.md)). v0.2.1 is S36, byte for byte; from v0.2.2 FILTER page 2
+follows it and rewrites the reader's call, the two lookups' tests and the writer's loop count, which
+`patch.json` then lists under `filter_page2` ([filter_page2.md](filter_page2.md#checks)). Source:
 [src/portamento/](../../src/portamento/).
 
 ## What it does
@@ -255,8 +257,9 @@ The rest of each pad keeps its fill. No hook calls anything but the stock routin
   `poly_engine`, `poly_icon` and `midi_loopback` that CFOO rewrites are listed under `cfo_oscillator`,
   and the CFO oscillator's 4-byte note operand (`0x400f7840`) under `portamento`; no other run of the
   earlier features changes. Runs are maximal per feature and kind; a run outside the code windows is
-  data. `build.py` on the result gives `.syx` `9df62a0b…`, section 3 `d6fac1a3…`: S36. Without
-  `--write` the script reports whether `patch.json` is up to date. `make_chain.py` and `make_cfo.py`
+  data. `build.py` on the result gave `.syx` `9df62a0b…`, section 3 `d6fac1a3…`: S36, v0.2.1. Without
+  `--write` the script reports whether `patch.json` is up to date; once a later feature is merged
+  (FILTER page 2, v0.2.2) it checks S36 against that recorded hash instead and refuses `--write`. `make_chain.py` and `make_cfo.py`
   rebuild their own stages from the merged `patch.json` byte for byte, and `make_chain.py --write` is
   refused once features follow Chain Recording.
 - **`EmuPortamento`** ([scripts/emu/README.md](../../scripts/emu/README.md)) runs each hook at its site

@@ -52,7 +52,15 @@ Then the CFO oscillator and portamento, each stage flashed on the one before:
    not reported on its own. S27's code ran in every portamento stage after it;
 9. portamento's stages on S27 ([features/portamento.md](features/portamento.md#on-the-unit)): S31 to
    S33 and S36 worked as described, as reported; the legato tests of S34 and S35 failed and were
-   replaced. S36 (`.syx` `9df62a0b…`) is the build in this folder, byte for byte.
+   replaced. S36 (`.syx` `9df62a0b…`) is the build v0.2.1, byte for byte.
+
+Then FILTER page 2, each stage flashed on the one before:
+
+10. FILTER page 2's stages S37 to S52 on S36
+    ([features/filter_page2.md](features/filter_page2.md#on-the-unit)): each flashed in turn and
+    checked on its own, and they work, as reported; S39 showed VED and KEY without pictures, which S40
+    changes. Not yet tested against every other feature. S52 (`.syx` `701a6c28…`) is the build in this
+    folder, v0.2.2, byte for byte.
 
 ## The features in this build
 
@@ -89,12 +97,21 @@ New in this image, not in the OS 1.52A build:
   sound and their locks with the pattern. ✅ On the test unit: the glide, LEG and a lock on PORT
   (S31), PORT's OFF and LEG's cell (S32), saving and recall (S33), legato by LEN with the amp
   envelope held (S36). [features/portamento.md](features/portamento.md).
+- **FILTER page 2: VED and KEY.** On every audio track's second FILTER page, VED (knob C, 0..100 %) sets
+  how much the velocity decides the filter envelope's depth, around velocity 100, and KEY (knob G,
+  −394..394 % in 6.25 % steps) moves the cutoff with the note; both are saved with the sound and their
+  locks with the pattern; knob B is kept for an envelope destination. ✅ On the test unit, each stage
+  checked on its own (S37 to S52, above). [features/filter_page2.md](features/filter_page2.md).
 
 The CFO oscillator and portamento came into `patch.json` together, from their last stages:
-`make_port.py --stages --write` (in [src/portamento/](../src/portamento/)) rebuilds the build without
-them from `patch.json`, the CFO oscillator's S27 on it and portamento's S36 on that, and writes the
-runs. The build is S36, byte for byte. Each changed byte is listed once, under the last feature that
-wrote it ([docs/reference.md](../docs/reference.md#what-patchjson-holds)).
+`make_port.py --stages --write` (in [src/portamento/](../src/portamento/)) rebuilt the build without
+them from `patch.json`, the CFO oscillator's S27 on it and portamento's S36 on that, and wrote the
+runs: v0.2.1 is S36, byte for byte. FILTER page 2 came in after them, as v0.2.2:
+`make_filt.py --stages --write` (in [src/filter_page2/](../src/filter_page2/)) rebuilds the build before
+it from `patch.json` (giving back the bytes it rewrites), S52 on it, and writes the runs. The build is
+S52, byte for byte. Each changed byte is listed once, under the last feature that wrote it
+([docs/reference.md](../docs/reference.md#what-patchjson-holds)); `make_port.py` and `make_chain.py`
+refuse `--write` once a later feature is merged.
 
 The other features have run on the test unit ([The test unit](#the-test-unit)).
 
@@ -147,6 +164,8 @@ How it is made, and its reference numbers: [analysis_reference.md](analysis_refe
   samples come from.
 - [features/chain_record.md](features/chain_record.md): Chain Recording, and how the stock recorder
   works.
+- [features/filter_page2.md](features/filter_page2.md): FILTER page 2 (VED, KEY), and how the filter
+  stage forms its cutoff.
 - [features/portamento.md](features/portamento.md): portamento and legato, and how a sequenced trig's
   LEN ends a note.
 - [function_ledger.md](function_ledger.md): the per-function ledger.

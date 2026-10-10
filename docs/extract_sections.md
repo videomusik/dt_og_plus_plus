@@ -88,7 +88,7 @@ python3 os/<os>/build/verify.py out/<os>/dt_og_plus_plus_<version>_<hash8>.syx -
 
 classifies the file (the stock file of that OS version, DT OG++ reference build, or unknown); see
 [`building.md`](building.md). `<version>` is the build's version, which the OS folder's `build.py` puts
-in the file name (v0.2.1 for OS 1.54, v0.1 for OS 1.52A). To look inside a build with the scripts
+in the file name (v0.2.2 for OS 1.54, v0.1 for OS 1.52A). To look inside a build with the scripts
 here, name its OS:
 
 ```sh
