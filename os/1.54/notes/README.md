@@ -103,6 +103,13 @@ New in this image, not in the OS 1.52A build:
   locks with the pattern; knob B is kept for an envelope destination. ✅ On the test unit, each stage
   checked on its own (S37 to S52, above). [features/filter_page2.md](features/filter_page2.md).
 
+In progress, not in the build:
+
+- **CFOO's wave pictures.** On a CFOO track's SRC page, WAV1, WAV2 and WAV3 show the wave they play,
+  17 × 17, drawn from the oscillator's own tables and blend, in a new pad from xxHash's unused 64-bit
+  functions. Test images S53 to S55 on the build; ✅ on the test unit with OS 1.54, as reported.
+  [features/wave_pictures.md](features/wave_pictures.md).
+
 The CFO oscillator and portamento came into `patch.json` together, from their last stages:
 `make_port.py --stages --write` (in [src/portamento/](../src/portamento/)) rebuilt the build without
 them from `patch.json`, the CFO oscillator's S27 on it and portamento's S36 on that, and wrote the
@@ -168,6 +175,8 @@ How it is made, and its reference numbers: [analysis_reference.md](analysis_refe
   stage forms its cutoff.
 - [features/portamento.md](features/portamento.md): portamento and legato, and how a sequenced trig's
   LEN ends a note.
+- [features/wave_pictures.md](features/wave_pictures.md): CFOO's wave pictures (WAV1–3), not in the build
+  yet, and how a parameter's picture is drawn.
 - [function_ledger.md](function_ledger.md): the per-function ledger.
 - [landing_pads.md](landing_pads.md): the pads that hold the new code, why each is dead here, and the
   `.rodata` space.

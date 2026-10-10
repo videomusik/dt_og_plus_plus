@@ -63,6 +63,13 @@ FILTER page 2's pads (in the build from v0.2.2; by stage in
 | `FUN_40178e02` | `0x40178e02..0x40178e44` | 66 B | S37 its fill; S42 `rd_hook2`, PORT and LEG only, `0x40178e02..0x40178e1e`; from S43 `rd_hook2` with VED and KEY: the whole pad. Vetted below |
 | `FUN_401778a4` | `0x401778a4..0x401778d8` | 52 B | S37 its fill; S42 `fwd_ext` and `inv_ext`, 20 B; from S43 44 B, to `0x401778d0`; the rest keeps its fill. Vetted below |
 
+CFOO's wave pictures pad, in their test images only (on top of the build, not in `patch.json`;
+[features/wave_pictures.md](features/wave_pictures.md)):
+
+| Pad | Extent | Size | Occupied by |
+|---|---|---:|---|
+| `FUN_401044b6` | `0x401044b6..0x40104e7e` | 2,504 B | S53 its fill; S54 `wav_sel`, 16 B; S55 `wav_sel` and `wav_pic`, 266 B, to `0x401045c0`; the rest keeps its fill. Vetted below |
+
 Free code space: 102 B in fourteen blocks, none larger than 16 B: 16 B at `0x400152c0`, 16 B at
 `0x400bedf2`, 10 B at `0x400156da`, 8 B at `0x400bf1e0`, 8 B at `0x40037ad6`, 8 B at `0x401778d0`
 (FILTER page 2's `FUN_401778a4`, fill), 6 B at `0x400c1392`, 6 B at `0x400bed96`, 6 B at
@@ -241,13 +248,57 @@ read in this image, with the controls of steps 3 and 4 giving their known counts
    `0x401778a0`) and followed by a fresh function (`0x400d26aa`, `0x40178f76`, `0x40178e44`, `0x401778d8`).
 8. **Moat.** Outside every protected range ([update_moat.md](update_moat.md)).
 
-⚠️ None of the four has run on a unit yet; their fill test is the stage image S37.
+✅ Their fill test (S37) ran on the test unit with OS 1.54, as reported, and so did FILTER page 2's code
+in them (S38 to S52).
 
 Examined at the same time and not taken: `FUN_400c2242` (54 B), a leaf that inverts a rectangle of a
 bitmap, with raw and listing scans 0, but five words of two switch tables within ±32 KB land in it
 (their bounds not read), and it is drawing code, which a computed address could reach unseen (as
 `0x400c2d00` below); and the two spans the list below marks "not examined", `0x40013a9e` and
 `0x400214e8`, which call through a vtable (`jsr %a0@`, `jmp %a1@`), so step 1 does not admit them.
+
+## The wave pictures pad: `FUN_401044b6`
+
+A function of xxHash's 64-bit family (XXH64), 2,504 B. It is not a leaf, so step 1 admits it only by its
+library exception ([landing_pad_method.md](../../../notes/landing_pad_method.md#vetting-a-new-pad)):
+
+- **The library.** xxHash, identified by its constants: the 32-bit primes `0x9e3779b1`, `0x85ebca77`,
+  `0xc2b2ae3d`, `0x27d4eb2f`, `0x165667b1`, as halves of the 64-bit ones, and XXH64's start values
+  (seed + P1 + P2 = `0x60ea27ee_adc0b5d6`, seed − P1 = `0x61c8864e_7a143579`) in its siblings
+  `FUN_401020e4` and `FUN_40103ba8`. LZ4's frame format checksums with the 32-bit XXH32, whose functions
+  here are live (`FUN_401012d6`, `FUN_40101a28`, `FUN_40101e98`); the whole 64-bit family,
+  `0x40102088..0x40104ee8` (eight functions, 11,872 B), is on the candidate list.
+- **Its callees.** `FUN_40101280` (xxHash's 4-byte read through `memcpy` `0x400e8ae8`, which XXH32 shares),
+  `0x40123fd4` (a 64-bit multiply) and `0x401241a4`/`0x401241dc` (32- and 64-bit byte swaps): the library's
+  own and the C runtime's. Its calls through registers (`jsr %a2@`, `%a4@`, `%a5@`) go to those, whose
+  addresses the function itself loads.
+
+✅ The vetting steps, read in this image, with the controls of steps 3 and 4 giving their known counts in
+the same run ([Vetting controls on this image](#vetting-controls-on-this-image)):
+
+1. **Candidate.** `ghRefs=0`, `ptrWord=-`, `opLit=-`, 5 callees: the library exception, above.
+2. **objdump.** No peripheral literal, no MAC instruction; extent `0x401044b6..0x40104e7e`, from its one
+   `rts`.
+3. **Raw pointer scan**, every byte offset: 7 words, each a byte sequence across two instructions, not an
+   operand or a table word: at `0x400665d4`, `0x400665dc` and `0x40068f70` the peripheral address
+   `0xec094010` of a `bset`/`bclr` and the next opcode; at `0x400f5ce2`, `0x400f77ce` and `0x400f8112` a
+   displacement of 16,400 (`0x4010`) and the next opcode; at `0x40110c3e` the operand of
+   `pea 0x40224010` and the next opcode.
+4. **Listing scan**, hex operands and decimal immediates: 0.
+5. **Switch tables.** None within ±32 KB.
+6. **Live twins.** Its 64-bit constants (`0x27d4eb4f`, the start values) appear only inside the family;
+   the 32-bit primes also in the live XXH32 functions and in LZ4, which share them.
+7. **Fall-through.** An `rts` before it (`0x401044b4`) and a fresh function after it (`linkw` at
+   `0x40104e7e`).
+8. **Moat.** Outside every protected range ([update_moat.md](update_moat.md)).
+
+✅ Its fill test (S53) ran on the test unit with OS 1.54, as reported, and so did the wave pictures' code
+in it (S54, S55).
+
+Examined at the same time and not taken: `FUN_401020e4` (6,798 B), in the same family, whose raw scan
+finds 44 words (not each explained), whose listing scan finds one operand (`0x4023da70`, in `.rodata`
+read as code), and into which entries 16 to 419 of the switch table at `0x400fae42` would land (its
+bound not read). It stays a candidate.
 
 ## The candidate list on this image
 
@@ -292,7 +343,9 @@ with no indirect call, outside the I/O region, the audio code and the second cod
 `0x400d266e` (60 B) and `0x401778a4` (52 B), vetted for FILTER page 2
 ([above](#the-filter-page-2-pads)); `0x400c2242` (54 B), not taken (same section); and `0x400e8544`
 (86 B), ⛔ live: `pea %pc@(0x400e8544)` at `0x400e85b4` registers it with `0x40002d58` (a timer
-callback), which only the listing scan finds.
+callback), which only the listing scan finds. Not leaves, admitted only by step 1's library exception:
+LZ4's `FUN_400f77da` (the CFO oscillator's pad) and xxHash's 64-bit family `0x40102088..0x40104ee8`, of
+which `FUN_401044b6` is vetted ([above](#the-wave-pictures-pad-fun_401044b6)).
 
 ⛔ A row here is a candidate, never a budget ([landing_pad_method.md](../../../notes/landing_pad_method.md#where-candidates-come-from)).
 
