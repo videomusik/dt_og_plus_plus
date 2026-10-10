@@ -91,3 +91,11 @@ FILTER page 2 (in the build from v0.2.2; by stage in [features/filter_page2.md](
   through `key_txt`), and from S40 the page's own draw routine `FUN_40037564` with its five changed
   words.
 - ✅ Each test image up to S52 started and ran on the test unit with OS 1.54, as reported.
+
+CFOO's wave pictures (in the build from v0.2.3; by stage in
+[features/wave_pictures.md](features/wave_pictures.md)):
+
+- ⚠️ **Draw-path code**, at the first paint if the unit restores a CFOO track's SRC page: from S54 the
+  CFO oscillator's picture hook passes through `wav_sel` (`FUN_401044b6`), from S55 drawing WAV1–3.
+  Nothing of it runs at start-up itself.
+- ✅ S53 to S55 started and ran on the test unit with OS 1.54, as reported.

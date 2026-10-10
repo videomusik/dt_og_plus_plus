@@ -73,8 +73,9 @@ Details: [OS 1.54](os/1.54/README.md#chain-recording)
 OS 1.54 only. CFOO is a sixth machine, after POLY: a synth voice of three oscillators with 8-bit
 waveforms, where OSC2, OSC3 or both frequency-modulate OSC1. Its SRC page sets each oscillator's
 waveform (SIN, TRI, SAW, SQR and the blends between them), the FM source and amount, the mix of the
-three oscillators and the detunes of OSC2 and OSC3 (±24 semitones). It plays where a sample would, so
-the filter, the amp envelope, the LFOs and the effects act on it, and a Poly track can follow it.
+three oscillators and the detunes of OSC2 and OSC3 (±24 semitones); the three waveform knobs show
+the wave they play as a picture. It plays where a sample would, so the filter, the amp envelope, the
+LFOs and the effects act on it, and a Poly track can follow it.
 Details: [OS 1.54](os/1.54/README.md#cfo-oscillator)
 
 ### PORTAMENTO AND LEGATO
@@ -127,7 +128,7 @@ The build runs on macOS and Linux; on Windows, use WSL2
    ```
 
 3. From the repository root, run, with `<os>` the OS folder of your stock file and `<version>` its
-   build's version (v0.2.2 for OS 1.54, v0.1 for OS 1.52A):
+   build's version (v0.2.3 for OS 1.54, v0.1 for OS 1.52A):
 
    ```
    bash build/build_tool.sh
@@ -140,7 +141,7 @@ The build runs on macOS and Linux; on Windows, use WSL2
    ```
    bash build/build_tool.sh
    python3 os/1.54/build/build.py
-   python3 os/1.54/build/verify.py out/1.54/dt_og_plus_plus_v0.2.2_<hash8>.syx --tool tool/bin/elektron-firmware-tool-capped
+   python3 os/1.54/build/verify.py out/1.54/dt_og_plus_plus_v0.2.3_<hash8>.syx --tool tool/bin/elektron-firmware-tool-capped
    ```
 
    In the last command, use the file name that `build.py` prints at `[7/7] wrote`.

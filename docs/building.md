@@ -25,7 +25,7 @@ git clone https://github.com/mischa85/elektron-firmware-tool ../elektron-firmwar
 git -C ../elektron-firmware-tool checkout 065d18f
 ```
 
-Then run these from the repository root, with `<os>` the OS folder of your stock file (the OS folders are listed in [os/README.md](../os/README.md#the-os-folders)) and `<version>` its build's version (v0.2.2 for OS 1.54, v0.1 for OS 1.52A):
+Then run these from the repository root, with `<os>` the OS folder of your stock file (the OS folders are listed in [os/README.md](../os/README.md#the-os-folders)) and `<version>` its build's version (v0.2.3 for OS 1.54, v0.1 for OS 1.52A):
 
 ```
 bash build/build_tool.sh
@@ -46,7 +46,7 @@ In the last command, use the file name that `build.py` prints at `[7/7] wrote`.
 1. **`build/build_tool.sh`** builds the firmware tool the build is pinned to, from your clone in `../elektron-firmware-tool`. It copies the clone's source files into a build folder under `tool/` and checks the SHA-256 of every one against the files of commit `065d18f4195793e61891e387813488ee59f6d1ca`; that check is how it knows the clone is at the pinned commit. It then applies `build/tool_patches/cap_window_1mb.patch` to the copies and compiles `tool/bin/elektron-firmware-tool-capped`. The compiler may print warnings about the upstream sources (gcc prints two `-Wmisleading-indentation` warnings, in `decompress.c` and `main.c`); they are expected and do not stop the script. It never clones or downloads anything and never changes your clone. If the clone is missing or not at the pinned commit, it stops and prints the two git commands above. It is shared by every OS folder.
    - `--src DIR` builds from a clone in another folder.
    - `--bin-dir DIR` writes the binary somewhere other than `tool/bin`.
-2. **`os/<os>/build/build.py`** builds the image for its own OS version. It writes `out/<os>/dt_og_plus_plus_<version>_<first 8 hex digits of its SHA-256>.syx` (the version is the OS folder's own, set in its `build.py`: v0.2.2 for OS 1.54, v0.1 for OS 1.52A) only after every check below has passed. It has no option to choose the OS: running the `build.py` of an OS folder is that choice.
+2. **`os/<os>/build/build.py`** builds the image for its own OS version. It writes `out/<os>/dt_og_plus_plus_<version>_<first 8 hex digits of its SHA-256>.syx` (the version is the OS folder's own, set in its `build.py`: v0.2.3 for OS 1.54, v0.1 for OS 1.52A) only after every check below has passed. It has no option to choose the OS: running the `build.py` of an OS folder is that choice.
    - `--syx FILE`, `--tool FILE` and `--out DIR` override the default locations (the OS folder's stock file in `sysex/`, `tool/bin/elektron-firmware-tool-capped` and `out/<os>/`).
 3. **`os/<os>/build/verify.py`** tells you what any `.syx` file is, for its own OS version: that version's stock file, DT OG++ (reference build), or unknown. A file of another OS version is unknown to it. With `--tool` it also extracts the file and classifies its MAIN OS section, which does not depend on the tool that packed it; it does not compare the other sections.
 

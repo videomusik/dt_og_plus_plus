@@ -1177,3 +1177,6 @@ everything else as S26, on S27's own bytes. Controls: S26's bytes under that exp
 - [memory_map.md](../memory_map.md): the RAM.
 - [function_ledger.md](../function_ledger.md): the render functions.
 - [scripts/emu/README.md](../../scripts/emu/README.md): `EmuCfoOscillator`.
+- [wave_pictures.md](wave_pictures.md): WAV1–3's pictures, drawn from these tables; in the build from v0.2.3,
+  where they rewrite 10 B of `cfo_pic` (its knob record, `0x400f7c5c`), which `patch.json` lists under
+  `wave_pictures`.

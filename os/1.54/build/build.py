@@ -18,7 +18,7 @@ Steps, each one checked:
   5. The tool must report "checksums : ok" for the new file.
   6. Extract the new file again: section 3 must equal the patched bytes, and sections 2, 4, 5 and 8
      must be byte-identical to the stock ones.
-  7. Only then is the file renamed to  <out>/dt_og_plus_plus_v0.2.2_<first 8 hex of its SHA-256>.syx .
+  7. Only then is the file renamed to  <out>/dt_og_plus_plus_v0.2.3_<first 8 hex of its SHA-256>.syx .
 
 On any failure the script exits non-zero and removes its temporary folder inside <out>, so no
 file with the final name is left behind. Nothing here talks to a device; flashing is up to you.
@@ -229,7 +229,7 @@ def roundtrip(tool, packed_syx, patched, stock_sections, dest):
 
 
 def final_name(syx_sha256):
-    return "dt_og_plus_plus_v0.2.2_%s.syx" % syx_sha256[:8]
+    return "dt_og_plus_plus_v0.2.3_%s.syx" % syx_sha256[:8]
 
 
 # --------------------------------------------------------------------------- main

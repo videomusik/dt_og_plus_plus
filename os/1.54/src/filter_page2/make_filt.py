@@ -41,8 +41,9 @@ written to out/1.54/stages/ (only with --stages):
   S51  S50 + KEY's text callable copied at start-up from a constant copy of ENV's text object in the
        .rodata padding: KEY still shows -63..63 (the first run of that path)
   S52  S51 + that object's invoker becomes key_txt: KEY shows its keytracking in percent
-S52 is the build from v0.2.2: patch.json holds the build before it, then filter_page2 (S52 less that
-build). Each byte is listed once, under the last feature that wrote it, so portamento's three sites and
+S52 is the build v0.2.2: patch.json holds the build before it, then filter_page2 (S52 less that
+build). Once a later feature is merged (the wave pictures, v0.2.3), S52 is checked against its recorded
+hash and --write is refused; LATER_SITES gives back the bytes that feature rewrites. Each byte is listed once, under the last feature that wrote it, so portamento's three sites and
 the writer's loop count that this feature rewrites, and the two leftovers of Chain Recording's pad fill
 that hold KEY's text, are listed under filter_page2."""
 import json, os, shutil, subprocess, sys, tempfile
@@ -69,6 +70,11 @@ REWRITES = [(0x4007a2ac, "400e6d52", "portamento"), (0x4007974c, "722fb2806402",
             (0x40079786, "722fb2806402", "portamento"), (0x4007a614, "7260", "portamento"),
             (0x40124b24, "42804e7542804e7542804e754e75", "pad_fill"),
             (0x401282ce, "4e7542804e7542804e7542804e7542804e75", "pad_fill")]
+# Bytes of the features before this one that a feature merged after it rewrites, as those features hold
+# them: the wave pictures (from v0.2.3) replace 10 B of the CFO oscillator's picture hook, which
+# patch.json then lists under wave_pictures. build_without_filt gives them back.
+LATER_SITES = [(0x400f7c5c, "202f000804800000006c", "cfo_oscillator")]
+S52_SHA = "3b88fa95268a05cba3181c8765b3379a46237b00def0820d1c8c4da499506f37"   # S52's section 3, v0.2.2
 LD = os.path.join(HERE, "filt.ld")
 # The four new pads (vetted in notes/landing_pads.md): extent, from the stock rts.
 PADS = {".filt_ved": (0x400d266e, 0x400d26aa),     # FUN_400d266e, counts the set bits of a bitmap
@@ -201,6 +207,12 @@ def build_without_filt(stock, patch):
             img[a - BASE:a - BASE + len(d)] = d
             for k in range(len(d)):
                 owner[a + k] = (f["id"], r.get("kind", "code"))
+    for a, want, fid in LATER_SITES:
+        d = bytes.fromhex(want)
+        img[a - BASE:a - BASE + len(d)] = d
+        for k in range(len(d)):
+            if d[k] != stock[a - BASE + k]:
+                owner[a + k] = (fid, "code")
     if FID in ids:
         for a, want, fid in REWRITES:
             d = bytes.fromhex(want)
@@ -260,6 +272,11 @@ def main():
     stock = build.read(cfo.STOCK3)
     with open(cfo.PATCH) as f:
         patch = json.load(f)
+    ids = [f["id"] for f in patch["features"]]
+    later = ids[ids.index(FID) + 1:] if FID in ids else []
+    if write and later:
+        sys.exit("patch.json holds features merged after filter_page2 (%s); the last one's generator rewrites it"
+                 % ", ".join(later))
     assert build.sha256_bytes(stock) == patch["stock"]["section3_sha256"], "work/dt_1.54 is not the stock section 3"
     img, owner = build_without_filt(stock, patch)
     tmp = tempfile.mkdtemp(prefix="filt-")
@@ -417,9 +434,13 @@ def main():
         print("load files:", ", ".join(os.path.join("work", "dt_1.54-filt", n + ".load") for n in built))
         feats = merged_features(stock, patch, img, owner, built["S52"])
         s52 = build.sha256_bytes(built["S52"])
-        same = feats == patch["features"] and s52 == patch["result"]["section3_sha256"]
-        print("S52 section 3 %s; patch.json %s" % (s52, "is up to date" if same else
-                                                   "differs (%s)" % patch["result"]["section3_sha256"]))
+        if later:
+            print("S52 section 3 %s; %s; patch.json carries %s after it" % (
+                s52, "as recorded (v0.2.2)" if s52 == S52_SHA else "NOT as recorded (%s)" % S52_SHA, ", ".join(later)))
+        else:
+            same = feats == patch["features"] and s52 == patch["result"]["section3_sha256"]
+            print("S52 section 3 %s; patch.json %s" % (s52, "is up to date" if same else
+                                                       "differs (%s)" % patch["result"]["section3_sha256"]))
         if not stages:
             print("no stage images built (--stages)")
             return

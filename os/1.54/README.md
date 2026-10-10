@@ -160,6 +160,8 @@ A CFOO track's SRC page:
   keeps the raw 8-bit sound.
 - The wave knobs read `SIN`, `TRI`, `SAW` and `SQR` at their four points, and MIX reads `OSC1`, `1+2`,
   `123` and `2+3`.
+- The pictures of A, C and D show the wave each oscillator plays: one cycle of the blended waveform,
+  following the knob as it turns, and a trig's lock when one is held.
 - **[FUNC] + knob** steps A, C, D and E to the next of 0, 42, 85 and 127, and G and H through −24, −17,
   −12, −5, 0, +7, +12, +19 and +24 semitones.
 - A new CFOO track plays a plain sine: OSC1 SIN alone, no FM, both detunes at 0.
@@ -256,7 +258,7 @@ The build runs on macOS and Linux; on Windows, use WSL2
    ```
    bash build/build_tool.sh
    python3 os/1.54/build/build.py
-   python3 os/1.54/build/verify.py out/1.54/dt_og_plus_plus_v0.2.2_<hash8>.syx --tool tool/bin/elektron-firmware-tool-capped
+   python3 os/1.54/build/verify.py out/1.54/dt_og_plus_plus_v0.2.3_<hash8>.syx --tool tool/bin/elektron-firmware-tool-capped
    ```
 
    In the last command, use the file name that `build.py` prints at `[7/7] wrote`.
@@ -275,7 +277,7 @@ What the three commands do:
   writes the binary somewhere else.
 - `os/1.54/build/build.py` checks your stock file, applies `os/1.54/build/patch.json`, packs and
   re-checks the result, and only then writes
-  `out/1.54/dt_og_plus_plus_v0.2.2_<first 8 hex digits of its SHA-256>.syx`. This is the file you
+  `out/1.54/dt_og_plus_plus_v0.2.3_<first 8 hex digits of its SHA-256>.syx`. This is the file you
   flash. It prints the name at `[7/7] wrote`. `--syx FILE`, `--tool FILE` and `--out DIR` override
   the default locations.
 - `os/1.54/build/verify.py` tells you what a `.syx` file is: stock Digitakt OS 1.54, DT OG++

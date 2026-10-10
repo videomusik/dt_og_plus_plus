@@ -43,7 +43,7 @@ public class EmuSliceLatch extends GhidraScript {
   static final int    MAIN_SIZE = 2479680;
   static final long   MAIN_BASE = 0x40000400L;
   static final String STOCK_MAIN_SHA256 = "5c58bf9e3949ef09977c5fc007a61e8d026931f67f1621238379dfb8ee4d31a2";
-  static final String REF_MAIN_SHA256   = "3b88fa95268a05cba3181c8765b3379a46237b00def0820d1c8c4da499506f37";
+  static final String REF_MAIN_SHA256   = "957bdc6fa80cca3860615cf3baa11310db666da1eec3770fa1d2fbc70615ee45";
 
   byte[] padBytes;
 
