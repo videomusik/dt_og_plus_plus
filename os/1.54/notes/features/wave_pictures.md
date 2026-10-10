@@ -1,7 +1,8 @@
 # CFOO's wave pictures: WAV1–3
 
-Not in the build: test images on top of it (the build of `os/1.54/build/patch.json`, v0.2.2, section 3
-`3b88fa95…`). Source: [src/wave_pictures/](../../src/wave_pictures/).
+In the build from v0.2.3: `os/1.54/build/patch.json` holds it as the feature `wave_pictures`, its last
+stage, S55, less the build before it (v0.2.2, section 3 `3b88fa95…`), on which the stages are built. The
+build is S55, byte for byte. Source: [src/wave_pictures/](../../src/wave_pictures/).
 
 ## What it does
 
@@ -83,11 +84,20 @@ remain, and the family around it has more.
 
 ## Checks
 
-- **`make_wavpic.py`:** the build comes from `patch.json` and must give its hash; the pad is stock and
+- **`make_wavpic.py`:** the build before this feature comes from `patch.json` (its features before
+  `wave_pictures`, and the hook site's 10 B given back to `cfo_oscillator`) and must give its hash; the pad is stock and
   untouched by the build, after an `rts` and ending in its stock `rts`; the hook site holds the build's
   `cfo_pic` bytes, owned by `cfo_oscillator`; the continuation, `segfrac` and the four tables
   (against `make_waves.py`) are where `wavpic.s` takes them; no instruction of the build branches into
   the hook site; the code fits its pad. Each stage image passes `build.py`'s checks.
+- **The merge** (`make_wavpic.py --stages --write`): `patch.json` gets `wave_pictures` from S55. Every byte
+  that S55 changes from stock is listed once, under the last feature that wrote it: this feature's, else
+  the earlier feature's. So the CFO oscillator's 10 B at the hook site (`0x400f7c5c`) are listed under
+  `wave_pictures`; no other run of the earlier features changes. `build.py` on the result gives `.syx`
+  `31b428ea…`, section 3 `957bdc6f…`: S55, v0.2.3. `make_filt.py` gives those 10 B back
+  (`LATER_SITES`) when it rebuilds the build before FILTER page 2, then checks S52 against its recorded
+  hash and refuses `--write`, as `make_port.py` and `make_chain.py` do; `make_cfo.py` and `make_port.py`
+  rebuild the CFO oscillator's code themselves.
 - **`EmuWavePic`** ([scripts/emu/README.md](../../scripts/emu/README.md)) runs `vfunc_23` from its entry
   through `cfo_pic` and the hook, the machine query and the drawer stubbed: machines 5 and 0, ids
   106–117, five values each: S54 sends every call to the stock code as `cfo_pic` does (STRT's id for
@@ -102,7 +112,8 @@ remain, and the family around it has more.
 
 ## Stage images
 
-Each stage adds one thing to the one before; flash them in order on a unit that runs the build (v0.2.2).
+Each stage adds one thing to the one before; flash them in order on a unit that runs v0.2.2, the build
+before this feature. S55 is the build v0.2.3.
 
 | Stage | `.syx` | Section 3 | Contents |
 |---|---|---|---|
@@ -127,6 +138,5 @@ S55 the waves look right.
 
 ## Open points
 
-- Not in `patch.json` yet.
 - The rest of the pad (2,238 B) is free for later features, knob B's envelope destination on FILTER
   page 2 among them.

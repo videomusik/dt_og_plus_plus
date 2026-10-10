@@ -92,7 +92,7 @@ FILTER page 2 (in the build from v0.2.2; by stage in [features/filter_page2.md](
   words.
 - ✅ Each test image up to S52 started and ran on the test unit with OS 1.54, as reported.
 
-CFOO's wave pictures (test images only, not in `patch.json`;
+CFOO's wave pictures (in the build from v0.2.3; by stage in
 [features/wave_pictures.md](features/wave_pictures.md)):
 
 - ⚠️ **Draw-path code**, at the first paint if the unit restores a CFOO track's SRC page: from S54 the

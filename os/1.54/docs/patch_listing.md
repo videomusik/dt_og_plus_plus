@@ -12,7 +12,7 @@ Addresses are load addresses: section 3 (MAIN OS) loads at 0x40000400, so file o
 - **Data** (icons, tables, strings) is shown as hex and ASCII, patched bytes only; `--` is an unpatched byte. Data runs of one feature less than 16 bytes apart share one dump.
 - The `+`/`~` marks count every patched byte, whichever feature it belongs to.
 
-Section 3: stock `5c58bf9e3949ef09977c5fc007a61e8d026931f67f1621238379dfb8ee4d31a2` -> patched `3b88fa95268a05cba3181c8765b3379a46237b00def0820d1c8c4da499506f37`.
+Section 3: stock `5c58bf9e3949ef09977c5fc007a61e8d026931f67f1621238379dfb8ee4d31a2` -> patched `957bdc6fa80cca3860615cf3baa11310db666da1eec3770fa1d2fbc70615ee45`.
 Disassembler: GNU objdump (GNU Binutils for Debian) 2.40.
 
 | feature | runs | bytes | |
@@ -29,10 +29,11 @@ Disassembler: GNU objdump (GNU Binutils for Debian) 2.40.
 | [`owner_latch`](#owner-latch) | 4 | 14 | POLY machine: held notes release across a pattern switch |
 | [`tick_wipe_fix`](#tick-wipe-fix) | 2 | 23 | Fix: a note released and re-triggered in the same audio tick no longer hangs |
 | [`chain_record`](#chain-record) | 32 | 614 | Chain Recording: the recorder fills a sample chain one slot at a time (encoder D sets the slot count, armed by the user or re-armed automatically) |
-| [`cfo_oscillator`](#cfo-oscillator) | 197 | 3925 | CFO oscillator: the CFOO machine, a 3-oscillator 8-bit FM synth, with its own SRC page, knobs, value names, icon and LFO destinations |
+| [`cfo_oscillator`](#cfo-oscillator) | 197 | 3916 | CFO oscillator: the CFOO machine, a 3-oscillator 8-bit FM synth, with its own SRC page, knobs, value names, icon and LFO destinations |
 | [`portamento`](#portamento) | 90 | 451 | Portamento and legato: PORT and LEG on every audio track's TRIG page, saved with the sound and lockable per trig; with LEG on, a note before the last one's LEN ends glides and keeps the amp envelope running |
 | [`filter_page2`](#filter-page2) | 52 | 410 | FILTER page 2: VED and KEY on every audio track's second FILTER page, saved with the sound and lockable per trig; VED (0-100 %) sets how much the velocity decides the filter envelope's depth around velocity 100, KEY (-394..394 % in 6.25 % steps) moves the cutoff with the note |
-| **total** | 534 | 7334 | |
+| [`wave_pictures`](#wave-pictures) | 51 | 2463 | CFOO's wave pictures: WAV1, WAV2 and WAV3 on CFOO's SRC page show the wave each oscillator plays at the knob's value, 17 x 17, drawn from the oscillator's own waveform tables and blend |
+| **total** | 585 | 9788 | |
 
 <a id="slice-round-robin"></a>
 
@@ -1454,7 +1455,7 @@ Runs: 0x40252c00 +14, 0x40252c0f +11, 0x40252c1b +15.
 
 ## cfo_oscillator
 
-CFO oscillator: the CFOO machine, a 3-oscillator 8-bit FM synth, with its own SRC page, knobs, value names, icon and LFO destinations. 197 runs, 3925 bytes.
+CFO oscillator: the CFOO machine, a 3-oscillator 8-bit FM synth, with its own SRC page, knobs, value names, icon and LFO destinations. 197 runs, 3916 bytes.
 
 ### 0x4000f2bc, 8 B (code)
 
@@ -1699,9 +1700,9 @@ Runs: 0x40065e5e +6, 0x40065e65 +3.
 + 400bee44:  41f9 4025 2c2c       lea 0x40252c2c,%a0
 ```
 
-### 0x400f77dd-0x400f811c, 56 runs, 2306 B (code)
+### 0x400f77dd-0x400f7c5c, 28 runs, 1119 B (code)
 
-Runs: 0x400f77dd +1, 0x400f77df +1, 0x400f77e2 +6, 0x400f77e9 +3, 0x400f77ed +27, 0x400f7809 +21, 0x400f781f +33, 0x400f7844 +80, 0x400f7895 +17, 0x400f78a7 +85, 0x400f78fd +21, 0x400f7913 +35, 0x400f7937 +21, 0x400f794d +11, 0x400f7959 +10, 0x400f7964 +110, 0x400f79d3 +24, 0x400f79ed +292, 0x400f7b12 +34, 0x400f7b35 +51, 0x400f7b69 +16, 0x400f7b7a +62, 0x400f7bb9 +24, 0x400f7bd2 +1, 0x400f7bd4 +40, 0x400f7bfd +40, 0x400f7c26 +12, 0x400f7c33 +45, 0x400f7c61 +29, 0x400f7c80 +17, 0x400f7c92 +38, 0x400f7cb9 +33, 0x400f7cdb +11, 0x400f7ce7 +7, 0x400f7cef +45, 0x400f7d1d +21, 0x400f7d33 +18, 0x400f7d46 +6, 0x400f7d4d +66, 0x400f7d90 +59, 0x400f7dcc +43, 0x400f7df8 +51, 0x400f7e2c +29, 0x400f7e4a +78, 0x400f7e99 +69, 0x400f7edf +13, 0x400f7eed +246, 0x400f7fe4 +54, 0x400f801b +71, 0x400f8063 +9, 0x400f806d +32, 0x400f808e +38, 0x400f80b5 +25, 0x400f80cf +35, 0x400f80f3 +1, 0x400f80f5 +39.
+Runs: 0x400f77dd +1, 0x400f77df +1, 0x400f77e2 +6, 0x400f77e9 +3, 0x400f77ed +27, 0x400f7809 +21, 0x400f781f +33, 0x400f7844 +80, 0x400f7895 +17, 0x400f78a7 +85, 0x400f78fd +21, 0x400f7913 +35, 0x400f7937 +21, 0x400f794d +11, 0x400f7959 +10, 0x400f7964 +110, 0x400f79d3 +24, 0x400f79ed +292, 0x400f7b12 +34, 0x400f7b35 +51, 0x400f7b69 +16, 0x400f7b7a +62, 0x400f7bb9 +24, 0x400f7bd2 +1, 0x400f7bd4 +40, 0x400f7bfd +40, 0x400f7c26 +12, 0x400f7c33 +41.
 
 ```
 ~ 400f77da:  4fef ff2c            lea %sp@(-212),%sp
@@ -2072,8 +2073,13 @@ Runs: 0x400f77dd +1, 0x400f77df +1, 0x400f77e2 +6, 0x400f77e9 +3, 0x400f77ed +27
 + 400f7c56:  588f                 addql #4,%sp
 + 400f7c58:  5b80                 subql #5,%d0
 + 400f7c5a:  6652                 bnes 0x400f7cae
-+ 400f7c5c:  202f 0008            movel %sp@(8),%d0
-~ 400f7c60:  0480 0000 006c       subil #108,%d0
+```
+
+### 0x400f7c66-0x400f811c, 28 runs, 1178 B (code)
+
+Runs: 0x400f7c66 +24, 0x400f7c80 +17, 0x400f7c92 +38, 0x400f7cb9 +33, 0x400f7cdb +11, 0x400f7ce7 +7, 0x400f7cef +45, 0x400f7d1d +21, 0x400f7d33 +18, 0x400f7d46 +6, 0x400f7d4d +66, 0x400f7d90 +59, 0x400f7dcc +43, 0x400f7df8 +51, 0x400f7e2c +29, 0x400f7e4a +78, 0x400f7e99 +69, 0x400f7edf +13, 0x400f7eed +246, 0x400f7fe4 +54, 0x400f801b +71, 0x400f8063 +9, 0x400f806d +32, 0x400f808e +38, 0x400f80b5 +25, 0x400f80cf +35, 0x400f80f3 +1, 0x400f80f5 +39.
+
+```
 + 400f7c66:  e588                 lsll #2,%d0
 + 400f7c68:  2200                 movel %d0,%d1
 + 400f7c6a:  d080                 addl %d0,%d0
@@ -3144,4 +3150,1231 @@ Runs: 0x40252fef +1, 0x40252ff3 +9.
 ```
 40252fe0  -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- 32  |               2|
 40252ff0  -- -- -- 33 40 06 0d 88 40 12 4b 24 -- -- -- --  |   3@...@.K$    |
+```
+
+<a id="wave-pictures"></a>
+
+## wave_pictures
+
+CFOO's wave pictures: WAV1, WAV2 and WAV3 on CFOO's SRC page show the wave each oscillator plays at the knob's value, 17 x 17, drawn from the oscillator's own waveform tables and blend. 51 runs, 2463 bytes.
+
+### 0x400f7c5c, 10 B (code)
+
+```
++ 400f7c5c:  4ef9 4010 44b6       jmp 0x401044b6
++ 400f7c62:  4e71                 nop
++ 400f7c64:  4e71                 nop
+```
+
+### 0x401044b6-0x40104e7c, 50 runs, 2453 B (code)
+
+Runs: 0x401044b6 +40, 0x401044df +6, 0x401044e6 +48, 0x40104517 +84, 0x4010456c +72, 0x401045b5 +95, 0x40104615 +31, 0x40104635 +83, 0x40104689 +31, 0x401046a9 +87, 0x40104701 +31, 0x40104721 +87, 0x40104779 +94, 0x401047d8 +20, 0x401047ed +19, 0x40104801 +51, 0x40104835 +74, 0x40104880 +34, 0x401048a3 +1, 0x401048a5 +46, 0x401048d4 +23, 0x401048ec +6, 0x401048f3 +56, 0x4010492c +28, 0x40104949 +39, 0x40104971 +43, 0x4010499d +13, 0x401049ab +97, 0x40104a0d +190, 0x40104acc +60, 0x40104b09 +54, 0x40104b40 +64, 0x40104b81 +54, 0x40104bb8 +64, 0x40104bf9 +54, 0x40104c30 +32, 0x40104c51 +138, 0x40104cdc +39, 0x40104d04 +15, 0x40104d14 +40, 0x40104d3d +53, 0x40104d73 +1, 0x40104d75 +46, 0x40104da4 +23, 0x40104dbc +6, 0x40104dc3 +56, 0x40104dfc +28, 0x40104e19 +39, 0x40104e41 +43, 0x40104e6d +15.
+
+```
++ 401044b6:  202f 0008            movel %sp@(8),%d0
++ 401044ba:  0480 0000 006c       subil #108,%d0
++ 401044c0:  6712                 beqs 0x401044d4
++ 401044c2:  7202                 moveq #2,%d1
++ 401044c4:  b280                 cmpl %d0,%d1
++ 401044c6:  670c                 beqs 0x401044d4
++ 401044c8:  7203                 moveq #3,%d1
++ 401044ca:  b280                 cmpl %d0,%d1
++ 401044cc:  6706                 beqs 0x401044d4
++ 401044ce:  4ef9 400f 7c66       jmp 0x400f7c66
++ 401044d4:  4fef ff3c            lea %sp@(-196),%sp
++ 401044d8:  48d7 0cfc            moveml %d2-%d7/%a2-%a3,%sp@
+~ 401044dc:  202f 00d0            movel %sp@(208),%d0
+~ 401044e0:  0280 0000 ff00       andil #65280,%d0
++ 401044e6:  e088                 lsrl #8,%d0
++ 401044e8:  727f                 moveq #127,%d1
++ 401044ea:  b280                 cmpl %d0,%d1
++ 401044ec:  6402                 bccs 0x401044f0
++ 401044ee:  2001                 movel %d1,%d0
++ 401044f0:  4eb9 400f 7a1e       jsr 0x400f7a1e
++ 401044f6:  2600                 movel %d0,%d3
++ 401044f8:  e189                 lsll #8,%d1
++ 401044fa:  45f9 4025 2724       lea 0x40252724,%a2
++ 40104500:  d5c1                 addal %d1,%a2
++ 40104502:  47ea 0100            lea %a2@(256),%a3
++ 40104506:  41ef 003c            lea %sp@(60),%a0
++ 4010450a:  43ef 0080            lea %sp@(128),%a1
++ 4010450e:  7400                 moveq #0,%d2
++ 40104510:  2802                 movel %d2,%d4
++ 40104512:  e98c                 lsll #4,%d4
+~ 40104514:  0284 0000 00ff       andil #255,%d4
++ 4010451a:  7b32 4800            mvsb %a2@(0,%d4:l),%d5
++ 4010451e:  7d33 4800            mvsb %a3@(0,%d4:l),%d6
++ 40104522:  9c85                 subl %d5,%d6
++ 40104524:  cdc3                 mulsw %d3,%d6
++ 40104526:  e086                 asrl #8,%d6
++ 40104528:  da86                 addl %d6,%d5
++ 4010452a:  7c7f                 moveq #127,%d6
++ 4010452c:  9c85                 subl %d5,%d6
++ 4010452e:  cdfc 1010            mulsw #4112,%d6
++ 40104532:  0686 0000 8000       addil #32768,%d6
++ 40104538:  4846                 swap %d6
++ 4010453a:  48c6                 extl %d6
++ 4010453c:  4a82                 tstl %d2
++ 4010453e:  6602                 bnes 0x40104542
++ 40104540:  2e06                 movel %d6,%d7
++ 40104542:  2006                 movel %d6,%d0
++ 40104544:  2207                 movel %d7,%d1
++ 40104546:  b081                 cmpl %d1,%d0
++ 40104548:  6c04                 bges 0x4010454e
++ 4010454a:  2007                 movel %d7,%d0
++ 4010454c:  2206                 movel %d6,%d1
++ 4010454e:  9081                 subl %d1,%d0
++ 40104550:  7802                 moveq #2,%d4
++ 40104552:  e1ac                 lsll %d0,%d4
++ 40104554:  5384                 subql #1,%d4
++ 40104556:  700f                 moveq #15,%d0
++ 40104558:  d280                 addl %d0,%d1
++ 4010455a:  e3ac                 lsll %d1,%d4
++ 4010455c:  20c4                 movel %d4,%a0@+
++ 4010455e:  22fc ffff 8000       movel #-32768,%a1@+
++ 40104564:  2e06                 movel %d6,%d7
++ 40104566:  5282                 addql #1,%d2
++ 40104568:  7011                 moveq #17,%d0
+~ 4010456a:  b082                 cmpl %d2,%d0
++ 4010456c:  6ea2                 bgts 0x40104510
++ 4010456e:  41ef 0020            lea %sp@(32),%a0
++ 40104572:  20bc 401b 7734       movel #1075541812,%a0@
++ 40104578:  7011                 moveq #17,%d0
++ 4010457a:  2140 0004            movel %d0,%a0@(4)
++ 4010457e:  2140 0008            movel %d0,%a0@(8)
++ 40104582:  7001                 moveq #1,%d0
++ 40104584:  2140 000c            movel %d0,%a0@(12)
++ 40104588:  43ef 003c            lea %sp@(60),%a1
++ 4010458c:  2149 0010            movel %a1,%a0@(16)
++ 40104590:  43ef 0080            lea %sp@(128),%a1
++ 40104594:  2149 0014            movel %a1,%a0@(20)
++ 40104598:  42a8 0018            clrl %a0@(24)
++ 4010459c:  42a7                 clrl %sp@-
++ 4010459e:  2f2f 00e8            movel %sp@(232),%sp@-
++ 401045a2:  2f2f 00e8            movel %sp@(232),%sp@-
++ 401045a6:  4850                 pea %a0@
++ 401045a8:  2f2f 00ec            movel %sp@(236),%sp@-
++ 401045ac:  4eb9 400c 2b88       jsr 0x400c2b88
+~ 401045b2:  4fef 0014            lea %sp@(20),%sp
++ 401045b6:  4cd7 0cfc            moveml %sp@,%d2-%d7/%a2-%a3
++ 401045ba:  4fef 00c4            lea %sp@(196),%sp
++ 401045be:  4e75                 rts
++ 401045c0:  4e75                 rts
++ 401045c2:  4280                 clrl %d0
++ 401045c4:  4e75                 rts
++ 401045c6:  4280                 clrl %d0
++ 401045c8:  4e75                 rts
++ 401045ca:  4280                 clrl %d0
++ 401045cc:  4e75                 rts
++ 401045ce:  4280                 clrl %d0
++ 401045d0:  4e75                 rts
++ 401045d2:  4280                 clrl %d0
++ 401045d4:  4e75                 rts
++ 401045d6:  4280                 clrl %d0
++ 401045d8:  4e75                 rts
++ 401045da:  4280                 clrl %d0
++ 401045dc:  4e75                 rts
++ 401045de:  4280                 clrl %d0
++ 401045e0:  4e75                 rts
++ 401045e2:  4280                 clrl %d0
++ 401045e4:  4e75                 rts
++ 401045e6:  4280                 clrl %d0
++ 401045e8:  4e75                 rts
++ 401045ea:  4280                 clrl %d0
++ 401045ec:  4e75                 rts
++ 401045ee:  4280                 clrl %d0
++ 401045f0:  4e75                 rts
++ 401045f2:  4280                 clrl %d0
++ 401045f4:  4e75                 rts
++ 401045f6:  4280                 clrl %d0
++ 401045f8:  4e75                 rts
++ 401045fa:  4280                 clrl %d0
++ 401045fc:  4e75                 rts
++ 401045fe:  4280                 clrl %d0
++ 40104600:  4e75                 rts
++ 40104602:  4280                 clrl %d0
++ 40104604:  4e75                 rts
++ 40104606:  4280                 clrl %d0
++ 40104608:  4e75                 rts
++ 4010460a:  4280                 clrl %d0
++ 4010460c:  4e75                 rts
++ 4010460e:  4280                 clrl %d0
++ 40104610:  4e75                 rts
++ 40104612:  4280                 clrl %d0
+~ 40104614:  4e75                 rts
++ 40104616:  4280                 clrl %d0
++ 40104618:  4e75                 rts
++ 4010461a:  4280                 clrl %d0
++ 4010461c:  4e75                 rts
++ 4010461e:  4280                 clrl %d0
++ 40104620:  4e75                 rts
++ 40104622:  4280                 clrl %d0
++ 40104624:  4e75                 rts
++ 40104626:  4280                 clrl %d0
++ 40104628:  4e75                 rts
++ 4010462a:  4280                 clrl %d0
++ 4010462c:  4e75                 rts
++ 4010462e:  4280                 clrl %d0
++ 40104630:  4e75                 rts
++ 40104632:  4280                 clrl %d0
+~ 40104634:  4e75                 rts
++ 40104636:  4280                 clrl %d0
++ 40104638:  4e75                 rts
++ 4010463a:  4280                 clrl %d0
++ 4010463c:  4e75                 rts
++ 4010463e:  4280                 clrl %d0
++ 40104640:  4e75                 rts
++ 40104642:  4280                 clrl %d0
++ 40104644:  4e75                 rts
++ 40104646:  4280                 clrl %d0
++ 40104648:  4e75                 rts
++ 4010464a:  4280                 clrl %d0
++ 4010464c:  4e75                 rts
++ 4010464e:  4280                 clrl %d0
++ 40104650:  4e75                 rts
++ 40104652:  4280                 clrl %d0
++ 40104654:  4e75                 rts
++ 40104656:  4280                 clrl %d0
++ 40104658:  4e75                 rts
++ 4010465a:  4280                 clrl %d0
++ 4010465c:  4e75                 rts
++ 4010465e:  4280                 clrl %d0
++ 40104660:  4e75                 rts
++ 40104662:  4280                 clrl %d0
++ 40104664:  4e75                 rts
++ 40104666:  4280                 clrl %d0
++ 40104668:  4e75                 rts
++ 4010466a:  4280                 clrl %d0
++ 4010466c:  4e75                 rts
++ 4010466e:  4280                 clrl %d0
++ 40104670:  4e75                 rts
++ 40104672:  4280                 clrl %d0
++ 40104674:  4e75                 rts
++ 40104676:  4280                 clrl %d0
++ 40104678:  4e75                 rts
++ 4010467a:  4280                 clrl %d0
++ 4010467c:  4e75                 rts
++ 4010467e:  4280                 clrl %d0
++ 40104680:  4e75                 rts
++ 40104682:  4280                 clrl %d0
++ 40104684:  4e75                 rts
++ 40104686:  4280                 clrl %d0
+~ 40104688:  4e75                 rts
++ 4010468a:  4280                 clrl %d0
++ 4010468c:  4e75                 rts
++ 4010468e:  4280                 clrl %d0
++ 40104690:  4e75                 rts
++ 40104692:  4280                 clrl %d0
++ 40104694:  4e75                 rts
++ 40104696:  4280                 clrl %d0
++ 40104698:  4e75                 rts
++ 4010469a:  4280                 clrl %d0
++ 4010469c:  4e75                 rts
++ 4010469e:  4280                 clrl %d0
++ 401046a0:  4e75                 rts
++ 401046a2:  4280                 clrl %d0
++ 401046a4:  4e75                 rts
++ 401046a6:  4280                 clrl %d0
+~ 401046a8:  4e75                 rts
++ 401046aa:  4280                 clrl %d0
++ 401046ac:  4e75                 rts
++ 401046ae:  4280                 clrl %d0
++ 401046b0:  4e75                 rts
++ 401046b2:  4280                 clrl %d0
++ 401046b4:  4e75                 rts
++ 401046b6:  4280                 clrl %d0
++ 401046b8:  4e75                 rts
++ 401046ba:  4280                 clrl %d0
++ 401046bc:  4e75                 rts
++ 401046be:  4280                 clrl %d0
++ 401046c0:  4e75                 rts
++ 401046c2:  4280                 clrl %d0
++ 401046c4:  4e75                 rts
++ 401046c6:  4280                 clrl %d0
++ 401046c8:  4e75                 rts
++ 401046ca:  4280                 clrl %d0
++ 401046cc:  4e75                 rts
++ 401046ce:  4280                 clrl %d0
++ 401046d0:  4e75                 rts
++ 401046d2:  4280                 clrl %d0
++ 401046d4:  4e75                 rts
++ 401046d6:  4280                 clrl %d0
++ 401046d8:  4e75                 rts
++ 401046da:  4280                 clrl %d0
++ 401046dc:  4e75                 rts
++ 401046de:  4280                 clrl %d0
++ 401046e0:  4e75                 rts
++ 401046e2:  4280                 clrl %d0
++ 401046e4:  4e75                 rts
++ 401046e6:  4280                 clrl %d0
++ 401046e8:  4e75                 rts
++ 401046ea:  4280                 clrl %d0
++ 401046ec:  4e75                 rts
++ 401046ee:  4280                 clrl %d0
++ 401046f0:  4e75                 rts
++ 401046f2:  4280                 clrl %d0
++ 401046f4:  4e75                 rts
++ 401046f6:  4280                 clrl %d0
++ 401046f8:  4e75                 rts
++ 401046fa:  4280                 clrl %d0
++ 401046fc:  4e75                 rts
++ 401046fe:  4280                 clrl %d0
+~ 40104700:  4e75                 rts
++ 40104702:  4280                 clrl %d0
++ 40104704:  4e75                 rts
++ 40104706:  4280                 clrl %d0
++ 40104708:  4e75                 rts
++ 4010470a:  4280                 clrl %d0
++ 4010470c:  4e75                 rts
++ 4010470e:  4280                 clrl %d0
++ 40104710:  4e75                 rts
++ 40104712:  4280                 clrl %d0
++ 40104714:  4e75                 rts
++ 40104716:  4280                 clrl %d0
++ 40104718:  4e75                 rts
++ 4010471a:  4280                 clrl %d0
++ 4010471c:  4e75                 rts
++ 4010471e:  4280                 clrl %d0
+~ 40104720:  4e75                 rts
++ 40104722:  4280                 clrl %d0
++ 40104724:  4e75                 rts
++ 40104726:  4280                 clrl %d0
++ 40104728:  4e75                 rts
++ 4010472a:  4280                 clrl %d0
++ 4010472c:  4e75                 rts
++ 4010472e:  4280                 clrl %d0
++ 40104730:  4e75                 rts
++ 40104732:  4280                 clrl %d0
++ 40104734:  4e75                 rts
++ 40104736:  4280                 clrl %d0
++ 40104738:  4e75                 rts
++ 4010473a:  4280                 clrl %d0
++ 4010473c:  4e75                 rts
++ 4010473e:  4280                 clrl %d0
++ 40104740:  4e75                 rts
++ 40104742:  4280                 clrl %d0
++ 40104744:  4e75                 rts
++ 40104746:  4280                 clrl %d0
++ 40104748:  4e75                 rts
++ 4010474a:  4280                 clrl %d0
++ 4010474c:  4e75                 rts
++ 4010474e:  4280                 clrl %d0
++ 40104750:  4e75                 rts
++ 40104752:  4280                 clrl %d0
++ 40104754:  4e75                 rts
++ 40104756:  4280                 clrl %d0
++ 40104758:  4e75                 rts
++ 4010475a:  4280                 clrl %d0
++ 4010475c:  4e75                 rts
++ 4010475e:  4280                 clrl %d0
++ 40104760:  4e75                 rts
++ 40104762:  4280                 clrl %d0
++ 40104764:  4e75                 rts
++ 40104766:  4280                 clrl %d0
++ 40104768:  4e75                 rts
++ 4010476a:  4280                 clrl %d0
++ 4010476c:  4e75                 rts
++ 4010476e:  4280                 clrl %d0
++ 40104770:  4e75                 rts
++ 40104772:  4280                 clrl %d0
++ 40104774:  4e75                 rts
++ 40104776:  4280                 clrl %d0
+~ 40104778:  4e75                 rts
++ 4010477a:  4280                 clrl %d0
++ 4010477c:  4e75                 rts
++ 4010477e:  4280                 clrl %d0
++ 40104780:  4e75                 rts
++ 40104782:  4280                 clrl %d0
++ 40104784:  4e75                 rts
++ 40104786:  4280                 clrl %d0
++ 40104788:  4e75                 rts
++ 4010478a:  4280                 clrl %d0
++ 4010478c:  4e75                 rts
++ 4010478e:  4280                 clrl %d0
++ 40104790:  4e75                 rts
++ 40104792:  4280                 clrl %d0
++ 40104794:  4e75                 rts
++ 40104796:  4280                 clrl %d0
++ 40104798:  4e75                 rts
++ 4010479a:  4280                 clrl %d0
++ 4010479c:  4e75                 rts
++ 4010479e:  4280                 clrl %d0
++ 401047a0:  4e75                 rts
++ 401047a2:  4280                 clrl %d0
++ 401047a4:  4e75                 rts
++ 401047a6:  4280                 clrl %d0
++ 401047a8:  4e75                 rts
++ 401047aa:  4280                 clrl %d0
++ 401047ac:  4e75                 rts
++ 401047ae:  4280                 clrl %d0
++ 401047b0:  4e75                 rts
++ 401047b2:  4280                 clrl %d0
++ 401047b4:  4e75                 rts
++ 401047b6:  4280                 clrl %d0
++ 401047b8:  4e75                 rts
++ 401047ba:  4280                 clrl %d0
++ 401047bc:  4e75                 rts
++ 401047be:  4280                 clrl %d0
++ 401047c0:  4e75                 rts
++ 401047c2:  4280                 clrl %d0
++ 401047c4:  4e75                 rts
++ 401047c6:  4280                 clrl %d0
++ 401047c8:  4e75                 rts
++ 401047ca:  4280                 clrl %d0
++ 401047cc:  4e75                 rts
++ 401047ce:  4280                 clrl %d0
++ 401047d0:  4e75                 rts
++ 401047d2:  4280                 clrl %d0
++ 401047d4:  4e75                 rts
+~ 401047d6:  4280                 clrl %d0
++ 401047d8:  4e75                 rts
++ 401047da:  4280                 clrl %d0
++ 401047dc:  4e75                 rts
++ 401047de:  4280                 clrl %d0
++ 401047e0:  4e75                 rts
++ 401047e2:  4280                 clrl %d0
++ 401047e4:  4e75                 rts
++ 401047e6:  4280                 clrl %d0
++ 401047e8:  4e75                 rts
++ 401047ea:  4280                 clrl %d0
+~ 401047ec:  4e75                 rts
++ 401047ee:  4280                 clrl %d0
++ 401047f0:  4e75                 rts
++ 401047f2:  4280                 clrl %d0
++ 401047f4:  4e75                 rts
++ 401047f6:  4280                 clrl %d0
++ 401047f8:  4e75                 rts
++ 401047fa:  4280                 clrl %d0
++ 401047fc:  4e75                 rts
++ 401047fe:  4280                 clrl %d0
+~ 40104800:  4e75                 rts
++ 40104802:  4280                 clrl %d0
++ 40104804:  4e75                 rts
++ 40104806:  4280                 clrl %d0
++ 40104808:  4e75                 rts
++ 4010480a:  4280                 clrl %d0
++ 4010480c:  4e75                 rts
++ 4010480e:  4280                 clrl %d0
++ 40104810:  4e75                 rts
++ 40104812:  4280                 clrl %d0
++ 40104814:  4e75                 rts
++ 40104816:  4280                 clrl %d0
++ 40104818:  4e75                 rts
++ 4010481a:  4280                 clrl %d0
++ 4010481c:  4e75                 rts
++ 4010481e:  4280                 clrl %d0
++ 40104820:  4e75                 rts
++ 40104822:  4280                 clrl %d0
++ 40104824:  4e75                 rts
++ 40104826:  4280                 clrl %d0
++ 40104828:  4e75                 rts
++ 4010482a:  4280                 clrl %d0
++ 4010482c:  4e75                 rts
++ 4010482e:  4280                 clrl %d0
++ 40104830:  4e75                 rts
++ 40104832:  4280                 clrl %d0
+~ 40104834:  4e75                 rts
++ 40104836:  4280                 clrl %d0
++ 40104838:  4e75                 rts
++ 4010483a:  4280                 clrl %d0
++ 4010483c:  4e75                 rts
++ 4010483e:  4280                 clrl %d0
++ 40104840:  4e75                 rts
++ 40104842:  4280                 clrl %d0
++ 40104844:  4e75                 rts
++ 40104846:  4280                 clrl %d0
++ 40104848:  4e75                 rts
++ 4010484a:  4280                 clrl %d0
++ 4010484c:  4e75                 rts
++ 4010484e:  4280                 clrl %d0
++ 40104850:  4e75                 rts
++ 40104852:  4280                 clrl %d0
++ 40104854:  4e75                 rts
++ 40104856:  4280                 clrl %d0
++ 40104858:  4e75                 rts
++ 4010485a:  4280                 clrl %d0
++ 4010485c:  4e75                 rts
++ 4010485e:  4280                 clrl %d0
++ 40104860:  4e75                 rts
++ 40104862:  4280                 clrl %d0
++ 40104864:  4e75                 rts
++ 40104866:  4280                 clrl %d0
++ 40104868:  4e75                 rts
++ 4010486a:  4280                 clrl %d0
++ 4010486c:  4e75                 rts
++ 4010486e:  4280                 clrl %d0
++ 40104870:  4e75                 rts
++ 40104872:  4280                 clrl %d0
++ 40104874:  4e75                 rts
++ 40104876:  4280                 clrl %d0
++ 40104878:  4e75                 rts
++ 4010487a:  4280                 clrl %d0
++ 4010487c:  4e75                 rts
+~ 4010487e:  4280                 clrl %d0
++ 40104880:  4e75                 rts
++ 40104882:  4280                 clrl %d0
++ 40104884:  4e75                 rts
++ 40104886:  4280                 clrl %d0
++ 40104888:  4e75                 rts
++ 4010488a:  4280                 clrl %d0
++ 4010488c:  4e75                 rts
++ 4010488e:  4280                 clrl %d0
++ 40104890:  4e75                 rts
++ 40104892:  4280                 clrl %d0
++ 40104894:  4e75                 rts
++ 40104896:  4280                 clrl %d0
++ 40104898:  4e75                 rts
++ 4010489a:  4280                 clrl %d0
++ 4010489c:  4e75                 rts
++ 4010489e:  4280                 clrl %d0
++ 401048a0:  4e75                 rts
+~ 401048a2:  4280                 clrl %d0
+~ 401048a4:  4e75                 rts
++ 401048a6:  4280                 clrl %d0
++ 401048a8:  4e75                 rts
++ 401048aa:  4280                 clrl %d0
++ 401048ac:  4e75                 rts
++ 401048ae:  4280                 clrl %d0
++ 401048b0:  4e75                 rts
++ 401048b2:  4280                 clrl %d0
++ 401048b4:  4e75                 rts
++ 401048b6:  4280                 clrl %d0
++ 401048b8:  4e75                 rts
++ 401048ba:  4280                 clrl %d0
++ 401048bc:  4e75                 rts
++ 401048be:  4280                 clrl %d0
++ 401048c0:  4e75                 rts
++ 401048c2:  4280                 clrl %d0
++ 401048c4:  4e75                 rts
++ 401048c6:  4280                 clrl %d0
++ 401048c8:  4e75                 rts
++ 401048ca:  4280                 clrl %d0
++ 401048cc:  4e75                 rts
++ 401048ce:  4280                 clrl %d0
++ 401048d0:  4e75                 rts
+~ 401048d2:  4280                 clrl %d0
++ 401048d4:  4e75                 rts
++ 401048d6:  4280                 clrl %d0
++ 401048d8:  4e75                 rts
++ 401048da:  4280                 clrl %d0
++ 401048dc:  4e75                 rts
++ 401048de:  4280                 clrl %d0
++ 401048e0:  4e75                 rts
++ 401048e2:  4280                 clrl %d0
++ 401048e4:  4e75                 rts
++ 401048e6:  4280                 clrl %d0
++ 401048e8:  4e75                 rts
+~ 401048ea:  4280                 clrl %d0
++ 401048ec:  4e75                 rts
++ 401048ee:  4280                 clrl %d0
++ 401048f0:  4e75                 rts
+~ 401048f2:  4280                 clrl %d0
++ 401048f4:  4e75                 rts
++ 401048f6:  4280                 clrl %d0
++ 401048f8:  4e75                 rts
++ 401048fa:  4280                 clrl %d0
++ 401048fc:  4e75                 rts
++ 401048fe:  4280                 clrl %d0
++ 40104900:  4e75                 rts
++ 40104902:  4280                 clrl %d0
++ 40104904:  4e75                 rts
++ 40104906:  4280                 clrl %d0
++ 40104908:  4e75                 rts
++ 4010490a:  4280                 clrl %d0
++ 4010490c:  4e75                 rts
++ 4010490e:  4280                 clrl %d0
++ 40104910:  4e75                 rts
++ 40104912:  4280                 clrl %d0
++ 40104914:  4e75                 rts
++ 40104916:  4280                 clrl %d0
++ 40104918:  4e75                 rts
++ 4010491a:  4280                 clrl %d0
++ 4010491c:  4e75                 rts
++ 4010491e:  4280                 clrl %d0
++ 40104920:  4e75                 rts
++ 40104922:  4280                 clrl %d0
++ 40104924:  4e75                 rts
++ 40104926:  4280                 clrl %d0
++ 40104928:  4e75                 rts
+~ 4010492a:  4280                 clrl %d0
++ 4010492c:  4e75                 rts
++ 4010492e:  4280                 clrl %d0
++ 40104930:  4e75                 rts
++ 40104932:  4280                 clrl %d0
++ 40104934:  4e75                 rts
++ 40104936:  4280                 clrl %d0
++ 40104938:  4e75                 rts
++ 4010493a:  4280                 clrl %d0
++ 4010493c:  4e75                 rts
++ 4010493e:  4280                 clrl %d0
++ 40104940:  4e75                 rts
++ 40104942:  4280                 clrl %d0
++ 40104944:  4e75                 rts
++ 40104946:  4280                 clrl %d0
+~ 40104948:  4e75                 rts
++ 4010494a:  4280                 clrl %d0
++ 4010494c:  4e75                 rts
++ 4010494e:  4280                 clrl %d0
++ 40104950:  4e75                 rts
++ 40104952:  4280                 clrl %d0
++ 40104954:  4e75                 rts
++ 40104956:  4280                 clrl %d0
++ 40104958:  4e75                 rts
++ 4010495a:  4280                 clrl %d0
++ 4010495c:  4e75                 rts
++ 4010495e:  4280                 clrl %d0
++ 40104960:  4e75                 rts
++ 40104962:  4280                 clrl %d0
++ 40104964:  4e75                 rts
++ 40104966:  4280                 clrl %d0
++ 40104968:  4e75                 rts
++ 4010496a:  4280                 clrl %d0
++ 4010496c:  4e75                 rts
++ 4010496e:  4280                 clrl %d0
+~ 40104970:  4e75                 rts
++ 40104972:  4280                 clrl %d0
++ 40104974:  4e75                 rts
++ 40104976:  4280                 clrl %d0
++ 40104978:  4e75                 rts
++ 4010497a:  4280                 clrl %d0
++ 4010497c:  4e75                 rts
++ 4010497e:  4280                 clrl %d0
++ 40104980:  4e75                 rts
++ 40104982:  4280                 clrl %d0
++ 40104984:  4e75                 rts
++ 40104986:  4280                 clrl %d0
++ 40104988:  4e75                 rts
++ 4010498a:  4280                 clrl %d0
++ 4010498c:  4e75                 rts
++ 4010498e:  4280                 clrl %d0
++ 40104990:  4e75                 rts
++ 40104992:  4280                 clrl %d0
++ 40104994:  4e75                 rts
++ 40104996:  4280                 clrl %d0
++ 40104998:  4e75                 rts
++ 4010499a:  4280                 clrl %d0
+~ 4010499c:  4e75                 rts
++ 4010499e:  4280                 clrl %d0
++ 401049a0:  4e75                 rts
++ 401049a2:  4280                 clrl %d0
++ 401049a4:  4e75                 rts
++ 401049a6:  4280                 clrl %d0
++ 401049a8:  4e75                 rts
+~ 401049aa:  4280                 clrl %d0
++ 401049ac:  4e75                 rts
++ 401049ae:  4280                 clrl %d0
++ 401049b0:  4e75                 rts
++ 401049b2:  4280                 clrl %d0
++ 401049b4:  4e75                 rts
++ 401049b6:  4280                 clrl %d0
++ 401049b8:  4e75                 rts
++ 401049ba:  4280                 clrl %d0
++ 401049bc:  4e75                 rts
++ 401049be:  4280                 clrl %d0
++ 401049c0:  4e75                 rts
++ 401049c2:  4280                 clrl %d0
++ 401049c4:  4e75                 rts
++ 401049c6:  4280                 clrl %d0
++ 401049c8:  4e75                 rts
++ 401049ca:  4280                 clrl %d0
++ 401049cc:  4e75                 rts
++ 401049ce:  4280                 clrl %d0
++ 401049d0:  4e75                 rts
++ 401049d2:  4280                 clrl %d0
++ 401049d4:  4e75                 rts
++ 401049d6:  4280                 clrl %d0
++ 401049d8:  4e75                 rts
++ 401049da:  4280                 clrl %d0
++ 401049dc:  4e75                 rts
++ 401049de:  4280                 clrl %d0
++ 401049e0:  4e75                 rts
++ 401049e2:  4280                 clrl %d0
++ 401049e4:  4e75                 rts
++ 401049e6:  4280                 clrl %d0
++ 401049e8:  4e75                 rts
++ 401049ea:  4280                 clrl %d0
++ 401049ec:  4e75                 rts
++ 401049ee:  4280                 clrl %d0
++ 401049f0:  4e75                 rts
++ 401049f2:  4280                 clrl %d0
++ 401049f4:  4e75                 rts
++ 401049f6:  4280                 clrl %d0
++ 401049f8:  4e75                 rts
++ 401049fa:  4280                 clrl %d0
++ 401049fc:  4e75                 rts
++ 401049fe:  4280                 clrl %d0
++ 40104a00:  4e75                 rts
++ 40104a02:  4280                 clrl %d0
++ 40104a04:  4e75                 rts
++ 40104a06:  4280                 clrl %d0
++ 40104a08:  4e75                 rts
++ 40104a0a:  4280                 clrl %d0
+~ 40104a0c:  4e75                 rts
++ 40104a0e:  4280                 clrl %d0
++ 40104a10:  4e75                 rts
++ 40104a12:  4280                 clrl %d0
++ 40104a14:  4e75                 rts
++ 40104a16:  4280                 clrl %d0
++ 40104a18:  4e75                 rts
++ 40104a1a:  4280                 clrl %d0
++ 40104a1c:  4e75                 rts
++ 40104a1e:  4280                 clrl %d0
++ 40104a20:  4e75                 rts
++ 40104a22:  4280                 clrl %d0
++ 40104a24:  4e75                 rts
++ 40104a26:  4280                 clrl %d0
++ 40104a28:  4e75                 rts
++ 40104a2a:  4280                 clrl %d0
++ 40104a2c:  4e75                 rts
++ 40104a2e:  4280                 clrl %d0
++ 40104a30:  4e75                 rts
++ 40104a32:  4280                 clrl %d0
++ 40104a34:  4e75                 rts
++ 40104a36:  4280                 clrl %d0
++ 40104a38:  4e75                 rts
++ 40104a3a:  4280                 clrl %d0
++ 40104a3c:  4e75                 rts
++ 40104a3e:  4280                 clrl %d0
++ 40104a40:  4e75                 rts
++ 40104a42:  4280                 clrl %d0
++ 40104a44:  4e75                 rts
++ 40104a46:  4280                 clrl %d0
++ 40104a48:  4e75                 rts
++ 40104a4a:  4280                 clrl %d0
++ 40104a4c:  4e75                 rts
++ 40104a4e:  4280                 clrl %d0
++ 40104a50:  4e75                 rts
++ 40104a52:  4280                 clrl %d0
++ 40104a54:  4e75                 rts
++ 40104a56:  4280                 clrl %d0
++ 40104a58:  4e75                 rts
++ 40104a5a:  4280                 clrl %d0
++ 40104a5c:  4e75                 rts
++ 40104a5e:  4280                 clrl %d0
++ 40104a60:  4e75                 rts
++ 40104a62:  4280                 clrl %d0
++ 40104a64:  4e75                 rts
++ 40104a66:  4280                 clrl %d0
++ 40104a68:  4e75                 rts
++ 40104a6a:  4280                 clrl %d0
++ 40104a6c:  4e75                 rts
++ 40104a6e:  4280                 clrl %d0
++ 40104a70:  4e75                 rts
++ 40104a72:  4280                 clrl %d0
++ 40104a74:  4e75                 rts
++ 40104a76:  4280                 clrl %d0
++ 40104a78:  4e75                 rts
++ 40104a7a:  4280                 clrl %d0
++ 40104a7c:  4e75                 rts
++ 40104a7e:  4280                 clrl %d0
++ 40104a80:  4e75                 rts
++ 40104a82:  4280                 clrl %d0
++ 40104a84:  4e75                 rts
++ 40104a86:  4280                 clrl %d0
++ 40104a88:  4e75                 rts
++ 40104a8a:  4280                 clrl %d0
++ 40104a8c:  4e75                 rts
++ 40104a8e:  4280                 clrl %d0
++ 40104a90:  4e75                 rts
++ 40104a92:  4280                 clrl %d0
++ 40104a94:  4e75                 rts
++ 40104a96:  4280                 clrl %d0
++ 40104a98:  4e75                 rts
++ 40104a9a:  4280                 clrl %d0
++ 40104a9c:  4e75                 rts
++ 40104a9e:  4280                 clrl %d0
++ 40104aa0:  4e75                 rts
++ 40104aa2:  4280                 clrl %d0
++ 40104aa4:  4e75                 rts
++ 40104aa6:  4280                 clrl %d0
++ 40104aa8:  4e75                 rts
++ 40104aaa:  4280                 clrl %d0
++ 40104aac:  4e75                 rts
++ 40104aae:  4280                 clrl %d0
++ 40104ab0:  4e75                 rts
++ 40104ab2:  4280                 clrl %d0
++ 40104ab4:  4e75                 rts
++ 40104ab6:  4280                 clrl %d0
++ 40104ab8:  4e75                 rts
++ 40104aba:  4280                 clrl %d0
++ 40104abc:  4e75                 rts
++ 40104abe:  4280                 clrl %d0
++ 40104ac0:  4e75                 rts
++ 40104ac2:  4280                 clrl %d0
++ 40104ac4:  4e75                 rts
++ 40104ac6:  4280                 clrl %d0
++ 40104ac8:  4e75                 rts
+~ 40104aca:  4280                 clrl %d0
++ 40104acc:  4e75                 rts
++ 40104ace:  4280                 clrl %d0
++ 40104ad0:  4e75                 rts
++ 40104ad2:  4280                 clrl %d0
++ 40104ad4:  4e75                 rts
++ 40104ad6:  4280                 clrl %d0
++ 40104ad8:  4e75                 rts
++ 40104ada:  4280                 clrl %d0
++ 40104adc:  4e75                 rts
++ 40104ade:  4280                 clrl %d0
++ 40104ae0:  4e75                 rts
++ 40104ae2:  4280                 clrl %d0
++ 40104ae4:  4e75                 rts
++ 40104ae6:  4280                 clrl %d0
++ 40104ae8:  4e75                 rts
++ 40104aea:  4280                 clrl %d0
++ 40104aec:  4e75                 rts
++ 40104aee:  4280                 clrl %d0
++ 40104af0:  4e75                 rts
++ 40104af2:  4280                 clrl %d0
++ 40104af4:  4e75                 rts
++ 40104af6:  4280                 clrl %d0
++ 40104af8:  4e75                 rts
++ 40104afa:  4280                 clrl %d0
++ 40104afc:  4e75                 rts
++ 40104afe:  4280                 clrl %d0
++ 40104b00:  4e75                 rts
++ 40104b02:  4280                 clrl %d0
++ 40104b04:  4e75                 rts
++ 40104b06:  4280                 clrl %d0
+~ 40104b08:  4e75                 rts
++ 40104b0a:  4280                 clrl %d0
++ 40104b0c:  4e75                 rts
++ 40104b0e:  4280                 clrl %d0
++ 40104b10:  4e75                 rts
++ 40104b12:  4280                 clrl %d0
++ 40104b14:  4e75                 rts
++ 40104b16:  4280                 clrl %d0
++ 40104b18:  4e75                 rts
++ 40104b1a:  4280                 clrl %d0
++ 40104b1c:  4e75                 rts
++ 40104b1e:  4280                 clrl %d0
++ 40104b20:  4e75                 rts
++ 40104b22:  4280                 clrl %d0
++ 40104b24:  4e75                 rts
++ 40104b26:  4280                 clrl %d0
++ 40104b28:  4e75                 rts
++ 40104b2a:  4280                 clrl %d0
++ 40104b2c:  4e75                 rts
++ 40104b2e:  4280                 clrl %d0
++ 40104b30:  4e75                 rts
++ 40104b32:  4280                 clrl %d0
++ 40104b34:  4e75                 rts
++ 40104b36:  4280                 clrl %d0
++ 40104b38:  4e75                 rts
++ 40104b3a:  4280                 clrl %d0
++ 40104b3c:  4e75                 rts
+~ 40104b3e:  4280                 clrl %d0
++ 40104b40:  4e75                 rts
++ 40104b42:  4280                 clrl %d0
++ 40104b44:  4e75                 rts
++ 40104b46:  4280                 clrl %d0
++ 40104b48:  4e75                 rts
++ 40104b4a:  4280                 clrl %d0
++ 40104b4c:  4e75                 rts
++ 40104b4e:  4280                 clrl %d0
++ 40104b50:  4e75                 rts
++ 40104b52:  4280                 clrl %d0
++ 40104b54:  4e75                 rts
++ 40104b56:  4280                 clrl %d0
++ 40104b58:  4e75                 rts
++ 40104b5a:  4280                 clrl %d0
++ 40104b5c:  4e75                 rts
++ 40104b5e:  4280                 clrl %d0
++ 40104b60:  4e75                 rts
++ 40104b62:  4280                 clrl %d0
++ 40104b64:  4e75                 rts
++ 40104b66:  4280                 clrl %d0
++ 40104b68:  4e75                 rts
++ 40104b6a:  4280                 clrl %d0
++ 40104b6c:  4e75                 rts
++ 40104b6e:  4280                 clrl %d0
++ 40104b70:  4e75                 rts
++ 40104b72:  4280                 clrl %d0
++ 40104b74:  4e75                 rts
++ 40104b76:  4280                 clrl %d0
++ 40104b78:  4e75                 rts
++ 40104b7a:  4280                 clrl %d0
++ 40104b7c:  4e75                 rts
++ 40104b7e:  4280                 clrl %d0
+~ 40104b80:  4e75                 rts
++ 40104b82:  4280                 clrl %d0
++ 40104b84:  4e75                 rts
++ 40104b86:  4280                 clrl %d0
++ 40104b88:  4e75                 rts
++ 40104b8a:  4280                 clrl %d0
++ 40104b8c:  4e75                 rts
++ 40104b8e:  4280                 clrl %d0
++ 40104b90:  4e75                 rts
++ 40104b92:  4280                 clrl %d0
++ 40104b94:  4e75                 rts
++ 40104b96:  4280                 clrl %d0
++ 40104b98:  4e75                 rts
++ 40104b9a:  4280                 clrl %d0
++ 40104b9c:  4e75                 rts
++ 40104b9e:  4280                 clrl %d0
++ 40104ba0:  4e75                 rts
++ 40104ba2:  4280                 clrl %d0
++ 40104ba4:  4e75                 rts
++ 40104ba6:  4280                 clrl %d0
++ 40104ba8:  4e75                 rts
++ 40104baa:  4280                 clrl %d0
++ 40104bac:  4e75                 rts
++ 40104bae:  4280                 clrl %d0
++ 40104bb0:  4e75                 rts
++ 40104bb2:  4280                 clrl %d0
++ 40104bb4:  4e75                 rts
+~ 40104bb6:  4280                 clrl %d0
++ 40104bb8:  4e75                 rts
++ 40104bba:  4280                 clrl %d0
++ 40104bbc:  4e75                 rts
++ 40104bbe:  4280                 clrl %d0
++ 40104bc0:  4e75                 rts
++ 40104bc2:  4280                 clrl %d0
++ 40104bc4:  4e75                 rts
++ 40104bc6:  4280                 clrl %d0
++ 40104bc8:  4e75                 rts
++ 40104bca:  4280                 clrl %d0
++ 40104bcc:  4e75                 rts
++ 40104bce:  4280                 clrl %d0
++ 40104bd0:  4e75                 rts
++ 40104bd2:  4280                 clrl %d0
++ 40104bd4:  4e75                 rts
++ 40104bd6:  4280                 clrl %d0
++ 40104bd8:  4e75                 rts
++ 40104bda:  4280                 clrl %d0
++ 40104bdc:  4e75                 rts
++ 40104bde:  4280                 clrl %d0
++ 40104be0:  4e75                 rts
++ 40104be2:  4280                 clrl %d0
++ 40104be4:  4e75                 rts
++ 40104be6:  4280                 clrl %d0
++ 40104be8:  4e75                 rts
++ 40104bea:  4280                 clrl %d0
++ 40104bec:  4e75                 rts
++ 40104bee:  4280                 clrl %d0
++ 40104bf0:  4e75                 rts
++ 40104bf2:  4280                 clrl %d0
++ 40104bf4:  4e75                 rts
++ 40104bf6:  4280                 clrl %d0
+~ 40104bf8:  4e75                 rts
++ 40104bfa:  4280                 clrl %d0
++ 40104bfc:  4e75                 rts
++ 40104bfe:  4280                 clrl %d0
++ 40104c00:  4e75                 rts
++ 40104c02:  4280                 clrl %d0
++ 40104c04:  4e75                 rts
++ 40104c06:  4280                 clrl %d0
++ 40104c08:  4e75                 rts
++ 40104c0a:  4280                 clrl %d0
++ 40104c0c:  4e75                 rts
++ 40104c0e:  4280                 clrl %d0
++ 40104c10:  4e75                 rts
++ 40104c12:  4280                 clrl %d0
++ 40104c14:  4e75                 rts
++ 40104c16:  4280                 clrl %d0
++ 40104c18:  4e75                 rts
++ 40104c1a:  4280                 clrl %d0
++ 40104c1c:  4e75                 rts
++ 40104c1e:  4280                 clrl %d0
++ 40104c20:  4e75                 rts
++ 40104c22:  4280                 clrl %d0
++ 40104c24:  4e75                 rts
++ 40104c26:  4280                 clrl %d0
++ 40104c28:  4e75                 rts
++ 40104c2a:  4280                 clrl %d0
++ 40104c2c:  4e75                 rts
+~ 40104c2e:  4280                 clrl %d0
++ 40104c30:  4e75                 rts
++ 40104c32:  4280                 clrl %d0
++ 40104c34:  4e75                 rts
++ 40104c36:  4280                 clrl %d0
++ 40104c38:  4e75                 rts
++ 40104c3a:  4280                 clrl %d0
++ 40104c3c:  4e75                 rts
++ 40104c3e:  4280                 clrl %d0
++ 40104c40:  4e75                 rts
++ 40104c42:  4280                 clrl %d0
++ 40104c44:  4e75                 rts
++ 40104c46:  4280                 clrl %d0
++ 40104c48:  4e75                 rts
++ 40104c4a:  4280                 clrl %d0
++ 40104c4c:  4e75                 rts
++ 40104c4e:  4280                 clrl %d0
+~ 40104c50:  4e75                 rts
++ 40104c52:  4280                 clrl %d0
++ 40104c54:  4e75                 rts
++ 40104c56:  4280                 clrl %d0
++ 40104c58:  4e75                 rts
++ 40104c5a:  4280                 clrl %d0
++ 40104c5c:  4e75                 rts
++ 40104c5e:  4280                 clrl %d0
++ 40104c60:  4e75                 rts
++ 40104c62:  4280                 clrl %d0
++ 40104c64:  4e75                 rts
++ 40104c66:  4280                 clrl %d0
++ 40104c68:  4e75                 rts
++ 40104c6a:  4280                 clrl %d0
++ 40104c6c:  4e75                 rts
++ 40104c6e:  4280                 clrl %d0
++ 40104c70:  4e75                 rts
++ 40104c72:  4280                 clrl %d0
++ 40104c74:  4e75                 rts
++ 40104c76:  4280                 clrl %d0
++ 40104c78:  4e75                 rts
++ 40104c7a:  4280                 clrl %d0
++ 40104c7c:  4e75                 rts
++ 40104c7e:  4280                 clrl %d0
++ 40104c80:  4e75                 rts
++ 40104c82:  4280                 clrl %d0
++ 40104c84:  4e75                 rts
++ 40104c86:  4280                 clrl %d0
++ 40104c88:  4e75                 rts
++ 40104c8a:  4280                 clrl %d0
++ 40104c8c:  4e75                 rts
++ 40104c8e:  4280                 clrl %d0
++ 40104c90:  4e75                 rts
++ 40104c92:  4280                 clrl %d0
++ 40104c94:  4e75                 rts
++ 40104c96:  4280                 clrl %d0
++ 40104c98:  4e75                 rts
++ 40104c9a:  4280                 clrl %d0
++ 40104c9c:  4e75                 rts
++ 40104c9e:  4280                 clrl %d0
++ 40104ca0:  4e75                 rts
++ 40104ca2:  4280                 clrl %d0
++ 40104ca4:  4e75                 rts
++ 40104ca6:  4280                 clrl %d0
++ 40104ca8:  4e75                 rts
++ 40104caa:  4280                 clrl %d0
++ 40104cac:  4e75                 rts
++ 40104cae:  4280                 clrl %d0
++ 40104cb0:  4e75                 rts
++ 40104cb2:  4280                 clrl %d0
++ 40104cb4:  4e75                 rts
++ 40104cb6:  4280                 clrl %d0
++ 40104cb8:  4e75                 rts
++ 40104cba:  4280                 clrl %d0
++ 40104cbc:  4e75                 rts
++ 40104cbe:  4280                 clrl %d0
++ 40104cc0:  4e75                 rts
++ 40104cc2:  4280                 clrl %d0
++ 40104cc4:  4e75                 rts
++ 40104cc6:  4280                 clrl %d0
++ 40104cc8:  4e75                 rts
++ 40104cca:  4280                 clrl %d0
++ 40104ccc:  4e75                 rts
++ 40104cce:  4280                 clrl %d0
++ 40104cd0:  4e75                 rts
++ 40104cd2:  4280                 clrl %d0
++ 40104cd4:  4e75                 rts
++ 40104cd6:  4280                 clrl %d0
++ 40104cd8:  4e75                 rts
+~ 40104cda:  4280                 clrl %d0
++ 40104cdc:  4e75                 rts
++ 40104cde:  4280                 clrl %d0
++ 40104ce0:  4e75                 rts
++ 40104ce2:  4280                 clrl %d0
++ 40104ce4:  4e75                 rts
++ 40104ce6:  4280                 clrl %d0
++ 40104ce8:  4e75                 rts
++ 40104cea:  4280                 clrl %d0
++ 40104cec:  4e75                 rts
++ 40104cee:  4280                 clrl %d0
++ 40104cf0:  4e75                 rts
++ 40104cf2:  4280                 clrl %d0
++ 40104cf4:  4e75                 rts
++ 40104cf6:  4280                 clrl %d0
++ 40104cf8:  4e75                 rts
++ 40104cfa:  4280                 clrl %d0
++ 40104cfc:  4e75                 rts
++ 40104cfe:  4280                 clrl %d0
++ 40104d00:  4e75                 rts
+~ 40104d02:  4280                 clrl %d0
++ 40104d04:  4e75                 rts
++ 40104d06:  4280                 clrl %d0
++ 40104d08:  4e75                 rts
++ 40104d0a:  4280                 clrl %d0
++ 40104d0c:  4e75                 rts
++ 40104d0e:  4280                 clrl %d0
++ 40104d10:  4e75                 rts
+~ 40104d12:  4280                 clrl %d0
++ 40104d14:  4e75                 rts
++ 40104d16:  4280                 clrl %d0
++ 40104d18:  4e75                 rts
++ 40104d1a:  4280                 clrl %d0
++ 40104d1c:  4e75                 rts
++ 40104d1e:  4280                 clrl %d0
++ 40104d20:  4e75                 rts
++ 40104d22:  4280                 clrl %d0
++ 40104d24:  4e75                 rts
++ 40104d26:  4280                 clrl %d0
++ 40104d28:  4e75                 rts
++ 40104d2a:  4280                 clrl %d0
++ 40104d2c:  4e75                 rts
++ 40104d2e:  4280                 clrl %d0
++ 40104d30:  4e75                 rts
++ 40104d32:  4280                 clrl %d0
++ 40104d34:  4e75                 rts
++ 40104d36:  4280                 clrl %d0
++ 40104d38:  4e75                 rts
++ 40104d3a:  4280                 clrl %d0
+~ 40104d3c:  4e75                 rts
++ 40104d3e:  4280                 clrl %d0
++ 40104d40:  4e75                 rts
++ 40104d42:  4280                 clrl %d0
++ 40104d44:  4e75                 rts
++ 40104d46:  4280                 clrl %d0
++ 40104d48:  4e75                 rts
++ 40104d4a:  4280                 clrl %d0
++ 40104d4c:  4e75                 rts
++ 40104d4e:  4280                 clrl %d0
++ 40104d50:  4e75                 rts
++ 40104d52:  4280                 clrl %d0
++ 40104d54:  4e75                 rts
++ 40104d56:  4280                 clrl %d0
++ 40104d58:  4e75                 rts
++ 40104d5a:  4280                 clrl %d0
++ 40104d5c:  4e75                 rts
++ 40104d5e:  4280                 clrl %d0
++ 40104d60:  4e75                 rts
++ 40104d62:  4280                 clrl %d0
++ 40104d64:  4e75                 rts
++ 40104d66:  4280                 clrl %d0
++ 40104d68:  4e75                 rts
++ 40104d6a:  4280                 clrl %d0
++ 40104d6c:  4e75                 rts
++ 40104d6e:  4280                 clrl %d0
++ 40104d70:  4e75                 rts
+~ 40104d72:  4280                 clrl %d0
+~ 40104d74:  4e75                 rts
++ 40104d76:  4280                 clrl %d0
++ 40104d78:  4e75                 rts
++ 40104d7a:  4280                 clrl %d0
++ 40104d7c:  4e75                 rts
++ 40104d7e:  4280                 clrl %d0
++ 40104d80:  4e75                 rts
++ 40104d82:  4280                 clrl %d0
++ 40104d84:  4e75                 rts
++ 40104d86:  4280                 clrl %d0
++ 40104d88:  4e75                 rts
++ 40104d8a:  4280                 clrl %d0
++ 40104d8c:  4e75                 rts
++ 40104d8e:  4280                 clrl %d0
++ 40104d90:  4e75                 rts
++ 40104d92:  4280                 clrl %d0
++ 40104d94:  4e75                 rts
++ 40104d96:  4280                 clrl %d0
++ 40104d98:  4e75                 rts
++ 40104d9a:  4280                 clrl %d0
++ 40104d9c:  4e75                 rts
++ 40104d9e:  4280                 clrl %d0
++ 40104da0:  4e75                 rts
+~ 40104da2:  4280                 clrl %d0
++ 40104da4:  4e75                 rts
++ 40104da6:  4280                 clrl %d0
++ 40104da8:  4e75                 rts
++ 40104daa:  4280                 clrl %d0
++ 40104dac:  4e75                 rts
++ 40104dae:  4280                 clrl %d0
++ 40104db0:  4e75                 rts
++ 40104db2:  4280                 clrl %d0
++ 40104db4:  4e75                 rts
++ 40104db6:  4280                 clrl %d0
++ 40104db8:  4e75                 rts
+~ 40104dba:  4280                 clrl %d0
++ 40104dbc:  4e75                 rts
++ 40104dbe:  4280                 clrl %d0
++ 40104dc0:  4e75                 rts
+~ 40104dc2:  4280                 clrl %d0
++ 40104dc4:  4e75                 rts
++ 40104dc6:  4280                 clrl %d0
++ 40104dc8:  4e75                 rts
++ 40104dca:  4280                 clrl %d0
++ 40104dcc:  4e75                 rts
++ 40104dce:  4280                 clrl %d0
++ 40104dd0:  4e75                 rts
++ 40104dd2:  4280                 clrl %d0
++ 40104dd4:  4e75                 rts
++ 40104dd6:  4280                 clrl %d0
++ 40104dd8:  4e75                 rts
++ 40104dda:  4280                 clrl %d0
++ 40104ddc:  4e75                 rts
++ 40104dde:  4280                 clrl %d0
++ 40104de0:  4e75                 rts
++ 40104de2:  4280                 clrl %d0
++ 40104de4:  4e75                 rts
++ 40104de6:  4280                 clrl %d0
++ 40104de8:  4e75                 rts
++ 40104dea:  4280                 clrl %d0
++ 40104dec:  4e75                 rts
++ 40104dee:  4280                 clrl %d0
++ 40104df0:  4e75                 rts
++ 40104df2:  4280                 clrl %d0
++ 40104df4:  4e75                 rts
++ 40104df6:  4280                 clrl %d0
++ 40104df8:  4e75                 rts
+~ 40104dfa:  4280                 clrl %d0
++ 40104dfc:  4e75                 rts
++ 40104dfe:  4280                 clrl %d0
++ 40104e00:  4e75                 rts
++ 40104e02:  4280                 clrl %d0
++ 40104e04:  4e75                 rts
++ 40104e06:  4280                 clrl %d0
++ 40104e08:  4e75                 rts
++ 40104e0a:  4280                 clrl %d0
++ 40104e0c:  4e75                 rts
++ 40104e0e:  4280                 clrl %d0
++ 40104e10:  4e75                 rts
++ 40104e12:  4280                 clrl %d0
++ 40104e14:  4e75                 rts
++ 40104e16:  4280                 clrl %d0
+~ 40104e18:  4e75                 rts
++ 40104e1a:  4280                 clrl %d0
++ 40104e1c:  4e75                 rts
++ 40104e1e:  4280                 clrl %d0
++ 40104e20:  4e75                 rts
++ 40104e22:  4280                 clrl %d0
++ 40104e24:  4e75                 rts
++ 40104e26:  4280                 clrl %d0
++ 40104e28:  4e75                 rts
++ 40104e2a:  4280                 clrl %d0
++ 40104e2c:  4e75                 rts
++ 40104e2e:  4280                 clrl %d0
++ 40104e30:  4e75                 rts
++ 40104e32:  4280                 clrl %d0
++ 40104e34:  4e75                 rts
++ 40104e36:  4280                 clrl %d0
++ 40104e38:  4e75                 rts
++ 40104e3a:  4280                 clrl %d0
++ 40104e3c:  4e75                 rts
++ 40104e3e:  4280                 clrl %d0
+~ 40104e40:  4e75                 rts
++ 40104e42:  4280                 clrl %d0
++ 40104e44:  4e75                 rts
++ 40104e46:  4280                 clrl %d0
++ 40104e48:  4e75                 rts
++ 40104e4a:  4280                 clrl %d0
++ 40104e4c:  4e75                 rts
++ 40104e4e:  4280                 clrl %d0
++ 40104e50:  4e75                 rts
++ 40104e52:  4280                 clrl %d0
++ 40104e54:  4e75                 rts
++ 40104e56:  4280                 clrl %d0
++ 40104e58:  4e75                 rts
++ 40104e5a:  4280                 clrl %d0
++ 40104e5c:  4e75                 rts
++ 40104e5e:  4280                 clrl %d0
++ 40104e60:  4e75                 rts
++ 40104e62:  4280                 clrl %d0
++ 40104e64:  4e75                 rts
++ 40104e66:  4280                 clrl %d0
++ 40104e68:  4e75                 rts
++ 40104e6a:  4280                 clrl %d0
+~ 40104e6c:  4e75                 rts
++ 40104e6e:  4280                 clrl %d0
++ 40104e70:  4e75                 rts
++ 40104e72:  4280                 clrl %d0
++ 40104e74:  4e75                 rts
++ 40104e76:  4280                 clrl %d0
++ 40104e78:  4e75                 rts
++ 40104e7a:  4280                 clrl %d0
 ```

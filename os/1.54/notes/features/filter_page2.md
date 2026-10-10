@@ -2,7 +2,8 @@
 
 In the build from v0.2.2: `os/1.54/build/patch.json` holds it as the feature `filter_page2`, its last
 stage, S52, less the build before it (v0.2.1, section 3 `d6fac1a3…`), on which the stages are built.
-The build is S52, byte for byte. Source: [src/filter_page2/](../../src/filter_page2/). This note
+v0.2.2 is S52, byte for byte; from v0.2.3 the wave pictures follow it ([wave_pictures.md](wave_pictures.md)),
+which rewrite 10 B of the CFO oscillator's code, none of this feature's. Source: [src/filter_page2/](../../src/filter_page2/). This note
 describes S52, and what each stage before it changed.
 
 ## What it does
@@ -262,7 +263,9 @@ at `0x40252efe`, 4 B at `0x40252ffc`, 8 B at `0x401778d0`. Knob B's destination 
   (`LATER_SITES`), so `make_cfo.py`, `make_chain.py` and `make_port.py` start from the merged
   `patch.json` as before: Chain Recording's S8, the CFO oscillator's S27 and portamento's S36 rebuild to
   their recorded hashes; `make_port.py` checks S36 against its recorded hash, and it and
-  `make_chain.py` refuse `--write`. The harnesses that take the build's MAIN OS pass on v0.2.2.
+  `make_chain.py` refuse `--write`. The harnesses that take the build's MAIN OS pass on v0.2.2. Once
+  the wave pictures are merged (v0.2.3), `make_filt.py` gives back the CFO oscillator's 10 B they rewrite
+  (`LATER_SITES`), checks S52 against its recorded hash and refuses `--write` as well.
 - **The display objects on a whole start-up.** An emulation of the whole display builder
   `FUN_40152280` (a bump allocator in place of `0x400d43a8`) on S39 left ids 1 and 2 with ENV's text and
   picture callables, and `ParameterSet::vfunc_23` drew the same frame for them as for ENV; that ruled

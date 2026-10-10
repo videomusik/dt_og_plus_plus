@@ -15,7 +15,7 @@ off by make_cfo.build_without_cfo, its chain_record runs dropped, the landing pa
 their earlier contents), and must hash to BASE_SECTION3, so the merge always starts from the same image.
 Once patch.json holds features merged after Chain Recording, the check compares Chain Recording's own
 runs and S8 with make_cfo.BUILD_SECTION3, and --write is refused: the last feature's generator
-(make_filt.py) rewrites patch.json.
+(make_wavpic.py) rewrites patch.json.
 Stages, written to out/1.54/stages/:
   S6   that build + the two pads Chain Recording adds, 0x40124a6c..0x40124b32 and
        0x40128244..0x401282e0, filled with 'clrl %d0 ; rts' (their fill test)
@@ -198,7 +198,7 @@ def main():
     n = ids.index(FID)
     if write and n + 1 < len(ids):
         sys.exit("patch.json holds features merged after Chain Recording (%s); the last one's generator "
-                 "(make_filt.py --stages --write) rewrites it" % ", ".join(ids[n + 1:]))
+                 "(make_wavpic.py --stages --write) rewrites it" % ", ".join(ids[n + 1:]))
     img2, owner = base_image(stock, patch)
     img3 = bytearray(img2)
     for lo, hi in NEWPAD:

@@ -63,14 +63,15 @@ FILTER page 2's pads (in the build from v0.2.2; by stage in
 | `FUN_40178e02` | `0x40178e02..0x40178e44` | 66 B | S37 its fill; S42 `rd_hook2`, PORT and LEG only, `0x40178e02..0x40178e1e`; from S43 `rd_hook2` with VED and KEY: the whole pad. Vetted below |
 | `FUN_401778a4` | `0x401778a4..0x401778d8` | 52 B | S37 its fill; S42 `fwd_ext` and `inv_ext`, 20 B; from S43 44 B, to `0x401778d0`; the rest keeps its fill. Vetted below |
 
-CFOO's wave pictures pad, in their test images only (on top of the build, not in `patch.json`;
+CFOO's wave pictures pad (in the build from v0.2.3; by stage in
 [features/wave_pictures.md](features/wave_pictures.md)):
 
 | Pad | Extent | Size | Occupied by |
 |---|---|---:|---|
 | `FUN_401044b6` | `0x401044b6..0x40104e7e` | 2,504 B | S53 its fill; S54 `wav_sel`, 16 B; S55 `wav_sel` and `wav_pic`, 266 B, to `0x401045c0`; the rest keeps its fill. Vetted below |
 
-Free code space: 102 B in fourteen blocks, none larger than 16 B: 16 B at `0x400152c0`, 16 B at
+Free code space: 2,340 B in fifteen blocks: 2,238 B at `0x401045c0` (the wave pictures' pad
+`FUN_401044b6`, fill), then none larger than 16 B: 16 B at `0x400152c0`, 16 B at
 `0x400bedf2`, 10 B at `0x400156da`, 8 B at `0x400bf1e0`, 8 B at `0x40037ad6`, 8 B at `0x401778d0`
 (FILTER page 2's `FUN_401778a4`, fill), 6 B at `0x400c1392`, 6 B at `0x400bed96`, 6 B at
 `0x400bee64`, 6 B at `0x400f8118` (the CFO oscillator's pad, fill), 6 B at `0x400ee0d2` (portamento's

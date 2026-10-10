@@ -36,7 +36,7 @@ that build) and portamento (S36 less S27). Each byte is listed once, under the l
 it, so the build's bytes that the CFO oscillator rewrites are listed under cfo_oscillator, and the CFO
 oscillator's note operand that S31 points at the glided note under portamento. Once patch.json holds a
 feature merged after portamento (filter_page2, v0.2.2), S36 is checked against its recorded hash and
---write is refused: make_filt.py rewrites patch.json."""
+--write is refused: the last feature's generator (make_wavpic.py) rewrites patch.json."""
 import json, os, re, shutil, subprocess, sys, tempfile
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", "..", "..", ".."))
@@ -288,7 +288,7 @@ def main():
     ids = [f["id"] for f in patch["features"]]
     later = ids[ids.index(FID) + 1:] if FID in ids else []
     if write and later:
-        sys.exit("patch.json holds features merged after portamento (%s); make_filt.py --stages --write "
+        sys.exit("patch.json holds features merged after portamento (%s); the last one's generator "
                  "rewrites it" % ", ".join(later))
     img, owner = cfo.build_without_cfo(stock, patch)
     tmp = tempfile.mkdtemp(prefix="port-")

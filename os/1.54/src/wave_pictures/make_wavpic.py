@@ -1,38 +1,48 @@
 #!/usr/bin/env python3
-"""CFOO's wave pictures for OS 1.54, on top of the build (v0.2.2, FILTER page 2's S52): assemble wavpic.s
-with wavpic.ld, check every site against the stock image and the build, and write the emulator's load
-files; with --stages, build the stage images.
+"""CFOO's wave pictures for OS 1.54, on top of the build before them (v0.2.2, FILTER page 2's S52):
+assemble wavpic.s with wavpic.ld, check every site against the stock image and that build, and write the
+emulator's load files; with --stages, build the stage images; with --write, merge the last stage, S55,
+into os/1.54/build/patch.json as the feature wave_pictures.
 
-    python3 os/1.54/src/wave_pictures/make_wavpic.py            # check, write the load files
-    python3 os/1.54/src/wave_pictures/make_wavpic.py --stages   # also build the stage images
+    python3 os/1.54/src/wave_pictures/make_wavpic.py                    # check: is patch.json up to date?
+    python3 os/1.54/src/wave_pictures/make_wavpic.py --stages           # also build the stage images
+    python3 os/1.54/src/wave_pictures/make_wavpic.py --stages --write   # and rewrite patch.json
 
 Needs m68k binutils (M68K_PREFIX, as make_cfo.py), the stock section 3 from ./scripts/extract.sh 1.54
 and, for --stages, the stock .syx and the firmware tool (as build.py).
 
-The build comes from patch.json and must give BUILD_SECTION3. Stages, written to out/1.54/stages/ (only
-with --stages):
+The build before this feature comes back from patch.json (build_without_wavpic: its features before
+wave_pictures, and the CFO oscillator's bytes this feature rewrites given back) and must give
+BUILD_SECTION3. Stages, written to out/1.54/stages/ (only with --stages):
   S53  the build + FUN_401044b6 filled with 'clrl %d0 ; rts': the fill test of the new pad
   S54  S53 + the CFO oscillator's picture hook jumps to the new pad at its knob's record, and the pad only
        replays the two instructions the jump replaced
   S55  S54 + WAV1, WAV2 and WAV3 (knobs A, C, D) draw the wave they play, 17 x 17
-patch.json is not changed: the feature is test images."""
+S55 is the build from v0.2.3: patch.json holds the build before it, then wave_pictures (S55 less that
+build). Each byte is listed once, under the last feature that wrote it, so the CFO oscillator's 10 B at
+the hook site are listed under wave_pictures."""
 import json, os, re, shutil, subprocess, sys, tempfile
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", "..", "..", ".."))
 sys.path.insert(0, os.path.join(ROOT, "os", "1.54", "build"))
 sys.path.insert(0, os.path.join(ROOT, "os", "1.54", "src", "cfo_oscillator"))
 import build  # noqa: E402
+import make_listing  # noqa: E402
 import make_cfo as cfo  # noqa: E402
 import make_waves  # noqa: E402
 PFX = os.environ.get("M68K_PREFIX", "m68k-elf-")
 BASE = 0x40000400
 LD = os.path.join(HERE, "wavpic.ld")
-BUILD_SECTION3 = "3b88fa95268a05cba3181c8765b3379a46237b00def0820d1c8c4da499506f37"   # the build, v0.2.2
+BUILD_SECTION3 = "3b88fa95268a05cba3181c8765b3379a46237b00def0820d1c8c4da499506f37"   # the build before it, v0.2.2
+FID = "wave_pictures"
+TITLE = ("CFOO's wave pictures: WAV1, WAV2 and WAV3 on CFOO's SRC page show the wave each oscillator plays at "
+         "the knob's value, 17 x 17, drawn from the oscillator's own waveform tables and blend")
 # The new pad (vetted in notes/landing_pads.md): FUN_401044b6, a function of xxHash's 64-bit family,
 # which the firmware links whole with LZ4 and never calls; extent from the stock rts.
 PADS = {".wav_pad": (0x401044b6, 0x40104e7e)}
 # The hook site: the CFO oscillator's cfo_pic, where it takes the knob's record (movel %sp@(8),%d0 ;
 # subil #108,%d0), 10 B of cfo_oscillator's code in the build; the jump and two nops replace it.
+# build_without_wavpic gives these bytes back once patch.json holds wave_pictures.
 SITE = (0x400f7c5c, "202f00080480 0000006c".replace(" ", ""), "cfo_oscillator")
 # What wavpic.s takes from the build: cfo_pic's continuation, the CFO oscillator's segfrac and tables.
 USES = [(0x400f7c66, "e588", "cfo_pic's lsll #2,%d0 (BACK)"),
@@ -92,32 +102,71 @@ def branches_into(img, lo, hi):
     return hits
 
 
-def build_image(stock, patch):
-    """The build from patch.json, and who owns each byte it changes ({address: feature})."""
+def build_without_wavpic(stock, patch):
+    """The build before the wave pictures, from patch.json: its features before wave_pictures and, once
+    that is merged, the hook site's bytes given back to cfo_oscillator. It must hash to BUILD_SECTION3.
+    Returns the image and who owns each byte it changes ({address: (feature, kind)})."""
+    ids = [f["id"] for f in patch["features"]]
     img, owner = bytearray(stock), {}
-    for f in patch["features"]:
+    for f in patch["features"][:ids.index(FID) if FID in ids else len(ids)]:
         for r in f["runs"]:
             a, d = int(r["addr"], 16), bytes.fromhex(r["bytes"])
             img[a - BASE:a - BASE + len(d)] = d
             for k in range(len(d)):
-                owner[a + k] = f["id"]
+                owner[a + k] = (f["id"], r.get("kind", "code"))
+    if FID in ids:
+        a, want, fid = SITE
+        d = bytes.fromhex(want)
+        img[a - BASE:a - BASE + len(d)] = d
+        for k in range(len(d)):
+            if d[k] != stock[a - BASE + k]:
+                owner[a + k] = (fid, "code")
     h = build.sha256_bytes(bytes(img))
     if h != BUILD_SECTION3:
-        sys.exit("patch.json does not give the build this feature starts from (section 3 %s)" % h)
+        sys.exit("the build before the wave pictures does not come back from patch.json (section 3 %s)" % h)
     return img, owner
 
 
+def merged_features(stock, patch, img, owner, s55):
+    """patch.json's features before wave_pictures, and wave_pictures = S55 on the build before it (img,
+    whose changed bytes owner attributes): each byte S55 changes, under the last feature that wrote it.
+    Runs are maximal per feature and kind, as make_filt.py writes them; outside the code windows, data."""
+    def kind(a):
+        return "code" if any(lo <= a < hi for lo, hi in make_listing.CODE_WINDOWS) else "data"
+    attr = {}
+    for i in range(len(stock)):
+        if s55[i] != stock[i]:
+            a = BASE + i
+            attr[a] = (FID, kind(a)) if s55[i] != img[i] else owner[a]
+    runs, cur = {}, None
+    for a in sorted(attr):
+        fid, k = attr[a]
+        if cur and cur["fid"] == fid and cur["kind"] == k and cur["end"] == a:
+            cur["b"].append(s55[a - BASE]); cur["end"] = a + 1
+        else:
+            cur = {"fid": fid, "kind": k, "start": a, "end": a + 1, "b": [s55[a - BASE]]}
+            runs.setdefault(fid, []).append(cur)
+    ids = [f["id"] for f in patch["features"]]
+    earlier = patch["features"][:ids.index(FID) if FID in ids else len(ids)]
+    features = [(f["id"], f["title"]) for f in earlier] + [(FID, TITLE)]
+    return [{"id": i, "title": t,
+             "runs": [{"addr": "0x%08x" % x["start"], "bytes": bytes(x["b"]).hex(), "kind": x["kind"]}
+                      for x in runs.get(i, [])]} for i, t in features]
+
+
 def main():
-    stages = "--stages" in sys.argv
+    stages, write = "--stages" in sys.argv, "--write" in sys.argv
+    if write and not stages:
+        sys.exit("--write needs --stages (patch.json carries the .syx hash of the S55 build)")
     stock = build.read(cfo.STOCK3)
     with open(cfo.PATCH) as f:
         patch = json.load(f)
     assert build.sha256_bytes(stock) == patch["stock"]["section3_sha256"], "work/dt_1.54 is not the stock section 3"
-    img, owner = build_image(stock, patch)
+    img, owner = build_without_wavpic(stock, patch)
     a, want, fid = SITE
     n = len(want) // 2
     assert img[a - BASE:a - BASE + n].hex() == want, "the hook site is not the build's cfo_pic"
-    assert all(owner.get(x) == fid for x in range(a, a + n) if img[x - BASE] != stock[x - BASE])
+    assert all(owner.get(x, ("",))[0] == fid for x in range(a, a + n) if img[x - BASE] != stock[x - BASE])
     print("%-10s 0x%08x..0x%08x  %s's" % ("site", a, a + n, fid))
     for addr, want, what in USES:
         assert img[addr - BASE:addr - BASE + len(want) // 2].hex() == want, "0x%08x is not %s" % (addr, what)
@@ -172,12 +221,18 @@ def main():
             for n, a in sy.items():
                 f.write("sym %s %08x\n" % (n, a))
     print("load files:", ", ".join(os.path.join("work", "dt_1.54-wavpic", n + ".load") for n in built))
+    feats = merged_features(stock, patch, img, owner, built["S55"])
+    s55 = build.sha256_bytes(built["S55"])
+    same = feats == patch["features"] and s55 == patch["result"]["section3_sha256"]
+    print("S55 section 3 %s; patch.json %s" % (s55, "is up to date" if same else
+                                               "differs (%s)" % patch["result"]["section3_sha256"]))
     if not stages:
         print("no stage images built (--stages)")
         return
     dest = os.path.join(ROOT, "out", "1.54", "stages")
     os.makedirs(dest, exist_ok=True)
     syx, tool = build.DEFAULT_SYX, build.DEFAULT_TOOL
+    res = {}
     for name, p3 in built.items():
         sel, i = [], 0
         while i < len(stock):
@@ -200,12 +255,21 @@ def main():
             build.pack(tool, syx, pb, packed)
             build.check_report(tool, packed)
             build.roundtrip(tool, packed, p3, st, os.path.join(t2, "verify"))
-            h = build.sha256_file(packed)
+            h, size = build.sha256_file(packed), os.path.getsize(packed)
             final = os.path.join(dest, "dt_og_plus_plus_v0.2.2-%s_%s.syx" % (name, h[:8]))
             os.replace(packed, final)
         finally:
             shutil.rmtree(t2, ignore_errors=True)
+        res[name] = (h, size)
         print("%s section 3 %s .syx %s -> %s" % (name, build.sha256_bytes(p3), h, final))
+    if write:
+        patch["features"] = feats
+        patch["result"] = dict(patch["result"], section3_sha256=s55,
+                               syx_sha256_reference=res["S55"][0], syx_size_reference=res["S55"][1])
+        with open(cfo.PATCH, "w") as f:
+            json.dump(patch, f, indent=1)
+            f.write("\n")
+        print("wrote", cfo.PATCH)
     print("Nothing was sent to a device.")
 
 

@@ -45,7 +45,7 @@ Stages, written to out/1.54/stages/ (only with --stages):
   S27  S26 + the Source found from the machines (the nearest non-POLY track before), not POLY's pool
        map
 This script does not change patch.json: make_port.py merged S27 into it, with portamento on top, and
-make_filt.py writes it now, with FILTER page 2 on top of both. The build without the CFO oscillator
+make_wavpic.py writes it now, with FILTER page 2 and the wave pictures on top. The build without the CFO oscillator
 (BUILD_SECTION3, Chain Recording's build) comes back from patch.json either way: its features before
 cfo_oscillator, with the bytes of the build that the CFO oscillator rewrites, and those of earlier
 features that a later one rewrites (LATER_SITES), given back (build_without_cfo)."""
