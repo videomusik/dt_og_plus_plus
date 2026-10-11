@@ -42,7 +42,7 @@ Run one with `./scripts/ghidra_emu.sh 1.54 <Harness> [argument]`.
 
 ## Results on the reference build
 
-On the reference build (v0.2.3, section 3 `957bdc6f…`), every harness ends with its pass line
+On the reference build (v0.2.4, section 3 `957bdc6f…`), every harness ends with its pass line
 (`=== ALL CASES PASS ... ===`, or for `EmuMachineList` "as-is added 4 machines, edited added 5", and
 with the build's MAIN OS "added 6 machines", CFOO the sixth). The ones that take a build's MAIN OS ran
 on it; `EmuCfoOscillator` ran on S27's load (`lz4_stream_m5o.load`, with `machine5 names icon`),

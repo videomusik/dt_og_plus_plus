@@ -1,0 +1,138 @@
+# CFOO on tracks 1-8, the eight held together, then the pattern played.
+# On stock 1.54 the same keys pick the last machine in the menu (SLICE) instead.
+wait 500
+press FUNC
+tap SRC 60 200
+release FUNC
+tap DOWN 60 120
+tap DOWN 60 120
+tap DOWN 60 120
+tap DOWN 60 120
+tap DOWN 60 120
+tap YES 60 200
+tap NO 60 200
+snap t1
+press TRK
+tap 2 60 120
+release TRK
+press FUNC
+tap SRC 60 200
+release FUNC
+tap DOWN 60 120
+tap DOWN 60 120
+tap DOWN 60 120
+tap DOWN 60 120
+tap DOWN 60 120
+tap YES 60 200
+tap NO 60 200
+snap t2
+press TRK
+tap 3 60 120
+release TRK
+press FUNC
+tap SRC 60 200
+release FUNC
+tap DOWN 60 120
+tap DOWN 60 120
+tap DOWN 60 120
+tap DOWN 60 120
+tap DOWN 60 120
+tap YES 60 200
+tap NO 60 200
+snap t3
+press TRK
+tap 4 60 120
+release TRK
+press FUNC
+tap SRC 60 200
+release FUNC
+tap DOWN 60 120
+tap DOWN 60 120
+tap DOWN 60 120
+tap DOWN 60 120
+tap DOWN 60 120
+tap YES 60 200
+tap NO 60 200
+snap t4
+press TRK
+tap 5 60 120
+release TRK
+press FUNC
+tap SRC 60 200
+release FUNC
+tap DOWN 60 120
+tap DOWN 60 120
+tap DOWN 60 120
+tap DOWN 60 120
+tap DOWN 60 120
+tap YES 60 200
+tap NO 60 200
+snap t5
+press TRK
+tap 6 60 120
+release TRK
+press FUNC
+tap SRC 60 200
+release FUNC
+tap DOWN 60 120
+tap DOWN 60 120
+tap DOWN 60 120
+tap DOWN 60 120
+tap DOWN 60 120
+tap YES 60 200
+tap NO 60 200
+snap t6
+press TRK
+tap 7 60 120
+release TRK
+press FUNC
+tap SRC 60 200
+release FUNC
+tap DOWN 60 120
+tap DOWN 60 120
+tap DOWN 60 120
+tap DOWN 60 120
+tap DOWN 60 120
+tap YES 60 200
+tap NO 60 200
+snap t7
+press TRK
+tap 8 60 120
+release TRK
+press FUNC
+tap SRC 60 200
+release FUNC
+tap DOWN 60 120
+tap DOWN 60 120
+tap DOWN 60 120
+tap DOWN 60 120
+tap DOWN 60 120
+tap YES 60 200
+tap NO 60 200
+snap t8
+press 1 0
+press 2 0
+press 3 0
+press 4 0
+press 5 0
+press 6 0
+press 7 0
+press 8 0
+wait 2000
+snap held
+release 1 0
+release 2 0
+release 3 0
+release 4 0
+release 5 0
+release 6 0
+release 7 0
+release 8 0
+wait 300
+tap PLAY
+wait 2000
+snap playing
+tap STOP
+tap STOP
+wait 500
+snap stopped

@@ -24,7 +24,24 @@ the on-chip SRAM. Addresses are load addresses. The chip's address spaces are in
 | `0x40000400..0x40253000` | `.text`, `.rodata`, `.data`: loaded and never cleared | the `.bss` start below |
 | `0x40252724..0x40253000` | linker padding after the C++ static-initialiser table, 2,268 B, all zero; this build puts its icons there ([landing_pads.md](landing_pads.md#rodata-the-constant-data-budget)) | the walker at `0x40068fea` and its count word `0x40252518` (130) |
 | `0x40253000..0x439d1000` | `.bss`, zeroed at boot in 16 B steps | `FUN_400004b2`: `movea.l #0x40253000,%a0` and `move.l #0x439d1000,%d1` (objdump) |
-| `0x439d1000..` | ⚠️ very probably the sample memory, whose base does not appear as a plain literal; this build's state lives at its bottom (below) | raw scan, below |
+| `0x439d1000..0x439e0000` | 61,440 B that no instruction names, between `.bss`'s end and the first buffer above it; this build's state lives at its bottom (below) | ✅ objdump, every operand of the stock section: none in `0x439d1000..0x43c00000`; raw scan, below |
+| `..0x48000000` | the stack's start: `movea.l #0x48000000,%sp` at `0x400004f2`, the top of the window ACR0 caches | ✅ objdump |
+
+Above `.bss` the code names RAM only through `0x48000000..0x4fffffff`, outside the one window the
+firmware caches: MAIN OS writes CACR (`0xa50ce100`, `0x40000554`) and ACR0 (`0x4007e020`, `0x4000055e`:
+`0x40000000..0x47ffffff`) and no other cache-control register (objdump, every `movec`).
+
+| Range (as the code names it) | Contents | Evidence |
+|---|---|---|
+| `0x4b9e0000`, 576 KB; `0x4ba70000`, 32 KB; `0x4fc00000`, 4 MB | buffers the audio code's initialiser `0x4007342c` clears with `0x400e8514` at start (with six SRAM blocks); the first of them is the lowest address above `.bss` that any operand names | ✅ objdump |
+| `0x4bbbf5f0..0x4fbbf640` | the sample memory: 64 MB + 80 B, blocks placed one after another from its start, one 52 B record each in a list at `0x421ee708..0x421ee70c`; its free space is `0x4000050` while the list is empty (`0x400eb9aa`) | ✅ objdump: `FUN_400ec520`, `FUN_400ec7b0`, `FUN_400ec8fa`, `0x400eb9aa`; ✅ emulator run (digiemu, stock 1.54, [docs/digiemu.md](../../../docs/digiemu.md)): saving a recording of about 1.9 s placed it through `FUN_400ec8fa` and copied its 182,542 B to `0x4bbbf5f0..0x4bbebefe` with `0x400e8ae8` |
+| `0x4fbbf640..`, 16 longs | a small ring right after the sample memory, written at `0x40003bd8..0x40003c1c` with a `0xdead0001` marker | ✅ objdump; ⚠️ what it records is not read |
+
+⚠️ Very probably `0x48000000..0x4fffffff` is the same 128 MB again, not cached: then these ranges are
+`0x08000000` lower, the buffers from `0x439e0000` and the sample memory at `0x43bbf5f0..0x47bbf640`. It rests on
+the stack's start at the window's top, the board's one 128 MB DDR2 chip
+([hardware.md](../../../notes/hardware.md)) and the sample memory's 64 MB, which fits nowhere else; not on the
+DDR controller's set-up, which was not read. Either way none of them covers this build's state.
 
 ## RAM used by this build
 
@@ -72,11 +89,18 @@ The code names `0x439d1004`, `0x439d1010`, `0x439d1038`, `0x439d1050`, `0x439d10
 `0x439d10e0` directly ([docs/patch_listing.md](../docs/patch_listing.md)); `slice[]` and `ownerTrack[]` are reached
 by displacement from those base registers.
 
-✅ Read directly in the image: a raw scan of the stock section, every byte offset read as a
-big-endian 32-bit word, finds exactly one value in `0x439d1000..0x439d2000`: `0x439d1000` itself, the
-`.bss` end literal in the startup code. ⚠️ That the region above `.bss` holds the sample memory, and
-that this build's few hundred bytes at its bottom do not overlap it, rests on that scan, not on a
-located base.
+✅ Read directly in the image: no instruction of the stock section names an address in
+`0x439d1000..0x43c00000` (objdump, every operand), and a raw scan, every byte offset read as a big-endian
+32-bit word, finds exactly one value in `0x439d1000..0x439d2000`: `0x439d1000` itself, the `.bss` end
+literal in the startup code. The lowest address above `.bss` that the code names is the first audio
+buffer, `0x4b9e0000` ([DDR](#ddr)). So this build's state lies in the 60 KB that nothing names: in no buffer
+and not in the sample memory, under either reading of `0x48000000..`.
+
+✅ Emulator runs (digiemu, this build): with a write watch on `0x439d1000..0x439e0000` and on
+`0x4b9d1000..0x4b9e0000`, through CFOO on four tracks, a recording saved and assigned to a track, and the
+pattern played, every write came from this build's own code. ⚠️ An access through a computed pointer, with
+no literal, would show in neither scan, and the runs cover only what they did (no song mode, USB audio or
+full sample memory).
 
 ## On-chip SRAM
 

@@ -1,0 +1,74 @@
+# CFOO on tracks 1-4, then the four tracks held together, then the pattern played.
+# On stock 1.54 the same keys pick the last machine in the menu (SLICE) instead.
+wait 500
+press FUNC
+tap SRC 60 200
+release FUNC
+tap DOWN 60 120
+tap DOWN 60 120
+tap DOWN 60 120
+tap DOWN 60 120
+tap DOWN 60 120
+tap YES 60 200
+tap NO 60 200
+snap t1
+press TRK
+tap 2 60 120
+release TRK
+press FUNC
+tap SRC 60 200
+release FUNC
+tap DOWN 60 120
+tap DOWN 60 120
+tap DOWN 60 120
+tap DOWN 60 120
+tap DOWN 60 120
+tap YES 60 200
+tap NO 60 200
+snap t2
+press TRK
+tap 3 60 120
+release TRK
+press FUNC
+tap SRC 60 200
+release FUNC
+tap DOWN 60 120
+tap DOWN 60 120
+tap DOWN 60 120
+tap DOWN 60 120
+tap DOWN 60 120
+tap YES 60 200
+tap NO 60 200
+snap t3
+press TRK
+tap 4 60 120
+release TRK
+press FUNC
+tap SRC 60 200
+release FUNC
+tap DOWN 60 120
+tap DOWN 60 120
+tap DOWN 60 120
+tap DOWN 60 120
+tap DOWN 60 120
+tap YES 60 200
+tap NO 60 200
+snap t4
+press 1 0
+press 2 0
+press 3 0
+press 4 0
+wait 1500
+snap held
+release 1 0
+release 2 0
+release 3 0
+release 4 0
+wait 300
+tap PLAY
+wait 2000
+snap playing
+tap STOP
+tap STOP
+wait 500
+snap stopped

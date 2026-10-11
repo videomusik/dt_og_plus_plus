@@ -1,0 +1,25 @@
+# The parameter pages, FILTER page 2 included, a trig on track 1, the pattern played and stopped.
+wait 1000
+snap start
+tap TRIG
+snap trig-page
+tap SRC
+snap src-page
+tap FLTR
+snap fltr-page
+tap FLTR
+snap fltr-page2
+tap AMP
+snap amp-page
+tap LFO
+snap lfo-page
+tap TRIG
+tap 1 80 700
+snap trig-1
+tap PLAY
+wait 2000
+snap playing
+tap STOP
+tap STOP
+wait 500
+snap stopped

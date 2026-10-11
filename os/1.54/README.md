@@ -258,7 +258,7 @@ The build runs on macOS and Linux; on Windows, use WSL2
    ```
    bash build/build_tool.sh
    python3 os/1.54/build/build.py
-   python3 os/1.54/build/verify.py out/1.54/dt_og_plus_plus_v0.2.3_<hash8>.syx --tool tool/bin/elektron-firmware-tool-capped
+   python3 os/1.54/build/verify.py out/1.54/dt_og_plus_plus_v0.2.4_<hash8>.syx --tool tool/bin/elektron-firmware-tool-capped
    ```
 
    In the last command, use the file name that `build.py` prints at `[7/7] wrote`.
@@ -277,7 +277,7 @@ What the three commands do:
   writes the binary somewhere else.
 - `os/1.54/build/build.py` checks your stock file, applies `os/1.54/build/patch.json`, packs and
   re-checks the result, and only then writes
-  `out/1.54/dt_og_plus_plus_v0.2.3_<first 8 hex digits of its SHA-256>.syx`. This is the file you
+  `out/1.54/dt_og_plus_plus_v0.2.4_<first 8 hex digits of its SHA-256>.syx`. This is the file you
   flash. It prints the name at `[7/7] wrote`. `--syx FILE`, `--tool FILE` and `--out DIR` override
   the default locations.
 - `os/1.54/build/verify.py` tells you what a `.syx` file is: stock Digitakt OS 1.54, DT OG++

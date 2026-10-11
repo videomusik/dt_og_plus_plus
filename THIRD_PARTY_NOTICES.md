@@ -70,3 +70,9 @@ SOFTWARE.
 Python, a C compiler, `patch`, git, GNU binutils for ColdFire (optional), Ghidra and OpenJDK
 (analysis only), and Swift with the macOS PDF frameworks (manual pipeline only) are used as installed
 on your computer. None of them is part of this repository.
+
+digiemu (GPL-2.0-or-later, https://github.com/irpina/digiemu), the Digitakt emulator, is used the same
+way for the optional check of a build ([docs/digiemu.md](docs/digiemu.md)): you clone and set it up
+yourself, and `scripts/digiemu_check.py` runs it as a separate program. No digiemu code is included; the
+OS folders' key scripts (`os/*/scripts/digiemu/`) are this repository's own, written in digiemu's
+key-script format.

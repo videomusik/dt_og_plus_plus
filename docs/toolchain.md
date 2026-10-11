@@ -43,6 +43,7 @@ only step that needs network access. The build itself needs no binutils and no G
 | The ColdFire EMAC language extension | decoding the MAC-heavy audio code | `./scripts/ghidra_lang_ext.sh` (section 4c) |
 | m68k binutils | the independent second decoder (`./scripts/disasm.sh`), and regenerating an OS folder's `docs/patch_listing.md` | section 5 |
 | The emulator harnesses | stepping code in Ghidra's emulator | nothing extra; see `os/<os>/scripts/emu/README.md` |
+| digiemu | running a whole build in an emulator and comparing it with stock | [digiemu.md](digiemu.md) |
 | Swift (`swiftc`) with PDFKit, **macOS only** | the manual → markdown pipeline | the Xcode Command Line Tools; section 6 |
 | Homebrew | installing Ghidra and binutils on macOS | https://brew.sh (installs to `/opt/homebrew`) |
 
