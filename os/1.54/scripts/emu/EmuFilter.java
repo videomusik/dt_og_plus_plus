@@ -14,6 +14,9 @@
 // portamento's CUR[track] (0x439d1180 + 4 x track), saturated. Two scale checks tie the model to the
 // meaning: VED +63 at velocity 127 gives 62.5 steps of ENV; KEY +63 an octave up 0.875 x 12 x 63 / 64
 // FREQ steps. An inert hook (S38, S39) must leave %d5 and the frame as they were.
+// From S56 (the load's symbol key_note) the note sum is the trig's (0x80001f28 + 4 x track): the harness
+// puts the note there and a decoy an octave higher in portamento's CUR, so a hook that still reads CUR
+// fails every KEY case.
 // VED in % (S47 on, the load's symbol ved_pct): VED 0..0x6400 and the depth becomes d5 - d5 x share, the
 // share (127 - velocity) x VED % / 12700 in steps of 1/4096 rounded up, formed without a divide (the
 // model below, to the bit); every run is also held to the exact law d5 x (1 - VED / 100 x (127 -
@@ -44,7 +47,13 @@ import java.util.*;
 
 public class EmuFilter extends GhidraScript {
   static final long SITE = 0x400728a2L, SITE_END = 0x400728a8L, LEVELS = 0x4199ef58L;
-  static final long ENGINE = 0x80002760L, VELW = 0x80001f18L, PSTATE = 0x439d1180L;
+  static final long ENGINE = 0x80002760L, VELW = 0x80001f18L, PSTATE = 0x439d1180L, NOTES = 0x80001f28L;
+  static boolean keyNote;	// S56 on: KEY reads the trig's note sum, not portamento's CUR (symbol key_note)
+  /** the note sum where the stage's KEY reads it; from S56 a decoy an octave higher in CUR */
+  void note(int t, long ns) throws Exception {
+    if (keyNote) { wr(NOTES + 4 * t, ns & 0xffffffffL, 4); wr(PSTATE + 4 * t, (ns + 0x0c0000) & 0xffffffffL, 4); }
+    else wr(PSTATE + 4 * t, ns & 0xffffffffL, 4);
+  }
   static final long SP0 = 0x40258600L, RET = 0x40001000L, DESC = 0x401aa09cL;
 
   List<Long> secAddr = new ArrayList<>();
@@ -75,6 +84,7 @@ public class EmuFilter extends GhidraScript {
     emu.writeMemory(toAddr(SP0 - 0x800), new byte[0x1000]);
     emu.writeMemory(toAddr(ENGINE), new byte[8 * 106 + 0x40]);
     emu.writeMemory(toAddr(PSTATE), new byte[64]);
+    emu.writeMemory(toAddr(NOTES), new byte[32]);
     emu.writeMemory(toAddr(VELW), new byte[16]);
   }
   void verdict(String label, StringBuilder bad) {
@@ -122,7 +132,7 @@ public class EmuFilter extends GhidraScript {
   int[] site(int t, int ved, int vel, int key, int ns, int freq, int d5, long level, StringBuilder bad) throws Exception {
     long eng = ENGINE + 106L * t;
     wr(eng + 0x12 + 2 * 48, ved & 0xffff, 2); wr(eng + 0x12 + 2 * 49, key & 0xffff, 2);
-    wr(VELW + 2 * t, vel & 0xffff, 2); wr(PSTATE + 4 * t, ns & 0xffffffffL, 4);
+    wr(VELW + 2 * t, vel & 0xffff, 2); note(t, ns);
     wr(LEVELS + 12L * t, level, 4);
     long x = SP0 - 0x200;				// the caller's %sp
     wr(x + 68, freq & 0xffffffffL, 4); wr(x + 104, eng + 0x44, 4); wr(x - 4, t, 4);
@@ -151,7 +161,7 @@ public class EmuFilter extends GhidraScript {
     fresh();
     long eng = ENGINE;
     wr(eng + 0x12 + 2 * 48, 0x100, 2); wr(eng + 0x12 + 2 * 49, 0x100, 2);
-    wr(VELW, 0x3f00, 2); wr(PSTATE, 0x480000, 4); wr(LEVELS, 0x40000000L, 4);
+    wr(VELW, 0x3f00, 2); note(0, 0x480000); wr(LEVELS, 0x40000000L, 4);
     long x = SP0 - 0x200;
     wr(x + 68, 0x40000000L, 4); wr(x + 104, eng + 0x44, 4); wr(x - 4, 0, 4);
     emu.writeRegister("D5", 0); emu.writeRegister("SP", x - 4); emu.writeRegister("PC", SITE);
@@ -231,7 +241,8 @@ public class EmuFilter extends GhidraScript {
         bad.append(String.format(" [t%d key %x ns %x freq %x: %x want %x, d5 %x]", t, k, ns, f, r[1], wf, r[0]));
       n++;
     }
-    verdict(String.format("KEY: FREQ << 16 gains the note's distance from C4 x KEY x %s, saturated (%d runs%s)", keyX4 ? "14" : keyX2 ? "7" : "3.5", n,
+    verdict(String.format("KEY: FREQ << 16 gains the %s note's distance from C4 x KEY x %s, saturated (%d runs%s)",
+        keyNote ? "trig's" : "glided", keyX4 ? "14" : keyX2 ? "7" : "3.5", n,
         keyX4 ? ", " + kUnder + " below -2^31" : ""), bad);
     // both together, and the scale checks
     bad = new StringBuilder();
@@ -693,6 +704,7 @@ public class EmuFilter extends GhidraScript {
     label = sym.containsKey("ved_label");
     keyObj = sym.containsKey("key_obj");
     keyTxt = sym.containsKey("key_txt");
+    keyNote = sym.containsKey("key_note");
     if (hook) { if (active) activeCases(); else inertCases(); }
     if (data) { dataCases(); pictureCases(rdn(0x400376b2L, 2) == 0x7205); buildCases(sym.containsKey("spc_copy")); }
     if (move) saveCases(save);

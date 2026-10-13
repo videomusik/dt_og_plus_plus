@@ -215,7 +215,8 @@ Every audio track's second FILTER page gets two knobs, C and G, which are empty 
   as large. It works the same way with a negative ENV.
 - **KEY** moves the cutoff by the note's distance from C4: at 100 % the cutoff follows the pitch, at
   200 % it moves two octaves for an octave played, and negative values move it the other way. It
-  follows the pitch the track plays, so with PORT on the cutoff glides with the note.
+  follows the trig's note, and a trigless lock's NOTE: with PORT on, the cutoff moves to the new note at
+  once while the pitch glides.
 - VED shows its percentage in its picture, with its name below; KEY shows a knob with a centre mark
   and its percentage.
 - [FUNC] + knob steps VED to 0, 50 or 100 %, and KEY to −394 %, 0 or 394 %, in the direction turned.

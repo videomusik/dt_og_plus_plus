@@ -66,7 +66,14 @@ Then CFOO's wave pictures, each stage flashed on the one before:
 
 11. their stages S53 to S55 on S52 ([features/wave_pictures.md](features/wave_pictures.md#on-the-unit)):
     the new pad's fill test (S53) works, the inert hook (S54) changes nothing, and S55's waves look
-    right, as reported. S55 (`.syx` `31b428ea…`) is the build in this folder, byte for byte: v0.2.3, and v0.2.4 from the release that followed (the same image).
+    right, as reported. S55 (`.syx` `31b428ea…`) is v0.2.3, byte for byte, and v0.2.4 from the release
+    that followed (the same image).
+
+Then KEY on the trig's note:
+
+12. S56 on S55 ([features/filter_page2.md](features/filter_page2.md#key-on-the-trigs-note-s56)): KEY
+    follows the trig's note instead of portamento's glided one. S56 (`.syx` `084b3aa1…`) is the build in
+    this folder, byte for byte. Not yet tested on the unit.
 
 ## The features in this build
 
@@ -107,7 +114,8 @@ New in this image, not in the OS 1.52A build:
   how much the velocity decides the filter envelope's depth, around velocity 100, and KEY (knob G,
   −394..394 % in 6.25 % steps) moves the cutoff with the note; both are saved with the sound and their
   locks with the pattern; knob B is kept for an envelope destination. ✅ On the test unit, each stage
-  checked on its own (S37 to S52, above). [features/filter_page2.md](features/filter_page2.md).
+  checked on its own (S37 to S52, above). From S56 KEY follows the trig's note, not portamento's glided
+  one; not yet tested on the unit. [features/filter_page2.md](features/filter_page2.md).
 - **CFOO's wave pictures.** On a CFOO track's SRC page, WAV1, WAV2 and WAV3 show the wave they play,
   17 × 17, drawn from the oscillator's own tables and blend, in a new pad from xxHash's unused 64-bit
   functions. ✅ On the test unit (S53 to S55, above). [features/wave_pictures.md](features/wave_pictures.md).
@@ -120,9 +128,12 @@ runs: v0.2.1 is S36, byte for byte. FILTER page 2 came in after them, as v0.2.2:
 it from `patch.json` (giving back the bytes it rewrites), S52 on it, and writes the runs: v0.2.2 is
 S52, byte for byte. The wave pictures came in after it, as v0.2.3: `make_wavpic.py --stages --write` (in
 [src/wave_pictures/](../src/wave_pictures/)) rebuilds the build before them the same way, S55 on it, and
-writes the runs. The build is S55, byte for byte. Each changed byte is listed once, under the last feature that wrote it
-([docs/reference.md](../docs/reference.md#what-patchjson-holds)); `make_port.py`, `make_chain.py` and
-`make_filt.py` refuse `--write` once a later feature is merged.
+writes the runs: v0.2.3 and v0.2.4 are S55. KEY on the trig's note came in after them:
+`make_keynote.py --stages --write` (in [src/filter_page2/](../src/filter_page2/)) rebuilds the build before
+it the same way, S56 on it, and writes the runs, the 4 B it rewrites as the feature
+`filter_page2_key_note`. The build is S56, byte for byte. Each changed byte is listed once, under the last
+feature that wrote it ([docs/reference.md](../docs/reference.md#what-patchjson-holds)); `make_port.py`,
+`make_chain.py`, `make_filt.py` and `make_wavpic.py` refuse `--write` once a later feature is merged.
 
 The other features have run on the test unit ([The test unit](#the-test-unit)).
 

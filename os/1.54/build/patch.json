@@ -11,8 +11,8 @@
   "section3_size": 2479680
  },
  "result": {
-  "section3_sha256": "957bdc6fa80cca3860615cf3baa11310db666da1eec3770fa1d2fbc70615ee45",
-  "syx_sha256_reference": "31b428ead731e1f49c1dbbc52a6c70ff63d80a278e5fd3da52f5de54cfcbcb28",
+  "section3_sha256": "ce7a07b48ad053dce41e424ec86c1cb34e1cecbbb091a6320a31c8ed79f8011d",
+  "syx_sha256_reference": "084b3aa18cb054900e3ffb7cbf40dd5c3a527bd964705b099767e7870a3ad522",
   "syx_size_reference": 1351328,
   "syx_reference_note": "only with the pinned tool",
   "pinned_tool": "github.com/mischa85/elektron-firmware-tool 065d18f4195793e61891e387813488ee59f6d1ca + build/tool_patches/cap_window_1mb.patch"
@@ -2673,7 +2673,12 @@
     },
     {
      "addr": "0x40178f20",
-     "bytes": "6732048100004000672a41f9439d118020300c000480003c0000e080c1c12200e7889081d0804c80222f004cd2804c812f41004c4ef9400734124e7148794197d1dc48794197e3904e942ebc",
+     "bytes": "6732048100004000672a41f9",
+     "kind": "code"
+    },
+    {
+     "addr": "0x40178f30",
+     "bytes": "20300c000480003c0000e080c1c12200e7889081d0804c80222f004cd2804c812f41004c4ef9400734124e7148794197d1dc48794197e3904e942ebc",
      "kind": "code"
     },
     {
@@ -3035,6 +3040,17 @@
     {
      "addr": "0x40104e6d",
      "bytes": "7542804e7542804e7542804e754280",
+     "kind": "code"
+    }
+   ]
+  },
+  {
+   "id": "filter_page2_key_note",
+   "title": "FILTER page 2: KEY follows the trig's note, as the NoteOn sets it and a trigless NOTE lock changes it, not portamento's glided note: the cutoff moves at once while the pitch glides",
+   "runs": [
+    {
+     "addr": "0x40178f2c",
+     "bytes": "80001f28",
      "kind": "code"
     }
    ]

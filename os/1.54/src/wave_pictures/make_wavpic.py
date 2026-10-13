@@ -12,8 +12,10 @@ Needs m68k binutils (M68K_PREFIX, as make_cfo.py), the stock section 3 from ./sc
 and, for --stages, the stock .syx and the firmware tool (as build.py).
 
 The build before this feature comes back from patch.json (build_without_wavpic: its features before
-wave_pictures, and the CFO oscillator's bytes this feature rewrites given back) and must give
-BUILD_SECTION3. Stages, written to out/1.54/stages/ (only with --stages):
+wave_pictures, the CFO oscillator's bytes this feature rewrites given back, and FILTER page 2's bytes a
+feature merged after it rewrites, LATER_SITES, given back) and must give BUILD_SECTION3. Once patch.json
+holds a feature merged after wave_pictures (filter_page2_key_note, S56), S55 is checked against its
+recorded hash and --write is refused: the last feature's generator (make_keynote.py) rewrites patch.json. Stages, written to out/1.54/stages/ (only with --stages):
   S53  the build + FUN_401044b6 filled with 'clrl %d0 ; rts': the fill test of the new pad
   S54  S53 + the CFO oscillator's picture hook jumps to the new pad at its knob's record, and the pad only
        replays the two instructions the jump replaced
@@ -50,6 +52,11 @@ USES = [(0x400f7c66, "e588", "cfo_pic's lsll #2,%d0 (BACK)"),
         (0x40252724, bytes(v & 0xff for _n, tb in make_waves.tables() for v in tb).hex(),
          "the CFO oscillator's four tables, as make_waves.py makes them (WAVES)")]
 VARIANTS = {"S54": [], "S55": ["PIC"]}
+S55_SHA = "957bdc6fa80cca3860615cf3baa11310db666da1eec3770fa1d2fbc70615ee45"   # S55's section 3, v0.2.3 and v0.2.4
+# Bytes of the features before this one that a feature merged after it rewrites, as those features hold
+# them: KEY on the trig's note (filter_page2_key_note, S56) replaces the operand of filt_key's lea, which
+# patch.json then lists under that feature. build_without_wavpic gives them back.
+LATER_SITES = [(0x40178f2c, "439d1180", "filter_page2")]
 
 
 def run(*cmd):
@@ -121,6 +128,12 @@ def build_without_wavpic(stock, patch):
         for k in range(len(d)):
             if d[k] != stock[a - BASE + k]:
                 owner[a + k] = (fid, "code")
+    for a, want, fid in LATER_SITES:
+        d = bytes.fromhex(want)
+        img[a - BASE:a - BASE + len(d)] = d
+        for k in range(len(d)):
+            if d[k] != stock[a - BASE + k]:
+                owner[a + k] = (fid, "code")
     h = build.sha256_bytes(bytes(img))
     if h != BUILD_SECTION3:
         sys.exit("the build before the wave pictures does not come back from patch.json (section 3 %s)" % h)
@@ -161,6 +174,11 @@ def main():
     stock = build.read(cfo.STOCK3)
     with open(cfo.PATCH) as f:
         patch = json.load(f)
+    ids = [f["id"] for f in patch["features"]]
+    later = ids[ids.index(FID) + 1:] if FID in ids else []
+    if write and later:
+        sys.exit("patch.json holds features merged after wave_pictures (%s); the last one's generator rewrites it"
+                 % ", ".join(later))
     assert build.sha256_bytes(stock) == patch["stock"]["section3_sha256"], "work/dt_1.54 is not the stock section 3"
     img, owner = build_without_wavpic(stock, patch)
     a, want, fid = SITE
@@ -223,9 +241,13 @@ def main():
     print("load files:", ", ".join(os.path.join("work", "dt_1.54-wavpic", n + ".load") for n in built))
     feats = merged_features(stock, patch, img, owner, built["S55"])
     s55 = build.sha256_bytes(built["S55"])
-    same = feats == patch["features"] and s55 == patch["result"]["section3_sha256"]
-    print("S55 section 3 %s; patch.json %s" % (s55, "is up to date" if same else
-                                               "differs (%s)" % patch["result"]["section3_sha256"]))
+    if later:
+        print("S55 section 3 %s; %s; patch.json carries %s after it" % (
+            s55, "as recorded (v0.2.4)" if s55 == S55_SHA else "NOT as recorded (%s)" % S55_SHA, ", ".join(later)))
+    else:
+        same = feats == patch["features"] and s55 == patch["result"]["section3_sha256"]
+        print("S55 section 3 %s; patch.json %s" % (s55, "is up to date" if same else
+                                                   "differs (%s)" % patch["result"]["section3_sha256"]))
     if not stages:
         print("no stage images built (--stages)")
         return

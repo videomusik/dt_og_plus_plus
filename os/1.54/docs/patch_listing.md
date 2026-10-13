@@ -12,7 +12,7 @@ Addresses are load addresses: section 3 (MAIN OS) loads at 0x40000400, so file o
 - **Data** (icons, tables, strings) is shown as hex and ASCII, patched bytes only; `--` is an unpatched byte. Data runs of one feature less than 16 bytes apart share one dump.
 - The `+`/`~` marks count every patched byte, whichever feature it belongs to.
 
-Section 3: stock `5c58bf9e3949ef09977c5fc007a61e8d026931f67f1621238379dfb8ee4d31a2` -> patched `957bdc6fa80cca3860615cf3baa11310db666da1eec3770fa1d2fbc70615ee45`.
+Section 3: stock `5c58bf9e3949ef09977c5fc007a61e8d026931f67f1621238379dfb8ee4d31a2` -> patched `ce7a07b48ad053dce41e424ec86c1cb34e1cecbbb091a6320a31c8ed79f8011d`.
 Disassembler: GNU objdump (GNU Binutils for Debian) 2.40.
 
 | feature | runs | bytes | |
@@ -31,9 +31,10 @@ Disassembler: GNU objdump (GNU Binutils for Debian) 2.40.
 | [`chain_record`](#chain-record) | 32 | 614 | Chain Recording: the recorder fills a sample chain one slot at a time (encoder D sets the slot count, armed by the user or re-armed automatically) |
 | [`cfo_oscillator`](#cfo-oscillator) | 197 | 3916 | CFO oscillator: the CFOO machine, a 3-oscillator 8-bit FM synth, with its own SRC page, knobs, value names, icon and LFO destinations |
 | [`portamento`](#portamento) | 90 | 451 | Portamento and legato: PORT and LEG on every audio track's TRIG page, saved with the sound and lockable per trig; with LEG on, a note before the last one's LEN ends glides and keeps the amp envelope running |
-| [`filter_page2`](#filter-page2) | 52 | 410 | FILTER page 2: VED and KEY on every audio track's second FILTER page, saved with the sound and lockable per trig; VED (0-100 %) sets how much the velocity decides the filter envelope's depth around velocity 100, KEY (-394..394 % in 6.25 % steps) moves the cutoff with the note |
+| [`filter_page2`](#filter-page2) | 53 | 406 | FILTER page 2: VED and KEY on every audio track's second FILTER page, saved with the sound and lockable per trig; VED (0-100 %) sets how much the velocity decides the filter envelope's depth around velocity 100, KEY (-394..394 % in 6.25 % steps) moves the cutoff with the note |
 | [`wave_pictures`](#wave-pictures) | 51 | 2463 | CFOO's wave pictures: WAV1, WAV2 and WAV3 on CFOO's SRC page show the wave each oscillator plays at the knob's value, 17 x 17, drawn from the oscillator's own waveform tables and blend |
-| **total** | 585 | 9788 | |
+| [`filter_page2_key_note`](#filter-page2-key-note) | 1 | 4 | FILTER page 2: KEY follows the trig's note, as the NoteOn sets it and a trigless NOTE lock changes it, not portamento's glided note: the cutoff moves at once while the pitch glides |
+| **total** | 587 | 9788 | |
 
 <a id="slice-round-robin"></a>
 
@@ -2875,7 +2876,7 @@ Runs: 0x40252f00 +4, 0x40252f05 +10, 0x40252f10 +3, 0x40252f14 +6, 0x40252f24 +8
 
 ## filter_page2
 
-FILTER page 2: VED and KEY on every audio track's second FILTER page, saved with the sound and lockable per trig; VED (0-100 %) sets how much the velocity decides the filter envelope's depth around velocity 100, KEY (-394..394 % in 6.25 % steps) moves the cutoff with the note. 52 runs, 410 bytes.
+FILTER page 2: VED and KEY on every audio track's second FILTER page, saved with the sound and lockable per trig; VED (0-100 %) sets how much the velocity decides the filter envelope's depth around velocity 100, KEY (-394..394 % in 6.25 % steps) moves the cutoff with the note. 53 runs, 406 bytes.
 
 ### 0x400376b3, 1 B (code)
 
@@ -3086,15 +3087,15 @@ Runs: 0x40178e02 +2, 0x40178e05 +15, 0x40178e15 +45.
 + 40178e3c:  41f9 401a c58c       lea 0x401ac58c,%a0
 ```
 
-### 0x40178f20-0x40178f76, 2 runs, 85 B (code)
+### 0x40178f20-0x40178f76, 3 runs, 81 B (code)
 
-Runs: 0x40178f20 +76, 0x40178f6d +9.
+Runs: 0x40178f20 +12, 0x40178f30 +60, 0x40178f6d +9.
 
 ```
 + 40178f20:  6732                 beqs 0x40178f54
 + 40178f22:  0481 0000 4000       subil #16384,%d1
 + 40178f28:  672a                 beqs 0x40178f54
-+ 40178f2a:  41f9 439d 1180       lea 0x439d1180,%a0
++ 40178f2a:  41f9 8000 1f28       lea 0x80001f28,%a0
 + 40178f30:  2030 0c00            movel %a0@(0,%d0:l:4),%d0
 + 40178f34:  0480 003c 0000       subil #3932160,%d0
 + 40178f3a:  e080                 asrl #8,%d0
@@ -4377,4 +4378,16 @@ Runs: 0x401044b6 +40, 0x401044df +6, 0x401044e6 +48, 0x40104517 +84, 0x4010456c 
 + 40104e76:  4280                 clrl %d0
 + 40104e78:  4e75                 rts
 + 40104e7a:  4280                 clrl %d0
+```
+
+<a id="filter-page2-key-note"></a>
+
+## filter_page2_key_note
+
+FILTER page 2: KEY follows the trig's note, as the NoteOn sets it and a trigless NOTE lock changes it, not portamento's glided note: the cutoff moves at once while the pitch glides. 1 runs, 4 bytes.
+
+### 0x40178f2c, 4 B (code)
+
+```
++ 40178f2a:  41f9 8000 1f28       lea 0x80001f28,%a0
 ```
