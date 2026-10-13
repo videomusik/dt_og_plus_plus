@@ -1,0 +1,36 @@
+{
+ "id": "dtogpp-portamento", "version": "0.2.4",
+ "license": "CC0-1.0",
+ "title": "DT OG++ portamento and legato", "category": "Sound", "author": "DT OG++",
+ "description": "PORT and LEG on every audio track's TRIG page, saved with the sound and lockable per trig. PORT glides each new note from the last; with LEG on, only a note that comes before the last one's LEN ends glides, and it keeps the amp envelope running.",
+ "device": "digitakt-mk1", "os": "1.54",
+ "sources": ["portamento.s"],
+ "sites": [
+  {"addr": "0x400779f6", "stock": "43f980001f28", "op": "jsr", "target": "port_on"},
+  {"addr": "0x40075690", "stock": "41f980001f28", "op": "jsr", "target": "port_glide"},
+  {"addr": "0x40078070", "stock": "1d43ffdc1d42ffdd", "op": "jsr", "target": "amp_hook"},
+
+  {"addr": "0x401aa16c", "stock": "ffffffffffffffff000000000000000000000000000000000007ffffffffffff", "op": "bytes",
+   "new": "000000050000002e0000000000007f000000000000000000ffffffffffffffff"},
+  {"addr": "0x401aa194", "stock": "401c2568", "op": "ptr", "target": "s_portl"},
+  {"addr": "0x401aa19c", "stock": "401c20af", "op": "ptr", "target": "s_port"},
+  {"addr": "0x401aa1a0", "stock": "ffffffffffffffff00000000000000000000000000000000000affffffffffff", "op": "bytes",
+   "new": "000000050000002f00000000000001000000000000000000ffffffffffffffff"},
+  {"addr": "0x401aa1c8", "stock": "401c2568", "op": "ptr", "target": "s_legl"},
+  {"addr": "0x401aa1d0", "stock": "401c20af", "op": "ptr", "target": "s_leg"},
+
+  {"addr": "0x4015340e", "stock": "48794197d7ec", "op": "keep2", "target": "port_tobj"},
+  {"addr": "0x40153432", "stock": "2f02", "op": "bytes", "new": "2f03", "kind": "code"},
+  {"addr": "0x40153446", "stock": "42b94197e49c", "op": "bytes", "new": "58b94197e49c", "kind": "code"},
+  {"addr": "0x4015344e", "stock": "48794197d7ec", "op": "bytes", "new": "48794197d6ac", "kind": "code"},
+  {"addr": "0x4015345c", "stock": "48794197d58c", "op": "bytes", "new": "48794197d37c", "kind": "code"},
+  {"addr": "0x401565f8", "stock": "42b94197dfd4", "op": "bytes", "new": "58b94197dfd4", "kind": "code"},
+  {"addr": "0x40156612", "stock": "42b94197dfd8", "op": "bytes", "new": "5ab94197dfd8", "kind": "code"}
+ ],
+ "contribute": [
+  {"to": "dtogpp_params", "order": 46, "data": "002e000100007f0000000000"},
+  {"to": "dtogpp_params", "order": 47, "data": "002f00010000010000000000"}
+ ],
+ "requires": ["core", "dtogpp-params"],
+ "resources": {"core": "3.0", "names": ["sound-slot:46", "sound-slot:47"]}
+}

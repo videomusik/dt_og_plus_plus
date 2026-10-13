@@ -1,0 +1,54 @@
+{
+ "id": "dtogpp-poly", "version": "0.2.4",
+ "license": "CC0-1.0",
+ "title": "DT OG++ POLY machine and SLICE round robin", "category": "Machines", "author": "DT OG++",
+ "description": "POLY (machine 40) turns an audio track into an extra voice for the track before it, so one Sound plays several notes at once: voice allocation, mute by the trig's track, held notes released across pattern switches, the source's pages on the POLY track, a playhead per voice. SLICE gains RRBN (and RRND, for now the same): each note trig plays the next slice of the GRID.",
+ "device": "digitakt-mk1", "os": "1.54",
+ "sources": ["poly.s"],
+ "sites": [
+  {"addr": "0x400654a8", "stock": "222f0014c480", "op": "jmp", "target": "rr_sel"},
+  {"addr": "0x4006551a", "stock": "203c421faa04", "op": "bytes", "new": "20094e714e71", "kind": "code"},
+  {"addr": "0x40074e38", "stock": "24044682", "op": "bytes", "new": "4a846a06", "kind": "code"},
+  {"addr": "0x40074e3c", "stock": "d4829582c882", "op": "jmp", "target": "rr_main"},
+  {"addr": "0x401524f2", "stock": "43f94005f9f4", "op": "keep2", "target": "rr_fmt"},
+  {"addr": "0x401abc44", "stock": "00000000", "op": "bytes", "new": "fffffe00"},
+
+  {"addr": "0x4002a608", "stock": "4eb94000d9fc", "op": "keep2", "target": "poly_assign"},
+  {"addr": "0x400771e8", "stock": "2f027410222f0008", "op": "jmp", "target": "poly_follow"},
+  {"addr": "0x4007735a", "stock": "4fef001c6000f93e", "op": "jmp", "target": "poly_kit"},
+  {"addr": "0x400776e6", "stock": "4eb9400e0cb0", "op": "keep2", "target": "poly_switch"},
+  {"addr": "0x400777a2", "stock": "242a00082002", "op": "jsr", "target": "poly_route"},
+  {"addr": "0x4002b68e", "stock": "4eb94001d24e", "op": "keep2", "target": "poly_trk_alias"},
+  {"addr": "0x400308da", "stock": "4ef9400191fe", "op": "keep2", "target": "poly_rd_alias"},
+  {"addr": "0x400309d0", "stock": "4eb94001d24e", "op": "keep2", "target": "poly_wr_alias"},
+  {"addr": "0x400309e4", "stock": "6d42", "op": "bytes", "new": "6542", "kind": "code"},
+  {"addr": "0x40030a2a", "stock": "4878ffff", "op": "bytes", "new": "2f024e71", "kind": "code"},
+  {"addr": "0x4003ab12", "stock": "4eb94001d24e", "op": "keep2", "target": "poly_trk_alias"},
+  {"addr": "0x400bd5b0", "stock": "420015400031", "op": "jsr", "target": "cur_draw1"},
+  {"addr": "0x400bd9ee", "stock": "42071547002d", "op": "jsr", "target": "cur_draw2"},
+  {"addr": "0x400777ca", "stock": "222effb0e4a1", "op": "jsr", "target": "mute_shift"},
+  {"addr": "0x400777d6", "stock": "71f94199f47c0500", "op": "jsr", "target": "mute_test"}
+ ],
+ "machines": [{"id": 40, "descriptor": "dtogpp_poly_machine"}],
+ "requires": ["core"],
+ "resources": {"core": "3.0", "names": ["ui:SLICE:RRBN RRND values"]},
+ "dtogpp_check": {
+  "features": ["slice_round_robin", "poly_engine", "poly_ui", "pool_cursors", "voice_allocation",
+               "mute_by_origin", "owner_latch"],
+  "place": {".text.rr": "0x400c1338", ".text.rrfmt": "0x400c1398", ".rodata.rrtxt": "0x400c13e6",
+            ".text.scan": "0x400c119c", ".text.kit": "0x400bf16c", ".text.assign": "0x40037a24",
+            ".text.alias1": "0x400bed3a", ".text.alias2": "0x400bee02", ".text.cursors": "0x40015558",
+            ".text.alloc": "0x401770a6", ".rodata.robin": "0x40252b50", ".rodata.icon": "0x40252bb0",
+            ".bss": "0x439d1004"},
+  "new": [".rodata.machine"],
+  "differ": [
+   {"addr": "0x400bf1a3", "len": 1, "why": "the pool map tests POLY_ID, 40: the build's POLY is machine 4, which elekloader's registry gives NEIGHBOR"},
+   {"addr": "0x400777d6", "len": 8, "why": "the SDK's jsr site puts its nop after the call, the build before it; the nop changes no condition code"},
+   {"addr": "0x4002a771", "len": 1, "why": "left out: the MACHINE list's visible rows, 6 -> 4; core 3.0 makes the same edit"},
+   {"addr": "0x4002acee", "len": 8, "why": "left out: the machine picker's step through the build's own clamp; core 3.0 steps the menu for added machines"},
+   {"addr": "0x4002ad8a", "len": 8, "why": "left out: as 0x4002acee"},
+   {"addr": "0x400c1034", "len": 45, "why": "left out: POLY's machine-name table; core 3.0 takes the names from the descriptor (the build's CFO oscillator replaced it already)"},
+   {"addr": "0x400c1138", "len": 100, "why": "left out: the machine picker's clamp routine, as 0x4002acee"}
+  ]
+ }
+}

@@ -1,0 +1,45 @@
+{
+ "id": "dtogpp-cfoo", "version": "0.2.4",
+ "license": "CC0-1.0",
+ "title": "DT OG++ CFO oscillator", "category": "Machines", "author": "DT OG++",
+ "description": "CFOO (machine 41), a 3-oscillator 8-bit FM synth: WAV1 FMSR WAV2 WAV3 / MIX FM DET2 DET3 on its SRC page, the waves drawn on WAV1-3, [FUNC] + knob to the pure waves, the four mixes and the detune points, its names as LFO destinations. With dtogpp-portamento, OSC1 glides; with dtogpp-poly, a Poly track plays it on every voice of the pool.",
+ "device": "digitakt-mk1", "os": "1.54",
+ "sources": ["cfoo.s"],
+ "sites": [
+  {"addr": "0x40010154", "stock": "4eb940078f0c", "op": "keep2", "target": "cfo_range"},
+  {"addr": "0x40022138", "stock": "4bf940078f0c", "op": "keep2", "target": "cfo_range"},
+  {"addr": "0x4000ffac", "stock": "4eb940078f0c", "op": "keep2", "target": "cfo_range4"},
+  {"addr": "0x40010d50", "stock": "4eb940078f0c", "op": "keep2", "target": "cfo_range"},
+  {"addr": "0x400326aa", "stock": "4eb940078f0c", "op": "keep2", "target": "cfo_range_a3"},
+  {"addr": "0x40032b74", "stock": "4eb940065794", "op": "keep2", "target": "cfo_encobj"},
+  {"addr": "0x40010052", "stock": "49f940065794", "op": "keep2", "target": "cfo_fobj"},
+  {"addr": "0x4003bd6a", "stock": "4eb940093ab0", "op": "keep2", "target": "cfo_trkpop2"},
+  {"addr": "0x4003b51c", "stock": "4eb940093ab0", "op": "keep2", "target": "cfo_srcpop"},
+  {"addr": "0x4003a6d8", "stock": "4eb940000e82", "op": "keep2", "target": "cfo_srctitle2"},
+  {"addr": "0x4003b5a0", "stock": "726f240070ef", "op": "jsr", "target": "cfo_samptest"}
+ ],
+ "machines": [{"id": 41, "descriptor": "dtogpp_cfoo_machine"}],
+ "subscribe": [{"event": "ev_render_voices", "fn": "cfo_render", "order": 30}],
+ "weak": ["dtogpp_port_notes"],
+ "requires": ["core", "machine-pages"],
+ "resources": {"core": "3.0"},
+ "dtogpp_check": {
+  "features": [],
+  "place": {".text.cfo": "0x400f7826", ".rodata.cfodata": "0x40252724", ".bss": "0x439d1100"},
+  "new": [".text.cforender", ".text.cfoui", ".rodata.cfoo"],
+  "differ": [
+   {"addr": "0x400f783e", "len": 2, "why": "OSC1's notes: the mod reads their address from its word cfo_notes (dtogpp-portamento's glided notes, or the stock NOTES), which its render sets each tick; the build's lea names portamento's notes, 0x439d1180, where this check places cfo_notes"},
+   {"addr": "0x40010156", "len": 4, "why": "the range lookup of ParameterSet::vfunc_25 goes to the mod's cfo_range"},
+   {"addr": "0x4002213a", "len": 4, "why": "the machine-change reset's range lookup goes to the mod's cfo_range"},
+   {"addr": "0x4000ffae", "len": 4, "why": "the reset to the default's range lookup goes to the mod's cfo_range4"},
+   {"addr": "0x40010d52", "len": 4, "why": "a MIDI CC's range lookup goes to the mod's cfo_range"},
+   {"addr": "0x400326ac", "len": 4, "why": "the all-tracks edit's range lookup goes to the mod's cfo_range_a3"},
+   {"addr": "0x40032b76", "len": 4, "why": "the encoder's display object (its step) comes from the mod's cfo_encobj"},
+   {"addr": "0x40010054", "len": 4, "why": "[FUNC] + knob's display object comes from the mod's cfo_fobj"},
+   {"addr": "0x4003bd6c", "len": 4, "why": "the [TRK] pop-up's text goes through the mod's cfo_trkpop2"},
+   {"addr": "0x4003b51e", "len": 4, "why": "the SRC pop-up's text goes through the mod's cfo_srcpop"},
+   {"addr": "0x4003a6da", "len": 4, "why": "the SRC title goes through the mod's cfo_srctitle2"},
+   {"addr": "0x4003b5a2", "len": 4, "why": "knob D's sample test goes to the mod's cfo_samptest"}
+  ]
+ }
+}

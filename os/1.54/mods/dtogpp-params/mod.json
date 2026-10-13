@@ -1,0 +1,20 @@
+{
+ "id": "dtogpp-params", "version": "0.2.4",
+ "license": "CC0-1.0",
+ "title": "DT OG++ sound parameters", "category": "Framework", "author": "DT OG++",
+ "description": "Four more sound parameters, saved with the sound and lockable per trig, for the DT OG++ mods that put a knob on them (portamento and legato, FILTER page 2). On its own it changes nothing the unit does.",
+ "device": "digitakt-mk1", "os": "1.54",
+ "sources": ["params.s"],
+ "sites": [
+  {"addr": "0x4007a2aa", "stock": "41f9401ac58c", "op": "jsr", "target": "dtogpp_params_load"},
+  {"addr": "0x4007a5f8", "stock": "41f9401ac4d4", "op": "keep2", "target": "dtogpp_params_slots"},
+  {"addr": "0x4007a614", "stock": "725c", "op": "bytes", "new": "7264", "kind": "code"},
+  {"addr": "0x4007adea", "stock": "4bf9401ac4d4", "op": "keep2", "target": "dtogpp_params_slots"},
+  {"addr": "0x4007af32", "stock": "43f9401ac4d4", "op": "keep2", "target": "dtogpp_params_slots"},
+  {"addr": "0x40079738", "stock": "2f027410222f0008", "op": "jmp", "target": "dtogpp_params_fwd"},
+  {"addr": "0x40079772", "stock": "2f027410222f0008", "op": "jmp", "target": "dtogpp_params_inv"}
+ ],
+ "collections": {"dtogpp_params": 12},
+ "requires": ["core"],
+ "resources": {"core": "3.0"}
+}

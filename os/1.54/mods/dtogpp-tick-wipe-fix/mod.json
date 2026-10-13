@@ -1,0 +1,14 @@
+{
+ "id": "dtogpp-tick-wipe-fix", "version": "0.2.4",
+ "license": "CC0-1.0",
+ "title": "DT OG++ fix: re-trigger in one audio tick", "category": "Fixes", "author": "DT OG++",
+ "description": "A note released and triggered again within the same audio tick no longer hangs. One rewrite of the audio ISR's stock instructions at 0x40077d72, no new code.",
+ "device": "digitakt-mk1", "os": "1.54",
+ "sites": [
+  {"addr": "0x40077d72", "stock": "24034682c4aeffb4428041f94399eb5443f94399ec808486", "op": "bytes",
+   "new": "200680aeffb424034682c480428041f94399eb5443e8012c", "kind": "code"}
+ ],
+ "requires": ["core"],
+ "resources": {"core": "3.0"},
+ "dtogpp_check": {"features": ["tick_wipe_fix"], "place": {}}
+}

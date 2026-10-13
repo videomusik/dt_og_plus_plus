@@ -1,0 +1,30 @@
+{
+ "id": "dtogpp-chain-record", "version": "0.2.4",
+ "license": "CC0-1.0",
+ "title": "DT OG++ Chain Recording", "category": "Sampling", "author": "DT OG++",
+ "description": "The recorder fills a sample chain one slot at a time: encoder D sets the slot count (4 to 64), armed by you or re-armed automatically; after the last slot the recording is normalised, trimmed and saved as one sample.",
+ "device": "digitakt-mk1", "os": "1.54",
+ "sources": ["chain_record.s"],
+ "sites": [
+  {"addr": "0x400767fc", "stock": "4ebafe1823c04199f100", "op": "jsr", "target": "len_pad"},
+  {"addr": "0x4007687a", "stock": "4fef00106000fcc0", "op": "jmp", "target": "stop_pad"},
+  {"addr": "0x400768c2", "stock": "42b94199f104", "op": "jsr", "target": "arm_pad"},
+  {"addr": "0x400768fa", "stock": "42b94199f104", "op": "jsr", "target": "arm_pad"},
+  {"addr": "0x40076900", "stock": "4ebafd1423c04199f100", "op": "jsr", "target": "len_pad"},
+  {"addr": "0x400a7f40", "stock": "4a0067000184", "op": "jmp", "target": "enc_pad"},
+  {"addr": "0x400a8e7c", "stock": "4eb940076616", "op": "jsr", "target": "mem_pad"},
+  {"addr": "0x400a8f48", "stock": "4879401d069648780002", "op": "jsr", "target": "fmt_arm"},
+  {"addr": "0x400a8f60", "stock": "4fef0020", "op": "bytes", "new": "4fef0028", "kind": "code"},
+  {"addr": "0x400a9026", "stock": "4879401ddbff48780002", "op": "jsr", "target": "fmt_armed"},
+  {"addr": "0x400a9044", "stock": "4fef001c", "op": "bytes", "new": "4fef0024", "kind": "code"},
+  {"addr": "0x400a9878", "stock": "2f024eb9400c33cc", "op": "jmp", "target": "no_pad"}
+ ],
+ "requires": ["core"],
+ "resources": {"core": "3.0", "names": ["ui:RECORDER page:encoder D"]},
+ "dtogpp_check": {
+  "features": ["chain_record"],
+  "place": {".text.stl": "0x40177104", ".text.len": "0x400bf1cc", ".text.mem": "0x400c1062",
+            ".text.flt": "0x40124a6c", ".text.frm": "0x40128244", ".rodata.fmt": "0x40252c00",
+            ".bss": "0x439d1038"}
+ }
+}

@@ -1,0 +1,42 @@
+{
+ "id": "dtogpp-filter-page2", "version": "0.2.4",
+ "license": "CC0-1.0",
+ "title": "DT OG++ FILTER page 2: VED and KEY", "category": "Sound", "author": "DT OG++",
+ "description": "VED and KEY on every audio track's second FILTER page, saved with the sound and lockable per trig. VED (0-100 %) sets how much the velocity decides the filter envelope's depth around velocity 100; KEY (-394..394 % in 6.25 % steps) moves the cutoff with the trig's note.",
+ "device": "digitakt-mk1", "os": "1.54",
+ "sources": ["filter_page2.s"],
+ "sites": [
+  {"addr": "0x400728a2", "stock": "4eb940073412", "op": "jsr", "target": "filt_hook"},
+
+  {"addr": "0x401aa0d0", "stock": "ffffffffffffffff0000000000000000000000000000000100010021ffffffff", "op": "bytes",
+   "new": "000000060000003000000000000064000000000000000001ffffffffffffffff"},
+  {"addr": "0x401aa0f8", "stock": "401c2568", "op": "ptr", "target": "s_vedl"},
+  {"addr": "0x401aa0fc", "stock": "401c5bc7", "op": "bytes", "new": "401c699d"},
+  {"addr": "0x401aa100", "stock": "401c20af", "op": "ptr", "target": "s_ved"},
+  {"addr": "0x401aa104", "stock": "ffffffffffffffff0000000000000000000000000000000100020022ffffffff", "op": "bytes",
+   "new": "00000006000000310000010000007f000000400000000001ffffffffffffffff"},
+  {"addr": "0x401aa12c", "stock": "401c2568", "op": "ptr", "target": "s_keyl"},
+  {"addr": "0x401aa130", "stock": "401c5bc7", "op": "bytes", "new": "401c699d"},
+  {"addr": "0x401aa134", "stock": "401c20af", "op": "ptr", "target": "s_key"},
+
+  {"addr": "0x4015334a", "stock": "42b94197e34c", "op": "bytes", "new": "58b94197e34c", "kind": "code"},
+  {"addr": "0x40153352", "stock": "48794197d7ec", "op": "bytes", "new": "48794197d59c", "kind": "code"},
+  {"addr": "0x40153360", "stock": "48794197d58c", "op": "bytes", "new": "48794197d3cc", "kind": "code"},
+  {"addr": "0x40153392", "stock": "48794197d7ec", "op": "keep2", "target": "key_tobj"},
+  {"addr": "0x401533a0", "stock": "48794197d58c", "op": "bytes", "new": "48794197d4dc", "kind": "code"},
+  {"addr": "0x401533c0", "stock": "42b94197e3ec", "op": "jsr", "target": "filt_spc"},
+  {"addr": "0x401568ca", "stock": "42b94197e0cc", "op": "bytes", "new": "52b94197e0cc", "kind": "code"},
+  {"addr": "0x401568e4", "stock": "42b94197e0dc", "op": "bytes", "new": "54b94197e0dc", "kind": "code"},
+
+  {"addr": "0x400376b2", "stock": "7204", "op": "bytes", "new": "7205", "kind": "code"},
+  {"addr": "0x400376bc", "stock": "64667201", "op": "bytes", "new": "62667200", "kind": "code"},
+  {"addr": "0x4003773c", "stock": "6080", "op": "bytes", "new": "6082", "kind": "code"},
+  {"addr": "0x40037746", "stock": "6000ff76", "op": "bytes", "new": "6000ff78", "kind": "code"}
+ ],
+ "contribute": [
+  {"to": "dtogpp_params", "order": 48, "data": "003000000000640000000000"},
+  {"to": "dtogpp_params", "order": 49, "data": "0031000101007f0040000000"}
+ ],
+ "requires": ["core", "dtogpp-params"],
+ "resources": {"core": "3.0", "names": ["sound-slot:48", "sound-slot:49"]}
+}

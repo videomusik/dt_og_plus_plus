@@ -1,0 +1,29 @@
+{
+ "id": "dtogpp-midi-loopback", "version": "0.2.4",
+ "license": "CC0-1.0",
+ "title": "DT OG++ Virtual MIDI Loopback", "category": "MIDI", "author": "DT OG++",
+ "description": "CHAN on a MIDI track gains TRK1-TRK8: a MIDI track set to TRKn plays audio track n with no cable, as through a cable from MIDI OUT to MIDI IN, chords and note-offs included. Audio track n must listen to a MIDI channel.",
+ "device": "digitakt-mk1", "os": "1.54",
+ "sources": ["midi_loopback.s"],
+ "sites": [
+  {"addr": "0x400e0a00", "stock": "713008466002", "op": "jmp", "target": "lb_chan"},
+  {"addr": "0x400e1002", "stock": "73b9421b6620", "op": "jmp", "target": "lb_out"},
+  {"addr": "0x40063222", "stock": "204048680001", "op": "jmp", "target": "lb_disp"},
+  {"addr": "0x40065896", "stock": "203c00000100", "op": "jsr", "target": "lb_range"},
+  {"addr": "0x40030daa", "stock": "4eb94000fe8a", "op": "keep2", "target": "lb_short"},
+  {"addr": "0x40032d36", "stock": "4eb94000feac", "op": "keep2", "target": "lb_long"},
+  {"addr": "0x400d49e0", "stock": "4879421a9d3c", "op": "jmp", "target": "lb_pop"},
+  {"addr": "0x400d4dec", "stock": "2f0224394219cc1c", "op": "jmp", "target": "lb_msg"},
+  {"addr": "0x401abd14", "stock": "00000000", "op": "bytes", "new": "fffff800"}
+ ],
+ "requires": ["core"],
+ "resources": {"core": "3.0", "names": ["ui:MIDI track SRC page:CHAN TRK values"]},
+ "dtogpp_check": {
+  "features": ["midi_loopback"],
+  "place": {".text.a": "0x400151ac", ".text.b": "0x40015616", ".text.c": "0x400bee54", ".bss": "0x439d1060"},
+  "differ": [
+   {"addr": "0x40015648", "len": 4, "why": "the jump to the stock short label lookup; the build's CFO oscillator points it at its own names"},
+   {"addr": "0x4001567a", "len": 4, "why": "the jump to the stock long label lookup; the build's CFO oscillator points it at its own names"}
+  ]
+ }
+}

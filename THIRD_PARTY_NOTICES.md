@@ -76,3 +76,9 @@ way for the optional check of a build ([docs/digiemu.md](docs/digiemu.md)): you 
 yourself, and `scripts/digiemu_check.py` runs it as a separate program. No digiemu code is included; the
 OS folders' key scripts (`os/*/scripts/digiemu/`) are this repository's own, written in digiemu's
 key-script format.
+
+elekloader (GPL-2.0-or-later, https://github.com/irpina/elekloader), the mod loader, is used the same way
+for the linkable mods (`os/*/mods/`): you clone it yourself, and its SDK builds each mod's `.elemod` from
+this repository's sources, which are written in its `mod.json` format; its linker and patcher combine them
+with its core mod into a firmware file. No elekloader code is included, and the built `.elemod` files carry
+no elekloader code either; to use them, a firmware file also needs elekloader's own core mod.
