@@ -11,6 +11,14 @@ read in this image.
 | Function | What it does | Evidence |
 |---|---|---|
 | `FUN_400004b2` (54 B) | Zeroes `.bss`, `0x40253000..0x439d1000`, in 16 B steps | ✅ objdump |
+| `0x400004e8` (in the reset path) | Sets the stack to `0x48000000` (`0x400004f2`), CACR to `0xa50ce100` (`0x40000554`) and ACR0 to `0x4007e020` (`0x4000055e`), the only cache-control writes in MAIN OS: `0x40000000..0x47ffffff` is the cached window ([memory_map.md](memory_map.md#ddr)) | ✅ objdump |
+| `0x400e8514` | `(dst, n)`: zeroes `n` bytes, 16 B a step, then longs | ✅ objdump |
+| `0x400e8ae8` | `(dst, src, n)`: copies `n` bytes, 16 B a step with `movem` | ✅ objdump; emulator run (digiemu): it copied a saved recording into the sample memory |
+| `0x4007342c` (1,874 B) | The audio code's initialiser (only caller `0x400749c0`): clears six SRAM blocks and three DDR buffers with `0x400e8514`, `0x4b9e0000` (576 KB), `0x4ba70000` (32 KB) and `0x4fc00000` (4 MB), named in the uncached range ([memory_map.md](memory_map.md#ddr)) | ✅ objdump |
+| `FUN_400ec520` | Places a block in the sample memory `0x4bbbf5f0..0x4fbbf640`: the list of 52 B records at `0x421ee708..0x421ee70c` (count by the inverse of 13); with none, at `0x4bbbf5f0`, else after the last record's `+16` (address) + `+20` (size); the size rounded up to 16 B; refused past `0x4fbbf640` | ✅ objdump |
+| `FUN_400ec7b0` | Another placement in the sample memory: size rounded up to 16 B, refused above `0x4000050`, from `0x4bbbf5f0` | ✅ objdump; ⚠️ when it runs is not read |
+| `FUN_400ec8fa` | Another placement, from `0x4bbbf5f0` at `0x400ecbbe`; the one a saved recording took | ✅ objdump; emulator run (digiemu, stock 1.54): saving a recording ran `0x400ecbbe` once, and `0x400e8ae8` copied its 182,542 B to `0x4bbbf5f0` |
+| `0x400eb9aa` (56 B) | The sample memory's free space: `0x4fbbf640` − the last record's `+16` − its `+20` + every record's `+24`; `0x4000050` (64 MB + 80 B) with no record | ✅ objdump |
 | `0x40068fea` (in the init task `FUN_40068eb6`) | Walks the C++ static-initialiser table once: count 130 from `0x40252518`, table from `0x4025251c`; halts on a NULL entry. `FUN_40068eb6` is the entry of a task the root task creates at `0x40068e14`, its only reference | ✅ objdump, raw and listing scans |
 
 ## The update path and the flash

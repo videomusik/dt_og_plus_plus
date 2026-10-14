@@ -66,7 +66,7 @@ Then CFOO's wave pictures, each stage flashed on the one before:
 
 11. their stages S53 to S55 on S52 ([features/wave_pictures.md](features/wave_pictures.md#on-the-unit)):
     the new pad's fill test (S53) works, the inert hook (S54) changes nothing, and S55's waves look
-    right, as reported. S55 (`.syx` `31b428ea…`) is the build in this folder, v0.2.3, byte for byte.
+    right, as reported. S55 (`.syx` `31b428ea…`) is the build in this folder, byte for byte: v0.2.3, and v0.2.4 from the release that followed (the same image).
 
 ## The features in this build
 
