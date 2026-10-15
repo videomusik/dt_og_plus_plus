@@ -99,3 +99,24 @@ CFOO's wave pictures (in the build from v0.2.3; by stage in
   CFO oscillator's picture hook passes through `wav_sel` (`FUN_401044b6`), from S55 drawing WAV1–3.
   Nothing of it runs at start-up itself.
 - ✅ S53 to S55 started and ran on the test unit with OS 1.54, as reported.
+
+The modulation matrix (in the build from v0.2.5; by stage in [features/mod_matrix.md](features/mod_matrix.md)):
+
+- ✅ The audio tick's call of the LFO tick (`0x40077eac` → `mm_pass`) runs on every audio tick from the
+  first (objdump). Until its RAM marker is this build's it adds nothing and goes on to the LFO tick; then
+  it reads each track's MOD WHEEL and BREATH CTRL pairs, stock `.bss` that start-up zeroes, and a pair at
+  0 adds nothing ([memory_map.md](memory_map.md)).
+- ⚠️ **Project-load code**, since the Digitakt loads a project when it starts: the kit loader's gate
+  (`0x4007a4ce` → `mm_kload`) runs for every kit loaded. It does the gate's own tests and the stock
+  loader, then takes the kit's slots from the stored kit's tail; its first run after an OS update or a
+  cold start sets the matrix's state and clears every kit's slots first. ✅ On the test unit (OS 1.54):
+  the slots saved with a project came back after a power cycle (S66).
+- The key dispatcher's call (`0x4000b770` → `mm_key`) and KeyboardView's key handler (`mm_kbkey`) run
+  only on key events; the kit writer's hook (`0x4007a76e` → `mm_kwrite`) only when a kit is saved.
+- ⚠️ **Draw-path code**, at the first paint: the knob cell's name call (`0x40030daa` → `mm_name`) runs
+  for every knob name a parameter page draws, and passes everything but the level fader's name on while
+  the matrix does not show; LfoPageView's drawing, title, get and tick (`mm_draw`, `mm_title`,
+  `mm_pget`, `mm_tick`) do the stock thing unless the matrix shows, which it never does at start-up.
+- ✅ Every stage image from S57 to S70 that was flashed (all but S64) started and ran on the test unit
+  with OS 1.54, as reported; what each did there:
+  [features/mod_matrix.md](features/mod_matrix.md#on-the-unit).

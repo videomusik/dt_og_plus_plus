@@ -1,8 +1,10 @@
 # CFOO's wave pictures: WAV1–3
 
 In the build from v0.2.3: `os/1.54/build/patch.json` holds it as the feature `wave_pictures`, its last
-stage, S55, less the build before it (v0.2.2, section 3 `3b88fa95…`), on which the stages are built. The
-build is S55, byte for byte. Source: [src/wave_pictures/](../../src/wave_pictures/).
+stage, S55, less the build before it (v0.2.2, section 3 `3b88fa95…`), on which the stages are built.
+v0.2.3 is S55, byte for byte. KEY on the trig's note (v0.2.4) and the modulation matrix (v0.2.5) follow
+it; the matrix puts its code over the rest of this feature's pad fill, none of this feature's code
+([mod_matrix.md](mod_matrix.md)). Source: [src/wave_pictures/](../../src/wave_pictures/).
 
 ## What it does
 
@@ -80,7 +82,8 @@ It uses `%d0`, `%d1`, `%a0`, `%a1`, as an invoker may, and keeps the others. 266
 The new pad `FUN_401044b6` (2,504 B), a function of xxHash's 64-bit family, which the firmware links
 whole with LZ4 and never calls: vetted on this image with the recipe's library exception
 ([landing_pads.md](../landing_pads.md#the-wave-pictures-pad-fun_401044b6)). S55 uses 266 B; 2,238 B
-remain, and the family around it has more.
+remained, and the family around it has more. From v0.2.5 the modulation matrix fills all but 6 B of
+that rest ([mod_matrix.md](mod_matrix.md#code-space)).
 
 ## Checks
 
@@ -138,5 +141,5 @@ S55 the waves look right.
 
 ## Open points
 
-- The rest of the pad (2,238 B) is free for later features, knob B's envelope destination on FILTER
-  page 2 among them.
+- The rest of the pad holds the modulation matrix from v0.2.5, with 6 B left; knob B's envelope
+  destination on FILTER page 2 needs code space elsewhere.

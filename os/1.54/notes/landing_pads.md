@@ -68,15 +68,22 @@ CFOO's wave pictures pad (in the build from v0.2.3; by stage in
 
 | Pad | Extent | Size | Occupied by |
 |---|---|---:|---|
-| `FUN_401044b6` | `0x401044b6..0x40104e7e` | 2,504 B | S53 its fill; S54 `wav_sel`, 16 B; S55 `wav_sel` and `wav_pic`, 266 B, to `0x401045c0`; the rest keeps its fill. Vetted below |
+| `FUN_401044b6` | `0x401044b6..0x40104e7e` | 2,504 B | S53 its fill; S54 `wav_sel`, 16 B; S55 `wav_sel` and `wav_pic`, 266 B, to `0x401045c0`; the rest keeps its fill. From v0.2.5 the modulation matrix's code follows, `0x401045c0..0x40104e78` (2,232 B, below); 6 B of fill remain. Vetted below |
 
-Free code space: 2,340 B in fifteen blocks: 2,238 B at `0x401045c0` (the wave pictures' pad
-`FUN_401044b6`, fill), then none larger than 16 B: 16 B at `0x400152c0`, 16 B at
+The modulation matrix (in the build from v0.2.5; by stage in
+[features/mod_matrix.md](features/mod_matrix.md)) has no pad of its own: its code fills the wave
+pictures' pad after their code, from `0x401045c0`, S57 682 B growing to S69's and S70's 2,232 B,
+to `0x40104e78`.
+
+Free code space: 108 B in fifteen blocks, none larger than 16 B: 16 B at `0x400152c0`, 16 B at
 `0x400bedf2`, 10 B at `0x400156da`, 8 B at `0x400bf1e0`, 8 B at `0x40037ad6`, 8 B at `0x401778d0`
-(FILTER page 2's `FUN_401778a4`, fill), 6 B at `0x400c1392`, 6 B at `0x400bed96`, 6 B at
-`0x400bee64`, 6 B at `0x400f8118` (the CFO oscillator's pad, fill), 6 B at `0x400ee0d2` (portamento's
-`FUN_400ee05e`, fill), 2 B at `0x40124b30` (the soft-float pad's last `rts`), 2 B at `0x40177192` (the
-STL span's tail, fill) and 2 B at `0x400c107e`. Chain Recording's code in the pads:
+(FILTER page 2's `FUN_401778a4`, fill), 6 B at `0x40104e78` (the wave pictures' pad, fill, after the
+modulation matrix), 6 B at `0x400c1392`, 6 B at `0x400bed96`, 6 B at `0x400bee64`, 6 B at
+`0x400f8118` (the CFO oscillator's pad, fill), 6 B at `0x400ee0d2` (portamento's `FUN_400ee05e`,
+fill), 2 B at `0x40124b30` (the soft-float pad's last `rts`), 2 B at `0x40177192` (the STL span's
+tail, fill) and 2 B at `0x400c107e`. A feature after v0.2.5 needs a new vetted pad; the rest of
+xxHash's unused 64-bit family is the nearest candidate
+([below](#the-candidate-list-on-this-image)). Chain Recording's code in the pads:
 [features/chain_record.md](features/chain_record.md#where-the-code-lives). FILTER page 2's KEY text
 took 12 B at `0x40124b24` and the 18 B at `0x401282ce` that v0.2.1 left free.
 

@@ -45,7 +45,8 @@ Stages, written to out/1.54/stages/ (only with --stages):
   S27  S26 + the Source found from the machines (the nearest non-POLY track before), not POLY's pool
        map
 This script does not change patch.json: make_port.py merged S27 into it, with portamento on top, and
-make_wavpic.py writes it now, with FILTER page 2 and the wave pictures on top. The build without the CFO oscillator
+make_mm.py writes it now, with FILTER page 2, the wave pictures, KEY on the trig's note and the
+modulation matrix on top. The build without the CFO oscillator
 (BUILD_SECTION3, Chain Recording's build) comes back from patch.json either way: its features before
 cfo_oscillator, with the bytes of the build that the CFO oscillator rewrites, and those of earlier
 features that a later one rewrites (LATER_SITES), given back (build_without_cfo)."""
@@ -148,9 +149,12 @@ def build_sites():
 
 # Bytes of the features before the CFO oscillator that a feature merged after it rewrites, as those
 # features hold them: FILTER page 2 (from v0.2.2) puts KEY's text in two leftovers of the pad fill of
-# Chain Recording's pads, so in patch.json those bytes are listed under filter_page2.
+# Chain Recording's pads, so in patch.json those bytes are listed under filter_page2; the modulation
+# matrix (from v0.2.5) points the knob cell's name call, which MIDI Loopback had pointed at its own label
+# pad, at its own, so those 3 B are listed under mod_matrix.
 LATER_SITES = [(0x40124b24, "42804e7542804e7542804e754e75", "pad_fill"),
-               (0x401282ce, "4e7542804e7542804e7542804e7542804e75", "pad_fill")]
+               (0x401282ce, "4e7542804e7542804e7542804e7542804e75", "pad_fill"),
+               (0x40030dad, "01562c", "midi_loopback")]
 
 
 def build_without_cfo(stock, patch):

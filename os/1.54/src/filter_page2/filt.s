@@ -9,9 +9,11 @@
 |   KEY  1..127 with 64 (or 0, which no knob sets) as no effect, shown -394..394 % in steps of 6.25 %:
 |        the cutoff moves by (KEY - 64) / 16 x 0.875 FREQ steps per semitone of the note's distance from
 |        C4 (note 60). 100 % (KEY 80) is very nearly one semitone of cutoff per semitone (the stock cutoff
-|        law is about 1.136 semitones per FREQ step, so exact tracking is 0.880). The note is the one the
-|        track plays: portamento's glided note sum, which its rate-loop hook writes for every track each
-|        tick before the filter runs.
+|        law is about 1.136 semitones per FREQ step, so exact tracking is 0.880). The note is the trig's
+|        note sum (0x80001f28), which the NoteOn writes and a note change without a trig (a trigless NOTE
+|        lock) writes too: the cutoff moves at once to the note's place, also while portamento glides the
+|        pitch (KEYNOTE, S56). Up to S55 it was portamento's glided note sum, which its rate-loop hook
+|        writes for every track each tick before the filter runs.
 |
 | The options below build the stages before it: VED was bipolar like KEY until VEDPCT (it added
 | (VED - 64) x velocity / 128 steps of ENV to the depth, saturated), and KEY moved the cutoff by a
@@ -51,11 +53,14 @@
 |   VEDLABEL VED's knob keeps its name under the picture (data only, make_filt.py; a marker here)
 |   KEYOBJ   KEY's text callable from a constant object in .rodata (data only; a marker here)
 |   KEYTXT   (with KEYOBJ) KEY's text in percent (key_txt, in two leftovers of Chain Recording's pads)
-| Assemble with filt.ld; make_filt.py does it.
+|   KEYNOTE  KEY's note is the trig's note sum (0x80001f28) instead of portamento's glided one: the one
+|            operand of filt_key's lea changes, nothing moves (S56, on the build v0.2.4; make_keynote.py)
+| Assemble with filt.ld; make_filt.py does it (make_keynote.py for KEYNOTE).
 
 	.set	LEVEL,	0x40073412	| stock: FUN_40073412(track) -> the filter envelope's level
 	.set	VELW,	0x80001f18	| stock: each track's velocity, a word 0..0x7f00 (8.8), set at a note-on
 	.set	PSTATE,	0x439d1180	| this build: portamento's state, CUR[8], the note sum each track plays
+	.set	NOTES,	0x80001f28	| stock: the trig's note sum per track (note << 16), 8 longs
 	.set	ENGA,	112		| the caller's engine block pointer (its %sp@(104)), seen from the hook
 	.set	VEDE,	2 * 48 - 0x32	| VED's slot from that pointer (slot s at + 2s - 0x32; FREQ, 26, at +2)
 	.set	KEYE,	2 * 49 - 0x32	| KEY's slot
@@ -66,6 +71,9 @@
 .endif
 .ifdef KEYOBJ
 	.set	key_obj, 1		| (a marker: KEY's text from the constant object, make_filt.py)
+.endif
+.ifdef KEYNOTE
+	.set	key_note, 1		| (a marker: KEY reads the trig's note sum; the harness puts its note there)
 .endif
 
 | ---- the filter stage's hook. In: %sp@(4) = the track (the getter's argument), %d5 = the depth. Out: as
@@ -140,8 +148,13 @@ filt_key:
 	beqs	9f			| 0: no effect
 	subil	#0x4000,%d1		| -0x3f00..0x3f00, 0 = no effect
 	beqs	9f
+.ifdef KEYNOTE
+	lea	NOTES,%a0
+	movel	%a0@(0,%d0:l:4),%d0	| the trig's note sum: set at the NoteOn and by a trigless NOTE lock
+.else
 	lea	PSTATE,%a0
 	movel	%a0@(0,%d0:l:4),%d0	| the note sum the track plays
+.endif
 	subil	#C4SUM,%d0
 	asrl	#8,%d0			| semitones x 256, within a word
 	mulsw	%d1,%d0			| x KEY x 0x4000

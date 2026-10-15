@@ -3,8 +3,13 @@
 In the build from v0.2.2: `os/1.54/build/patch.json` holds it as the feature `filter_page2`, its last
 stage, S52, less the build before it (v0.2.1, section 3 `d6fac1a3…`), on which the stages are built.
 v0.2.2 is S52, byte for byte; from v0.2.3 the wave pictures follow it ([wave_pictures.md](wave_pictures.md)),
-which rewrite 10 B of the CFO oscillator's code, none of this feature's. Source: [src/filter_page2/](../../src/filter_page2/). This note
-describes S52, and what each stage before it changed.
+which rewrite 10 B of the CFO oscillator's code, none of this feature's. After them, S56 (on the build
+v0.2.4) changes the note KEY follows from portamento's glided note to the trig's: `patch.json` holds it as
+the feature `filter_page2_key_note`, the 4 B it rewrites
+([KEY on the trig's note](#key-on-the-trigs-note-s56)). From v0.2.5 the modulation matrix follows,
+which rewrites none of this feature's bytes ([mod_matrix.md](mod_matrix.md)). Source:
+[src/filter_page2/](../../src/filter_page2/). This note describes S52 with S56's change, and what each
+stage before them changed.
 
 ## What it does
 
@@ -28,8 +33,9 @@ Knob B stays empty, kept for an envelope destination of its own.
   values. 100 % is 0.875 FREQ steps per semitone. The stock cutoff follows about 5 Hz × 2^(0.0947 × FREQ)
   (333 Hz at FREQ 64, 13.1 kHz at 120, 20.8 kHz at 127, from the filter's coefficient table), 1.136
   semitones per FREQ step, so exact tracking would be 0.880: 100 % is 99.4 % of that fit. The note is
-  the one the track plays: portamento's glided note sum, so the cutoff glides with the pitch. Not the
-  trig's TUNE. The cutoff stops at FREQ's range. At 0, or at C4, the cutoff is stock's.
+  the trig's note sum, as the NoteOn sets it and a note change without a trig (a trigless NOTE lock)
+  changes it: with PORT on, the cutoff moves to the new note at once while the pitch glides (S56; up to
+  S55 it followed portamento's glided note sum, so the cutoff glided with the pitch). Not the trig's TUNE. The cutoff stops at FREQ's range. At 0, or at C4, the cutoff is stock's.
 - **Display.** VED shows as Trig Probability does: its percentage in the picture's box, and its name
   under the picture also while the knob turns. KEY shows ENV's picture (a knob with a centre mark) and
   its percentage, rounded half up (12.5 shows 13 %, −12.5 −12 %).
@@ -172,9 +178,11 @@ The hook replaces that `jsr` with a `jsr filt_hook`:
     depth is exactly stock's.
 - **KEY** (slot 49): if not 0 or 64.0, the caller's FREQ << 16 gains ((note sum − 0x3c0000) >> 8) ×
   (KEY − 0x4000) × 7 >> 1, `sats.l` (S41 to S43); × 7 from S44; from S50 × 7 doubled with `add.l` and
-  `sats.l` before the sum. The note sum is portamento's `CUR[track]` (`0x439d1180`), which its
-  rate-loop hook writes for every track every tick before the filter runs
-  ([portamento.md](portamento.md#the-glide-in-the-audio-isr)).
+  `sats.l` before the sum. From S56 the note sum is the trig's, `NOTES[track]` (`0x80001f28`), which
+  the note-on writes (`0x40077a06`) and an event that changes the note without a trig writes too
+  (`0x40077888`) ([portamento.md](portamento.md#the-glide-in-the-audio-isr)); S41 to S55 read
+  portamento's `CUR[track]` (`0x439d1180`) instead, which its rate-loop hook writes for every track every
+  tick before the filter runs. S56 changes only the operand of the `lea` at `0x40178f2a`.
 - Then the hook jumps to `FUN_40073412`, whose `rts` returns to the filter stage. It uses `%d0`, `%d1`,
   `%a0`, `%a1` (the getter's own scratch registers) and `%d5` as above.
 - From S50 the KEY part's first two instructions (`mvs.w` of KEY, `tst.l`) sit at the end of the VED
@@ -281,6 +289,8 @@ at `0x40252efe`, 4 B at `0x40252ffc`, 8 B at `0x401778d0`. Knob B's destination 
     1.212 at 100 % and velocity 127, 0.212 at velocity 0, 0.716 at 64, and the depth's top at ENV +63.
   - KEY: 720 runs (KEY 0, 64, 1, 127 and between; notes 0..127, a glided note sum; FREQ at both ends
     and between); KEY +63 an octave up: 10.34 FREQ steps (S41–S43), 20.67 (S44–S49), 41.34 (from S50).
+    From S56 (the load's marker `key_note`) the note goes into the trig's note sums and a decoy an octave
+    higher into portamento's `CUR`; S52's load with that marker forced fails exactly the KEY cases.
   - The inert hook (S38, S39, S40) leaves the depth and FREQ as they were.
   - With the data (S39 on): the rows and names; the stock CC-table build on the stock rows and on the
     stage's, equal but for the slot map's 48 → 1 and 49 → 2; FILTER page 2's layout stores; the display
@@ -356,6 +366,27 @@ before this feature. S52 is the build v0.2.2.
 - **S50:** KEY +16 tracks about 1:1, +63 about 4 ×; the display still reads −63..63.
 - **S51:** nothing changes; KEY still shows −63..63.
 - **S52:** KEY shows −394 % to 394 %, 100 % at the former +16.
+
+## KEY on the trig's note (S56)
+
+On top of the build v0.2.4 (S55, `.syx` `31b428ea`), `make_keynote.py` assembles `filt.s` with S52's
+options and with `KEYNOTE`, and checks that the build holds S52's sections, that the two assemblies differ
+only in the operand of `filt_key`'s `lea` at `0x40178f2a` (`0x439d1180` → `0x80001f28`), and that no
+symbol moves. `--stages --write` merges S56 into `patch.json` as the feature `filter_page2_key_note`: those
+4 B, which `make_wavpic.py` then gives back to `filter_page2` (`LATER_SITES`) to rebuild the build before
+the wave pictures; it checks S55 against its recorded hash and refuses `--write`. `make_filt.py` and
+`make_port.py` rebuild S52 and S36 to their recorded hashes as before, `build.py` on the result gives
+`.syx` `084b3aa1…`, section 3 `ce7a07b4…`, and the harnesses that take the build's MAIN OS pass on it.
+
+| Stage | `.syx` | Section 3 | Contents |
+|---|---|---|---|
+| S56 | `084b3aa1` | `ce7a07b4…` | v0.2.4 + KEY follows the trig's note, not portamento's glided one |
+
+**What to check on the unit (OS 1.54),** on a unit that runs v0.2.4, existing projects included: KEY
+about +16 (100 %) and a low cutoff on a track with notes an octave apart. With PORT off nothing changes
+from v0.2.4. With PORT on, the cutoff jumps to each new note's place at the note while the pitch still
+glides (on v0.2.4 the cutoff glides with the pitch). A trigless lock with a NOTE lock moves the cutoff
+to that note at once. CFOO tracks: OSC1 still glides.
 
 ## On the unit
 

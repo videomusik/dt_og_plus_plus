@@ -85,9 +85,32 @@ Portamento (from S31, on top of the CFO oscillator's S27; in the build;
 Until the marker is right no track's note sum is taken as valid (and from S34 no envelope held), and a
 track whose sum is not valid starts on its target, so start-up garbage is harmless.
 
+The modulation matrix (in the build from v0.2.5; [features/mod_matrix.md](features/mod_matrix.md)):
+- `0x439d11a8`, 16 B, its state: `+0` the marker (long); `+4` the LFO page last drawn; `+8` the matrix
+  shows; `+9` its source (0 MOD WHEEL, 1 BREATH CTRL); `+10` [LFO] is held; `+11` [UP] or [DOWN] came
+  during that hold; `+12` the knob whose parameter the page asked for last; `+14` the shown source's
+  value at the page's last tick (word).
+- `0x439d12c0`, 192 B: eight stand-in parameter sets, one per knob, 24 B each (a vtable, the four words
+  of the set they stand in for, the knob).
+- `0x439d3400..0x439db400`, 32 KB: the slots of each of the project's 128 kits, 256 B a kit: per audio
+  track and source, four slots of a destination word and a depth word.
+- Free in this build: `0x439d11b8..0x439d12c0`, where the matrix's stages before the kits kept one set
+  of slots (`0x439d11c0`), and `0x439d1380..0x439d13b0`, a test image's text buffer.
+
+The marker is the address of the stand-ins' vtable plus a constant, so a build whose matrix code sits
+elsewhere has another marker. Until the marker is this build's, the first key event, kit save or kit
+load sets the state, clears every kit's slots and writes the marker, and the audio tick's hook adds
+nothing. ✅ On the test unit (OS 1.54) this RAM kept its contents across an OS update: a test image with
+an earlier stage's marker took that stage's stand-ins as its own and called their vtable 8 B off, which
+is why the marker follows the code's layout ([features/mod_matrix.md](features/mod_matrix.md#the-ram)).
+`0x439d3400` is the first 1 KB step above `0x439d32fb`, the one value in `0x439d1000..0x439e0000` that a
+word of the stock image holds (at `0x40191fe4`, in a table of numbers; raw scan).
+
 The code names `0x439d1004`, `0x439d1010`, `0x439d1038`, `0x439d1050`, `0x439d1058`, `0x439d1060` and
 `0x439d10e0` directly ([docs/patch_listing.md](../docs/patch_listing.md)); `slice[]` and `ownerTrack[]` are reached
-by displacement from those base registers.
+by displacement from those base registers. The modulation matrix names `0x439d11a8`, `0x439d11ac`,
+`0x439d11b1`, `0x439d11b4`, `0x439d11b6`, `0x439d12c0` and `0x439d3400` (raw scan of the build); the rest
+of its state is reached by displacement.
 
 ✅ Read directly in the image: no instruction of the stock section names an address in
 `0x439d1000..0x43c00000` (objdump, every operand), and a raw scan, every byte offset read as a big-endian
@@ -96,7 +119,8 @@ literal in the startup code. The lowest address above `.bss` that the code names
 buffer, `0x4b9e0000` ([DDR](#ddr)). So this build's state lies in the 60 KB that nothing names: in no buffer
 and not in the sample memory, under either reading of `0x48000000..`.
 
-✅ Emulator runs (digiemu, this build): with a write watch on `0x439d1000..0x439e0000` and on
+✅ Emulator runs (digiemu, the build v0.2.3, before the modulation matrix; not repeated since): with a
+write watch on `0x439d1000..0x439e0000` and on
 `0x4b9d1000..0x4b9e0000`, through CFOO on four tracks, a recording saved and assigned to a track, and the
 pattern played, every write came from this build's own code. ⚠️ An access through a computed pointer, with
 no literal, would show in neither scan, and the runs cover only what they did (no song mode, USB audio or

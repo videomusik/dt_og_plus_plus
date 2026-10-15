@@ -22,16 +22,18 @@ The key words (`wait`, `tap`, `press`, `release`, `turn`, `snap`) are digiemu's
 
 ## Results on the reference build
 
-The reference build (`.syx` `31b428ea…`, MAIN OS `957bdc6f…`) against stock 1.54 (`f78ba80f…`), digiemu at
-commit `f57c2f2` (release 0.4.1) with its six Unicorn patches:
+The reference build (`.syx` `b8eef30e…`, MAIN OS `fc33939b…`, v0.2.5) against stock 1.54 (`f78ba80f…`),
+digiemu at commit `f57c2f2` (release 0.4.1) with its six Unicorn patches:
 
 - ✅ emulator run, `pages` (`scripts/digiemu_check.py`, untimed): PASS, every stage of the build passes.
   Every screen equals stock's but the TRIG page (222 pixels in (76, 40)–(119, 63)) and FILTER page 2
-  (188 pixels in (75, 13)–(95, 63)), where the table above says. The audio differs in one 100 ms window,
-  the recording's last; ⚠️ very probably the recording's length rather than this build: builds whose
-  screens all equal stock's differ in that same window.
-- ✅ emulator run, `cfoo4 --timing` and `cfoo8 --timing`, the audio render (vector 191, period 166,685 cycles
-  at the assumed 250 MHz):
+  (188 pixels in (75, 13)–(95, 63)), where the table above says; the LFO page equals stock's, as the
+  modulation matrix shows only when opened. The audio differs in one 100 ms window, the recording's
+  last; ⚠️ very probably the recording's length rather than this build: builds whose screens all equal
+  stock's differ in that same window. The build v0.2.3 (`31b428ea…`) gave the same.
+- ✅ emulator run on the build v0.2.3 (`.syx` `31b428ea…`), before KEY on the trig's note and the
+  modulation matrix, not repeated since: `cfoo4 --timing` and `cfoo8 --timing`, the audio render
+  (vector 191, period 166,685 cycles at the assumed 250 MHz):
 
   | Build, script | mean | p99 | worst | margin | late passes |
   |---|---|---|---|---|---|
