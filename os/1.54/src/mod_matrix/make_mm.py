@@ -45,7 +45,9 @@ is listed once, under the last feature that wrote it. Stages, written to out/1.5
        CC would (LEVTEST)
   S68  S67 + the level fader is named after the source, MW or BC, while the matrix shows (LEVNAME)
   S69  S68 + the fader follows a CC as it comes: the page's tick redraws it when the source changed
-       (LEVTICK)"""
+       (LEVTICK)
+  S70  S69 + knobs A..D are LFO2's DEST, not LFO1's: the same list, plus LFO1's own parameters
+       (LFO2LIST); the same code size, only three immediates change"""
 import json, os, re, shutil, subprocess, sys, tempfile
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", "..", "..", ".."))
@@ -119,7 +121,9 @@ VARIANTS = {"S57": [], "S58": ["ENC4"], "S59": ["ENC4", "TRKSTAY"], "S60": ["ENC
             "S68": ["ENC4", "TRKSTAY", "PASS", "MIDIEXIT", "EDIT", "FRONT", "VIEWKEYS", "KITS", "LEVTEST",
                     "LEVNAME"],
             "S69": ["ENC4", "TRKSTAY", "PASS", "MIDIEXIT", "EDIT", "FRONT", "VIEWKEYS", "KITS", "LEVTEST",
-                    "LEVNAME", "LEVTICK"]}
+                    "LEVNAME", "LEVTICK"],
+            "S70": ["ENC4", "TRKSTAY", "PASS", "MIDIEXIT", "EDIT", "FRONT", "VIEWKEYS", "KITS", "LEVTEST",
+                    "LEVNAME", "LEVTICK", "LFO2LIST"]}
 RECORDED = {"S57": "c1ce248991a2a02ea0fa2c23b0e452f25fe38d02f1a28d2292215b99b0bc36a6",
             "S58": "76b80599449ec8fb3340e098a757d20162d4dce27cf31c59739df4c1f98f6213",
             "S59": "4d7fab73636d165ab73c4ac75f767d7f44a1b83b3c62fcd9577b02499bbcf1e3",
@@ -130,7 +134,8 @@ RECORDED = {"S57": "c1ce248991a2a02ea0fa2c23b0e452f25fe38d02f1a28d2292215b99b0bc
             "S66": "268ea996c2128055bdaf906ecb046b1700b71ff90565dd7bc6993fa15b9427e1",
             "S67": "f084565e6343babef370893f39faf374b4d73da56725256f6e542e317e79d81b",
             "S68": "b390d7ab046f61c719bd24bc9cdae29b7bf52a56d3a2743f954d78f52494f634",
-            "S69": "060aca3af421497dc7a6ab2d9ef8e275ed6b757c3473308a7ae94d4eefd86475"}
+            "S69": "060aca3af421497dc7a6ab2d9ef8e275ed6b757c3473308a7ae94d4eefd86475",
+            "S70": "fc33939bfae3fa586840ee85a5f75c36d8fec207fc14293958e80e84e08db15b"}
 # What mm.s calls in the build, by its first bytes.
 USES = [(0x400084fe, "4feffff048d7", "the key dispatcher (DISPATCH)"),
         (0x4009743c, "4fefffbc48d7", "LfoPageView's drawing (LFO_DRAW)"),
@@ -348,6 +353,9 @@ def main():
     assert len(pads["S67"]) > len(pads["S66"]), "S67 adds no code"
     assert len(pads["S68"]) > len(pads["S67"]), "S68 adds no code"
     assert len(pads["S69"]) > len(pads["S68"]), "S69 adds no code"
+    diff = [k for k in range(len(pads["S69"])) if pads["S70"][k] != pads["S69"][k]]
+    assert len(pads["S70"]) == len(pads["S69"]) and len(diff) == 3, "S70 is not S69 with three bytes changed: %s" % diff
+    assert all(pads["S69"][k] == 55 and pads["S70"][k] == 64 for k in diff), "S70 changes more than 55 to 64"
     for a, what in [(s[1], s[3]) for s in (SITES[0], SITES[5], SITES[8])] + [(s[1], s[5]) for s in BUILD_SITES]:
         hits = branches_into(img, a, a + 6)
         assert not hits, "branches into %s: %s" % (what, hits)

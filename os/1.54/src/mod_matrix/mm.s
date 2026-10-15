@@ -39,7 +39,8 @@
 |
 | The slots (S62): each audio track has, per source, four slots of a destination and a depth, in RAM. The
 | matrix page shows them as the LFO's DEST (knobs A..D, slots 1..4) and DEPTH (E..H): mm_knob answers LFO1's
-| DEST or DEP for a knob, and mm_set hands out, for those two, a stand-in for the track's parameter set: a
+| DEST or DEP for a knob (from S70, option LFO2LIST, LFO2's DEST, so the destination list also offers LFO1's
+| own parameters), and mm_set hands out, for those two, a stand-in for the track's parameter set: a
 | copy of its fields under a copy of its vtable in which the get (+0x28) and the store (+0x74) read and
 | write the slot instead of the sound, and the notify (+0x60), which would send the change as MIDI, does
 | nothing. So the stock encoder handler, its steps, popups and DEST picker edit the slots, and nothing of
@@ -114,7 +115,13 @@
 	.set	PROXIES, 0x439d12c0	| (S62) eight stand-in parameter sets, one per knob, 24 B each: the vtable,
 					|   the real set's four words, the knob: 192 B, to 0x439d1380
 	.set	PROXYB, 24
+.ifdef LFO2LIST
+	.set	DEST_ID, 64		| (S70) LFO2 Destination: shown for knobs A..D. Its list (0x40011348, mask
+					|   0x0600) is LFO1 Destination's (mask 0x0e00) and LFO1's own parameters
+					|   but its DEST; both store a destination as its engine slot
+.else
 	.set	DEST_ID, 55		| LFO1 Destination: shown for knobs A..D
+.endif
 	.set	DEPTH_ID, 59		| LFO1 Depth: shown for knobs E..H
 	.set	NONE, 0			| a slot's destination word: none
 	.set	ZERO, 0x4000		| a slot's depth word: none
@@ -822,7 +829,8 @@ mm_fixed:
 .ifdef EDIT
 | ---- mm_knob(page, knob) (S62): LfoPageView's knob -> parameter (vtable +0x9c). With the matrix showing,
 | knobs A..D (0..3) are LFO1's DEST and E..H (4..7) its DEP, and the knob is noted for mm_set; otherwise,
-| and for any other knob, as stock.
+| and for any other knob, as stock. (From S70, LFO2LIST: A..D are LFO2's DEST, whose list also offers
+| LFO1's parameters.)
 mm_knob:
 	bsrw	mm_on
 	beqs	8f
