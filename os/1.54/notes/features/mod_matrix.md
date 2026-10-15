@@ -257,8 +257,7 @@ On the test unit with OS 1.54, as reported, each stage flashed on the one before
   from a MIDI track on its channel through a cable from MIDI OUT to MIDI IN.
 - S67: the fader showed the controller and LEVEL/DATA set it.
 - S68 and S69: tested and working.
-- S70: works; tested with LFO1 on RESO, in place of the suggested TUNE, and the controller on LFO1's
-  depth.
+- S70: worked as described.
 
 Seen on these images and on S56 alike, so not the matrix's: with USB set to AUDIO/MIDI, on a pattern
 with CFOO and Poly tracks, the UI came to take tens of seconds to respond, until a restart. ⚠️ The load
