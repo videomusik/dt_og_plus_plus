@@ -22,7 +22,13 @@
 |     was showing, so a menu opened from the matrix page could not use them. (S63d, option DIAG, a test
 |     image: the title also shows the top view's vtable, to read what the unit has there.)
 |   - from S64 (option KITS), the kit writer's last copy (0x4007a76e) calls mm_kwrite, and the kit loader's
-|     gate (0x4007a4ce) jumps to mm_kload.
+|     gate (0x4007a4ce) jumps to mm_kload;
+|   - from S65 (option VIEWKEYS), KeyboardView's key handler (its vtable +8, 0x40182458) goes to mm_kbkey,
+|     which takes [UP]/[DOWN] for the matrix, in place of S63's test of the top view;
+|   - from S67 (option LEVTEST), the page's get (vtable +0x54) goes to mm_pget, for the level fader;
+|   - from S68 (option LEVNAME), the knob cell's call of a parameter's short name (0x40030daa), which the
+|     build's midi_loopback already sends to its own (NAME_NEXT), calls mm_name, which goes on to it;
+|   - from S69 (option LEVTICK), the page's tick (vtable +0x2c) goes to mm_tick.
 |
 | The kits (S64): a pattern's kit carries its slots. The matrix keeps the slots of each of the 128 kits in
 | RAM (KSLOTS) and uses the live kit's (the project's live kit, its index at +0x44). The stored kit (0xa00 B
@@ -85,6 +91,7 @@
 	.set	HELD, 10		|   byte: [LFO] is held
 	.set	CHORD, 11		|   byte: [UP]/[DOWN] came during this hold of [LFO]
 	.set	CURK, 12		|   byte (S62): the knob whose parameter the page asked for last
+	.set	LASTV, 14		|   word (S69): the shown source's pair at the page's last tick
 .ifdef FRONT
 .ifdef KITS
 	.set	MAGICV, mm_vt + 0x0d3e0000	| (KITS: another RAM layout, another marker)
@@ -136,6 +143,9 @@
 	.set	LOADER, 0x4007a386	| stock: the kit loader (kit, stored), behind its gate
 	.set	TAIL, 0x8f4		| a stored kit's first byte that stock neither writes nor reads (to 0xa00)
 	.set	TAILMAGIC, 0x4d4d4b31	| 'MMK1': the tail holds the kit's slots, 256 B, then their sum
+	.set	NAME_NEXT, 0x4001562c	| the build's: midi_loopback's short name of a parameter (set, parameter),
+					|   which goes on to cfo_oscillator's and then stock's (0x4000fe8a)
+	.set	PAGE_TICK, 0x40030ee0	| stock: LfoPageView's tick (page), its vtable +0x2c
 
 	.set	LFO_TICK, 0x400ed766	| stock: the LFO tick (engine, ...), which adds the LFOs to the engine's values
 	.set	MW_PAIRS, 0x421b20a4	| stock: per track (2 B) the last CC 33 (+0, LSB) and CC 1 (+1, MSB)
@@ -184,6 +194,14 @@
 	jsr	mm_kwrite
 	.section .hook_kload,"ax"	| 0x4007a4ce: the kit loader's gate
 	jmp	mm_kload
+.endif
+.ifdef LEVNAME
+	.section .call_name,"ax"	| 0x40030daa in the knob cell: jsr NAME_NEXT (stock: jsr 0x4000fe8a)
+	jsr	mm_name
+.endif
+.ifdef LEVTICK
+	.section .vt_tick,"a"		| LfoPageView's vtable +0x2c
+	.long	mm_tick
 .endif
 
 	.section .mm_pad,"ax"
@@ -1092,6 +1110,48 @@ mm_lev:
 mm_levfmt:
 	.asciz	"%s=%d"
 	.balign	2
+
+.ifdef LEVNAME
+| ---- mm_name(set, parameter) (S68, LEVNAME): the knob cell's call of a parameter's short name, which it
+| draws under a knob that is not being turned. With the matrix showing, the level fader's (parameter 10)
+| is the source's, "MW" or "BC"; everything else goes on to the build's next (NAME_NEXT), the stack as it
+| came (midi_loopback's reads the cell's frame through it). Uses %d0, %d1, %a0, %a1.
+mm_name:
+	moveq	#10,%d0
+	cmpl	%sp@(8),%d0
+	bnes	8f
+	bsrw	mm_on
+	beqs	8f
+	lea	%pc@(mm_short),%a0
+	tstb	%a1@(SOURCE)
+	beqs	1f
+	addql	#3,%a0			| "BC"
+1:	movel	%a0,%d0
+	rts
+8:	jmp	NAME_NEXT
+mm_short:
+	.asciz	"MW"
+	.asciz	"BC"
+.endif
+
+.ifdef LEVTICK
+| ---- mm_tick(page) (S69, LEVTICK): LfoPageView's tick (vtable +0x2c), which the view controller calls for
+| each view in its list on its own tick (0x400cb250). A CC changes the source's pair but asks for no
+| redraw, so the fader moved only when something else redrew the page. With the matrix showing, a change
+| of the shown source's pair since the last tick redraws the page; then the stock tick. Uses %d0, %d1,
+| %a0, %a1.
+mm_tick:
+	bsrw	mm_on
+	beqs	8f
+	bsrw	mm_mine
+	movew	%a0@,%d0		| the pair, both bytes
+	lea	STATE+LASTV,%a1
+	cmpw	%a1@,%d0
+	beqs	8f
+	movew	%d0,%a1@
+	bsrw	mm_redraw
+8:	jmp	PAGE_TICK
+.endif
 .endif
 
 .ifdef DIAG

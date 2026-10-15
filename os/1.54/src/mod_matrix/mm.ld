@@ -1,7 +1,8 @@
 /* The modulation matrix's placement: the code in the free part of the wave pictures' pad FUN_401044b6
    (xxHash's 64-bit family, vetted in notes/landing_pads.md), from the end of the wave pictures' code; the
-   key dispatcher's call; six words of LfoPageView's vtable; the audio tick's call of the LFO tick.
-   make_mm.py checks each against the build. */
+   key dispatcher's call; words of LfoPageView's and KeyboardView's vtables; the audio tick's call of the
+   LFO tick; the kit writer's and loader's hooks; the knob cell's call of a parameter's name. Each stage
+   has those of its options. make_mm.py checks each against the build. */
 SECTIONS
 {
   .hook_key 0x4000b770 : { *(.hook_key) }
@@ -16,6 +17,8 @@ SECTIONS
   .vt_pget  0x401af8ac : { *(.vt_pget) }
   .hook_kwrite 0x4007a76e : { *(.hook_kwrite) }
   .hook_kload 0x4007a4ce : { *(.hook_kload) }
+  .call_name 0x40030daa : { *(.call_name) }
+  .vt_tick  0x401af884 : { *(.vt_tick) }
   .mm_pad   0x401045c0 : { *(.mm_pad) }
   /DISCARD/ : { *(.text) *(.data) *(.bss) }
 }

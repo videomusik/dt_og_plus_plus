@@ -37,7 +37,10 @@ out/1.54/stages/ (only with --stages):
        view above took them (option VIEWKEYS, with FRONT's marker and stand-in fixes)
   S66  S65 + the slots per kit (KITS)
   S67  S66 + the source by hand: the level fader shows the shown source's value, LEVEL/DATA sets it as a
-       CC would (LEVTEST)"""
+       CC would (LEVTEST)
+  S68  S67 + the level fader is named after the source, MW or BC, while the matrix shows (LEVNAME)
+  S69  S68 + the fader follows a CC as it comes: the page's tick redraws it when the source changed
+       (LEVTICK)"""
 import json, os, re, shutil, subprocess, sys, tempfile
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", "..", "..", ".."))
@@ -66,7 +69,13 @@ SITES = [(".hook_key", 0x4000b770, "4eb9400084fe", "the UI task's call of the ke
          (".hook_kwrite", 0x4007a76e, "356b091c08f2", "the kit writer's last copy of a word"),
          (".hook_kload", 0x4007a4ce, "202f0004206f", "the kit loader's gate"),
          (".vt_kbkey", 0x40182458, "40029876", "KeyboardView's vtable +8, its key handler"),
-         (".vt_pget", 0x401af8ac, "40030a64", "LfoPageView's vtable +0x54, its get")]
+         (".vt_pget", 0x401af8ac, "40030a64", "LfoPageView's vtable +0x54, its get"),
+         (".vt_tick", 0x401af884, "40030ee0", "LfoPageView's vtable +0x2c, its tick")]
+# The sites a feature of the build already changed: (section, address, the stock bytes, the build's, the
+# feature that owns every byte the build changes there, what they are). The matrix goes in front of that
+# feature's code and on to it.
+BUILD_SITES = [(".call_name", 0x40030daa, "4eb94000fe8a", "4eb94001562c", "midi_loopback",
+                "the knob cell's call of a parameter's short name")]
 # What S63 and S64 rely on, by the bytes that show it: HelpBubbleView's vtable (its type before it); the
 # live kit's index at its +0x44, the project data at 0x409bbbfc and its 128 kits at +0xf6341c (RAMKITS
 # 0x4191f018), the gate's whole body (which mm_kload replaces) and its loader's first bytes.
@@ -91,7 +100,11 @@ VARIANTS = {"S57": [], "S58": ["ENC4"], "S59": ["ENC4", "TRKSTAY"], "S60": ["ENC
             "S64": ["ENC4", "TRKSTAY", "PASS", "MIDIEXIT", "EDIT", "FRONT", "KITS"],
             "S65": ["ENC4", "TRKSTAY", "PASS", "MIDIEXIT", "EDIT", "FRONT", "VIEWKEYS"],
             "S66": ["ENC4", "TRKSTAY", "PASS", "MIDIEXIT", "EDIT", "FRONT", "VIEWKEYS", "KITS"],
-            "S67": ["ENC4", "TRKSTAY", "PASS", "MIDIEXIT", "EDIT", "FRONT", "VIEWKEYS", "KITS", "LEVTEST"]}
+            "S67": ["ENC4", "TRKSTAY", "PASS", "MIDIEXIT", "EDIT", "FRONT", "VIEWKEYS", "KITS", "LEVTEST"],
+            "S68": ["ENC4", "TRKSTAY", "PASS", "MIDIEXIT", "EDIT", "FRONT", "VIEWKEYS", "KITS", "LEVTEST",
+                    "LEVNAME"],
+            "S69": ["ENC4", "TRKSTAY", "PASS", "MIDIEXIT", "EDIT", "FRONT", "VIEWKEYS", "KITS", "LEVTEST",
+                    "LEVNAME", "LEVTICK"]}
 RECORDED = {"S57": "c1ce248991a2a02ea0fa2c23b0e452f25fe38d02f1a28d2292215b99b0bc36a6",
             "S58": "76b80599449ec8fb3340e098a757d20162d4dce27cf31c59739df4c1f98f6213",
             "S59": "4d7fab73636d165ab73c4ac75f767d7f44a1b83b3c62fcd9577b02499bbcf1e3",
@@ -100,7 +113,9 @@ RECORDED = {"S57": "c1ce248991a2a02ea0fa2c23b0e452f25fe38d02f1a28d2292215b99b0bc
             "S62": "a1209b6d94962bbc0b73c0a24d6cb7bb46a0cbb1983c01f75d07579fc61e701f",
             "S65": "470b9d0a69585cddc2880f1b052e5f0567f65d37d12581040ec3b5194b654439",
             "S66": "268ea996c2128055bdaf906ecb046b1700b71ff90565dd7bc6993fa15b9427e1",
-            "S67": "f084565e6343babef370893f39faf374b4d73da56725256f6e542e317e79d81b"}
+            "S67": "f084565e6343babef370893f39faf374b4d73da56725256f6e542e317e79d81b",
+            "S68": "b390d7ab046f61c719bd24bc9cdae29b7bf52a56d3a2743f954d78f52494f634",
+            "S69": "060aca3af421497dc7a6ab2d9ef8e275ed6b757c3473308a7ae94d4eefd86475"}
 # What mm.s calls in the build, by its first bytes.
 USES = [(0x400084fe, "4feffff048d7", "the key dispatcher (DISPATCH)"),
         (0x4009743c, "4fefffbc48d7", "LfoPageView's drawing (LFO_DRAW)"),
@@ -120,7 +135,10 @@ USES = [(0x400084fe, "4feffff048d7", "the key dispatcher (DISPATCH)"),
         (0x400d399c, "2f02202f0008", "a key held (KEY_HELD)"),
         (0x40093470, "206f00041028", "the header's held-trig view (TRIG_VIEW)"),
         (0x40093bb6, "2f0a2f02246f", "a held trig's locks (TRIG_LOCK)"),
-        (0x401470de, "202f00045880", "a weak pointer expired (EXPIRED)")]
+        (0x401470de, "202f00045880", "a weak pointer expired (EXPIRED)"),
+        (0x4001562c, "222f00080c810000008c", "midi_loopback's short name of a parameter (NAME_NEXT)"),
+        (0x400f7b5c, "4ef94000fe8a", "cfo_oscillator's, after it, going on to stock's"),
+        (0x40030ee0, "2f0a246f0008", "LfoPageView's tick (PAGE_TICK)")]
 # The state's RAM: after portamento's state (notes/memory_map.md), from S62 with the slots and the stand-ins;
 # from S64 the kits' slots, above 0x439d32fb (a value in a stock table of numbers, the one word of the build
 # between the build's own state and 0x439e0000). No long word of the build names either range.
@@ -230,12 +248,21 @@ def main():
         for name, (vma, data) in sorted(secs.items(), key=lambda x: x[1][0]):
             end = vma + len(data)
             site = [s for s in SITES if s[0] == name]
+            bsite = [s for s in BUILD_SITES if s[0] == name]
             if site:
                 _n, a, want, what = site[0]
                 assert vma == a and len(data) == len(want) // 2, "%s is not %d B at 0x%08x" % (name, len(want) // 2, a)
                 assert stock[a - BASE:end - BASE].hex() == want, "%s: 0x%08x is not stock" % (name, a)
                 assert img[a - BASE:end - BASE].hex() == want, "%s: the build changes 0x%08x" % (name, a)
                 print("  %-10s 0x%08x +%d  %s" % (name, vma, len(data), what))
+            elif bsite:
+                _n, a, swant, bwant, feat, what = bsite[0]
+                assert vma == a and len(data) == len(bwant) // 2, "%s is not %d B at 0x%08x" % (name, len(bwant) // 2, a)
+                assert stock[a - BASE:end - BASE].hex() == swant, "%s: 0x%08x is not stock's call" % (name, a)
+                assert img[a - BASE:end - BASE].hex() == bwant, "%s: 0x%08x is not the build's call" % (name, a)
+                changed = [x for x in range(a, end) if img[x - BASE] != stock[x - BASE]]
+                assert changed and all(owner.get(x) == feat for x in changed), "%s: the build's bytes there are not %s's" % (name, feat)
+                print("  %-10s 0x%08x +%d  %s (the build's, %s's)" % (name, vma, len(data), what, feat))
             elif name == ".mm_pad":
                 assert vma == PAD_FROM and end <= PAD[1], ".mm_pad 0x%08x..0x%08x is not in the pad's free part" % (vma, end)
                 want = fill[vma - PAD[0]:end - PAD[0]]
@@ -260,9 +287,11 @@ def main():
     assert len(pads["S64"]) > len(pads["S63"]), "S64 adds no code"
     assert len(pads["S66"]) > len(pads["S65"]), "S66 adds no code"
     assert len(pads["S67"]) > len(pads["S66"]), "S67 adds no code"
-    for site in (SITES[0], SITES[5], SITES[8]):
-        hits = branches_into(img, site[1], site[1] + 6)
-        assert not hits, "branches into %s: %s" % (site[3], hits)
+    assert len(pads["S68"]) > len(pads["S67"]), "S68 adds no code"
+    assert len(pads["S69"]) > len(pads["S68"]), "S69 adds no code"
+    for a, what in [(s[1], s[3]) for s in (SITES[0], SITES[5], SITES[8])] + [(s[1], s[5]) for s in BUILD_SITES]:
+        hits = branches_into(img, a, a + 6)
+        assert not hits, "branches into %s: %s" % (what, hits)
     hits = [h for h in branches_into(img, GATE[0], GATE[1]) if not GATE[0] <= int(h[0], 16) < GATE[1]]
     assert not hits, "branches into the kit loader's gate from outside it: %s" % hits
     named = [BASE + o for o in range(0, len(img) - 3, 2)
