@@ -1,17 +1,22 @@
 #!/usr/bin/env python3
 """The modulation matrix for OS 1.54, on top of the build before it (v0.2.4, S56): assemble mm.s with mm.ld,
-check every site against the stock image and that build; with --stages, build the stage images. The
-feature is not merged into patch.json yet (no --write).
+check every site against the stock image and that build; with --stages, build the stage images; with
+--write, merge the last stage, S69, into os/1.54/build/patch.json as the feature mod_matrix.
 
-    python3 os/1.54/src/mod_matrix/make_mm.py                 # check
-    python3 os/1.54/src/mod_matrix/make_mm.py --stages        # also build the stage images
-    python3 os/1.54/src/mod_matrix/make_mm.py --stages S60    # only those named
+    python3 os/1.54/src/mod_matrix/make_mm.py                       # check: is patch.json up to date?
+    python3 os/1.54/src/mod_matrix/make_mm.py --stages              # also build the stage images
+    python3 os/1.54/src/mod_matrix/make_mm.py --stages S68 S69      # only those named
+    python3 os/1.54/src/mod_matrix/make_mm.py --stages S69 --write  # and rewrite patch.json
 
 Needs m68k binutils (M68K_PREFIX, as make_cfo.py), the stock section 3 from ./scripts/extract.sh 1.54
 and, for --stages, the stock .syx and the firmware tool (as build.py).
 
-The build before this feature is patch.json as it stands, and must give BUILD_SECTION3. Stages, written to
-out/1.54/stages/ (only with --stages):
+The build before this feature comes back from patch.json (build_without_mm: its features before
+mod_matrix and, once that is merged, the bytes of earlier features it rewrites given back: the pad's fill
+under wave_pictures and midi_loopback's call target, GIVE_BACK) and must give BUILD_SECTION3. S69 is the
+build from v0.2.5: patch.json holds the build before it, then mod_matrix (S69 less that build). Each byte
+is listed once, under the last feature that wrote it. Stages, written to out/1.54/stages/ (only with
+--stages):
   S57  the build + the matrix page: [LFO] + [UP]/[DOWN] on an audio track shows MOD WHEEL or BREATH CTRL
        with eight empty knobs, [UP]/[DOWN] step between the two, a tap of [LFO] (or another page key, or
        [TRK]) leaves it; nothing stored. Meant to keep knobs A..H from the LFO under it, but the unit's
@@ -47,11 +52,16 @@ ROOT = os.path.abspath(os.path.join(HERE, "..", "..", "..", ".."))
 sys.path.insert(0, os.path.join(ROOT, "os", "1.54", "build"))
 sys.path.insert(0, os.path.join(ROOT, "os", "1.54", "src", "cfo_oscillator"))
 import build  # noqa: E402
+import make_listing  # noqa: E402
 import make_cfo as cfo  # noqa: E402
 PFX = os.environ.get("M68K_PREFIX", "m68k-elf-")
 BASE = 0x40000400
 LD = os.path.join(HERE, "mm.ld")
 BUILD_SECTION3 = "ce7a07b48ad053dce41e424ec86c1cb34e1cecbbb091a6320a31c8ed79f8011d"   # the build before it, S56
+FID = "mod_matrix"
+TITLE = ("Modulation matrix: per audio track, MOD WHEEL and BREATH CTRL each drive four destinations with "
+         "their own depths, set on a matrix page under the LFO page and saved with the pattern's kit")
+LAST = "S69"
 # The pad: the wave pictures' pad FUN_401044b6 (vetted in notes/landing_pads.md), from the end of the wave
 # pictures' code; in the build it holds the pad's fill, which patch.json lists under wave_pictures.
 PAD = (0x401044b6, 0x40104e7e)
@@ -76,6 +86,11 @@ SITES = [(".hook_key", 0x4000b770, "4eb9400084fe", "the UI task's call of the ke
 # feature's code and on to it.
 BUILD_SITES = [(".call_name", 0x40030daa, "4eb94000fe8a", "4eb94001562c", "midi_loopback",
                 "the knob cell's call of a parameter's short name")]
+# Once patch.json holds mod_matrix, the bytes of earlier features it rewrote are listed under it;
+# build_without_mm gives them back as those features hold them: (address, bytes, feature). The pad's fill
+# from PAD_FROM is wave_pictures' (make_cfo.fill over the whole pad, as make_wavpic.py fills it).
+GIVE_BACK = [(a, want, feat) for _n, a, _s, want, feat, _w in BUILD_SITES] + \
+            [(PAD_FROM, cfo.fill(*PAD)[PAD_FROM - PAD[0]:].hex(), PAD_OWNER)]
 # What S63 and S64 rely on, by the bytes that show it: HelpBubbleView's vtable (its type before it); the
 # live kit's index at its +0x44, the project data at 0x409bbbfc and its 128 kits at +0xf6341c (RAMKITS
 # 0x4191f018), the gate's whole body (which mm_kload replaces) and its loader's first bytes.
@@ -197,31 +212,75 @@ def branches_into(img, lo, hi):
     return hits
 
 
-def the_build(stock, patch):
-    """patch.json applied to the stock section 3, and who owns each byte it changes."""
+def build_without_mm(stock, patch):
+    """The build before the matrix, from patch.json: its features before mod_matrix and, once that is
+    merged, GIVE_BACK. It must hash to BUILD_SECTION3. Returns the image and who owns each byte it changes
+    ({address: (feature, kind)})."""
+    ids = [f["id"] for f in patch["features"]]
     img, owner = bytearray(stock), {}
-    for f in patch["features"]:
+    for f in patch["features"][:ids.index(FID) if FID in ids else len(ids)]:
         for r in f["runs"]:
             a, d = int(r["addr"], 16), bytes.fromhex(r["bytes"])
             img[a - BASE:a - BASE + len(d)] = d
             for k in range(len(d)):
-                owner[a + k] = f["id"]
+                owner[a + k] = (f["id"], r.get("kind", "code"))
+    if FID in ids:
+        for a, want, fid in GIVE_BACK:
+            d = bytes.fromhex(want)
+            img[a - BASE:a - BASE + len(d)] = d
+            for k in range(len(d)):
+                if d[k] != stock[a - BASE + k]:
+                    owner[a + k] = (fid, "code")
     h = build.sha256_bytes(bytes(img))
     if h != BUILD_SECTION3:
-        sys.exit("patch.json does not give the build this stage is made on (section 3 %s)" % h)
+        sys.exit("the build before the matrix does not come back from patch.json (section 3 %s)" % h)
     return img, owner
 
 
+def merged_features(stock, patch, img, owner, last):
+    """patch.json's features before mod_matrix, and mod_matrix = the last stage on the build before it
+    (img, whose changed bytes owner attributes): each byte the stage changes, under the last feature that
+    wrote it. Runs are maximal per feature and kind, as make_wavpic.py writes them."""
+    def kind(a):
+        return "code" if any(lo <= a < hi for lo, hi in make_listing.CODE_WINDOWS) else "data"
+    attr = {}
+    for i in range(len(stock)):
+        if last[i] != stock[i]:
+            a = BASE + i
+            attr[a] = (FID, kind(a)) if last[i] != img[i] else owner[a]
+    runs, cur = {}, None
+    for a in sorted(attr):
+        fid, k = attr[a]
+        if cur and cur["fid"] == fid and cur["kind"] == k and cur["end"] == a:
+            cur["b"].append(last[a - BASE]); cur["end"] = a + 1
+        else:
+            cur = {"fid": fid, "kind": k, "start": a, "end": a + 1, "b": [last[a - BASE]]}
+            runs.setdefault(fid, []).append(cur)
+    ids = [f["id"] for f in patch["features"]]
+    earlier = patch["features"][:ids.index(FID) if FID in ids else len(ids)]
+    features = [(f["id"], f["title"]) for f in earlier] + [(FID, TITLE)]
+    return [{"id": i, "title": t,
+             "runs": [{"addr": "0x%08x" % x["start"], "bytes": bytes(x["b"]).hex(), "kind": x["kind"]}
+                      for x in runs.get(i, [])]} for i, t in features]
+
+
 def main():
-    stages = "--stages" in sys.argv
-    only = sys.argv[sys.argv.index("--stages") + 1:] if stages else []
+    stages, write = "--stages" in sys.argv, "--write" in sys.argv
+    only = [s for s in sys.argv[sys.argv.index("--stages") + 1:] if s != "--write"] if stages else []
     for s in only:
         assert s in VARIANTS, "no stage %s" % s
+    if write and not (stages and (not only or LAST in only)):
+        sys.exit("--write needs --stages with %s (patch.json carries the .syx hash of the %s build)" % (LAST, LAST))
     stock = build.read(cfo.STOCK3)
     with open(cfo.PATCH) as f:
         patch = json.load(f)
+    ids = [f["id"] for f in patch["features"]]
+    later = ids[ids.index(FID) + 1:] if FID in ids else []
+    if write and later:
+        sys.exit("patch.json holds features merged after %s (%s); the last one's generator rewrites it"
+                 % (FID, ", ".join(later)))
     assert build.sha256_bytes(stock) == patch["stock"]["section3_sha256"], "work/dt_1.54 is not the stock section 3"
-    img, owner = the_build(stock, patch)
+    img, owner = build_without_mm(stock, patch)
     for a, want, what in USES + KIT_FACTS:
         n = len(want) // 2
         assert img[a - BASE:a - BASE + n].hex() == want, "0x%08x is not %s" % (a, what)
@@ -261,13 +320,13 @@ def main():
                 assert stock[a - BASE:end - BASE].hex() == swant, "%s: 0x%08x is not stock's call" % (name, a)
                 assert img[a - BASE:end - BASE].hex() == bwant, "%s: 0x%08x is not the build's call" % (name, a)
                 changed = [x for x in range(a, end) if img[x - BASE] != stock[x - BASE]]
-                assert changed and all(owner.get(x) == feat for x in changed), "%s: the build's bytes there are not %s's" % (name, feat)
+                assert changed and all(owner.get(x, ("",))[0] == feat for x in changed), "%s: the build's bytes there are not %s's" % (name, feat)
                 print("  %-10s 0x%08x +%d  %s (the build's, %s's)" % (name, vma, len(data), what, feat))
             elif name == ".mm_pad":
                 assert vma == PAD_FROM and end <= PAD[1], ".mm_pad 0x%08x..0x%08x is not in the pad's free part" % (vma, end)
                 want = fill[vma - PAD[0]:end - PAD[0]]
                 assert bytes(img[vma - BASE:end - BASE]) == want, "the build does not hold the pad's fill there"
-                assert all(owner.get(x) == PAD_OWNER or img[x - BASE] == stock[x - BASE] for x in range(vma, end)), \
+                assert all(owner.get(x, ("",))[0] == PAD_OWNER or img[x - BASE] == stock[x - BASE] for x in range(vma, end)), \
                     "the fill there is not %s's" % PAD_OWNER
                 print("  %-10s 0x%08x +%d  the pad, %d B left after it" % (name, vma, len(data), PAD[1] - end))
                 pads[stage] = data
@@ -301,12 +360,21 @@ def main():
           "the hooks' calls or the kit loader's gate; nothing names %s; S62's mm_vt is the build's "
           "SoundParameterSet vtable but for its own get, notify and store"
           % ", ".join("0x%08x..0x%08x" % r for r in STATE))
+    feats = merged_features(stock, patch, img, owner, built[LAST])
+    hl = build.sha256_bytes(built[LAST])
+    if later:
+        print("%s section 3 %s; patch.json carries %s after it" % (LAST, hl, ", ".join(later)))
+    else:
+        same = feats == patch["features"] and hl == patch["result"]["section3_sha256"]
+        print("%s section 3 %s; patch.json %s" % (LAST, hl, "is up to date" if same else
+                                                  "differs (%s)" % patch["result"]["section3_sha256"]))
     if not stages:
         print("no stage image built (--stages)")
         return
     dest = os.path.join(ROOT, "out", "1.54", "stages")
     os.makedirs(dest, exist_ok=True)
     syx, tool = build.DEFAULT_SYX, build.DEFAULT_TOOL
+    res = {}
     for name, p3 in built.items():
         if only and name not in only:
             continue
@@ -331,12 +399,21 @@ def main():
             build.pack(tool, syx, pb, packed)
             build.check_report(tool, packed)
             build.roundtrip(tool, packed, p3, st, os.path.join(t2, "verify"))
-            h = build.sha256_file(packed)
+            h, size = build.sha256_file(packed), os.path.getsize(packed)
             final = os.path.join(dest, "dt_og_plus_plus_v0.2.4-%s_%s.syx" % (name, h[:8]))
             os.replace(packed, final)
         finally:
             shutil.rmtree(t2, ignore_errors=True)
+        res[name] = (h, size)
         print("%s section 3 %s .syx %s -> %s" % (name, build.sha256_bytes(p3), h, final))
+    if write:
+        patch["features"] = feats
+        patch["result"] = dict(patch["result"], section3_sha256=hl,
+                               syx_sha256_reference=res[LAST][0], syx_size_reference=res[LAST][1])
+        with open(cfo.PATCH, "w") as f:
+            json.dump(patch, f, indent=1)
+            f.write("\n")
+        print("wrote", cfo.PATCH)
     print("Nothing was sent to a device.")
 
 

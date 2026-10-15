@@ -72,8 +72,11 @@ REWRITES = [(0x4007a2ac, "400e6d52", "portamento"), (0x4007974c, "722fb2806402",
             (0x401282ce, "4e7542804e7542804e7542804e7542804e75", "pad_fill")]
 # Bytes of the features before this one that a feature merged after it rewrites, as those features hold
 # them: the wave pictures (from v0.2.3) replace 10 B of the CFO oscillator's picture hook, which
-# patch.json then lists under wave_pictures. build_without_filt gives them back.
-LATER_SITES = [(0x400f7c5c, "202f000804800000006c", "cfo_oscillator")]
+# patch.json then lists under wave_pictures; the modulation matrix (from v0.2.5) points the knob cell's
+# name call, which MIDI Loopback had pointed at its own, at its own, which patch.json then lists under
+# mod_matrix. build_without_filt gives them back.
+LATER_SITES = [(0x400f7c5c, "202f000804800000006c", "cfo_oscillator"),
+               (0x40030dad, "01562c", "midi_loopback")]
 S52_SHA = "3b88fa95268a05cba3181c8765b3379a46237b00def0820d1c8c4da499506f37"   # S52's section 3, v0.2.2
 LD = os.path.join(HERE, "filt.ld")
 # The four new pads (vetted in notes/landing_pads.md): extent, from the stock rts.

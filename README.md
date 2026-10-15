@@ -3,9 +3,9 @@
 DT OG++ is a modified OS for the Digitakt (the original model). It adds round-robin slice selection
 for the Slice machine, a Poly machine that lets one Sound play several notes at the same time, a way
 for MIDI tracks to play the audio tracks without a cable, Chain Recording, CFOO (an 8-bit FM synth
-machine), portamento and legato on every audio track, and velocity to filter envelope depth and filter
-keytracking on every audio track's FILTER page. This repository contains no Elektron
-firmware. You build DT OG++ yourself, on your own computer, from your own copy of Elektron's stock
+machine), portamento and legato on every audio track, velocity to filter envelope depth and filter
+keytracking on every audio track's FILTER page, and a modulation matrix for MOD WHEEL and BREATH CTRL
+on every audio track. This repository contains no Elektron firmware. You build DT OG++ yourself, on your own computer, from your own copy of Elektron's stock
 update file of a supported OS version, and the build refuses any other input. DT OG++ is not
 affiliated with or endorsed by Elektron.
 
@@ -95,6 +95,14 @@ gets. KEY (Keytracking, −394 % to 394 % in steps of 6.25 %) moves the cutoff w
 from C4: at 100 % the cutoff follows the pitch. VED and KEY are saved with the sound and can be locked
 per trig. Details: [OS 1.54](os/1.54/README.md#filter-ved-and-key)
 
+### MODULATION MATRIX
+
+OS 1.54 only. Every audio track gets a modulation matrix for MOD WHEEL (CC 1 and 33) and BREATH CTRL
+(CC 2 and 34). Each controller has four slots, each moving a parameter from the LFO DEST list by a depth
+on the LFO DEPTH scale, before the LFOs act. [LFO] + [UP] or [DOWN] turns the LFO page into the matrix
+page; its level fader shows the controller's value, and LEVEL/DATA sets it by hand. Each pattern has its
+own matrix, saved with the project. Details: [OS 1.54](os/1.54/README.md#modulation-matrix)
+
 For how each feature works inside the firmware, see the feature list in the OS folder's notes
 (OS 1.54: [os/1.54/notes/README.md](os/1.54/notes/README.md#the-features-in-this-build)).
 
@@ -128,7 +136,7 @@ The build runs on macOS and Linux; on Windows, use WSL2
    ```
 
 3. From the repository root, run, with `<os>` the OS folder of your stock file and `<version>` its
-   build's version (v0.2.4 for OS 1.54, v0.1 for OS 1.52A):
+   build's version (v0.2.5 for OS 1.54, v0.1 for OS 1.52A):
 
    ```
    bash build/build_tool.sh
@@ -141,7 +149,7 @@ The build runs on macOS and Linux; on Windows, use WSL2
    ```
    bash build/build_tool.sh
    python3 os/1.54/build/build.py
-   python3 os/1.54/build/verify.py out/1.54/dt_og_plus_plus_v0.2.4_<hash8>.syx --tool tool/bin/elektron-firmware-tool-capped
+   python3 os/1.54/build/verify.py out/1.54/dt_og_plus_plus_v0.2.5_<hash8>.syx --tool tool/bin/elektron-firmware-tool-capped
    ```
 
    In the last command, use the file name that `build.py` prints at `[7/7] wrote`.
@@ -187,8 +195,9 @@ project on DT OG++, is on the OS page
   with its disassembly.
 - OS 1.54: [os/1.54/docs/reference.md](os/1.54/docs/reference.md): the protected ranges and the
   expected hashes.
-- OS 1.54: [os/1.54/src/](os/1.54/src/): the source of Chain Recording, the CFO oscillator and
-  portamento, with the generators that check them and write their runs into `patch.json`.
+- OS 1.54: [os/1.54/src/](os/1.54/src/): the source of Chain Recording, the CFO oscillator,
+  portamento, FILTER page 2, CFOO's wave pictures and the modulation matrix, with the generators that
+  check them and write their runs into `patch.json`.
 - OS 1.52A (on hold): [os/1.52A/notes/README.md](os/1.52A/notes/README.md),
   [os/1.52A/docs/patch_listing.md](os/1.52A/docs/patch_listing.md) and
   [os/1.52A/docs/reference.md](os/1.52A/docs/reference.md).

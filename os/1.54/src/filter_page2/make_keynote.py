@@ -13,8 +13,11 @@ Needs what make_filt.py needs (m68k binutils, M68K_PREFIX; the stock section 3 f
 ./scripts/extract.sh 1.54; for --stages the stock .syx and the firmware tool).
 
 The build before this change comes back from patch.json (build_without_keynote: its features before
-filter_page2_key_note, and, once that is merged, the 4 bytes it rewrites given back to filter_page2) and
-must give BUILD_SECTION3. The stage, written to out/1.54/stages/ (only with --stages):
+filter_page2_key_note, and, once that is merged, the 4 bytes it rewrites given back to filter_page2, and
+the bytes of earlier features that a feature merged after it rewrites, LATER_SITES, given back) and must
+give BUILD_SECTION3. Once patch.json holds a feature merged after it (mod_matrix, S69), S56 is checked
+against its recorded hash and --write is refused: the last feature's generator (make_mm.py) rewrites
+patch.json. The stage, written to out/1.54/stages/ (only with --stages):
   S56  the build + KEY reads the trig's note sum (0x80001f28: written at the NoteOn and by a note change
        without a trig) instead of portamento's glided one (0x439d1180): the 4-byte operand of the lea at
        0x40178f2a
@@ -40,6 +43,14 @@ TITLE = ("FILTER page 2: KEY follows the trig's note, as the NoteOn sets it and 
 SITE = (0x40178f2c, "439d1180", "filter_page2")
 NEW = "80001f28"
 LEA = (0x40178f2a, "41f9")
+S56_SHA = "ce7a07b48ad053dce41e424ec86c1cb34e1cecbbb091a6320a31c8ed79f8011d"   # S56's section 3, v0.2.4
+# Bytes of the features before this one that a feature merged after it rewrites, as those features hold
+# them: the modulation matrix (mod_matrix, from v0.2.5) points the knob cell's name call, which MIDI
+# Loopback had pointed at its own, at its own, and puts its code over the wave pictures' pad fill from
+# 0x401045c0 (make_cfo.fill over the whole pad); patch.json then lists those bytes under mod_matrix.
+# build_without_keynote gives them back.
+LATER_SITES = [(0x40030dad, "01562c", "midi_loopback"),
+               (0x401045c0, cfo.fill(0x401044b6, 0x40104e7e)[0x401045c0 - 0x401044b6:].hex(), "wave_pictures")]
 
 
 def build_without_keynote(stock, patch):
@@ -56,6 +67,12 @@ def build_without_keynote(stock, patch):
                 owner[a + k] = (f["id"], r.get("kind", "code"))
     if FID in ids:
         a, want, fid = SITE
+        d = bytes.fromhex(want)
+        img[a - BASE:a - BASE + len(d)] = d
+        for k in range(len(d)):
+            if d[k] != stock[a - BASE + k]:
+                owner[a + k] = (fid, "code")
+    for a, want, fid in LATER_SITES:
         d = bytes.fromhex(want)
         img[a - BASE:a - BASE + len(d)] = d
         for k in range(len(d)):
@@ -161,7 +178,8 @@ def main():
     feats = merged_features(stock, patch, img, owner, built["S56"])
     h56 = build.sha256_bytes(built["S56"])
     if later:
-        print("S56 section 3 %s; patch.json carries %s after it" % (h56, ", ".join(later)))
+        print("S56 section 3 %s; %s; patch.json carries %s after it" % (
+            h56, "as recorded (v0.2.4)" if h56 == S56_SHA else "NOT as recorded (%s)" % S56_SHA, ", ".join(later)))
     else:
         same = feats == patch["features"] and h56 == patch["result"]["section3_sha256"]
         print("S56 section 3 %s; patch.json %s" % (h56, "is up to date" if same else

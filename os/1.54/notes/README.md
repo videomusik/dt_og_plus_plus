@@ -72,8 +72,18 @@ Then CFOO's wave pictures, each stage flashed on the one before:
 Then KEY on the trig's note:
 
 12. S56 on S55 ([features/filter_page2.md](features/filter_page2.md#key-on-the-trigs-note-s56)): KEY
-    follows the trig's note instead of portamento's glided one. S56 (`.syx` `084b3aa1…`) is the build in
-    this folder, byte for byte. Not yet tested on the unit.
+    follows the trig's note instead of portamento's glided one. S56 (`.syx` `084b3aa1…`) is v0.2.4, byte
+    for byte. Its code ran under every stage of the modulation matrix; KEY's change itself was not
+    checked on its own.
+
+Then the modulation matrix, each stage flashed on the one before:
+
+13. its stages S57 to S69 on S56 ([features/mod_matrix.md](features/mod_matrix.md#on-the-unit)): the
+    page, the controllers through a MIDI cable, the slots and their editing, the slots per pattern saved
+    with the project through a power cycle, the level fader as the controller with LEVEL/DATA, its name
+    and its following a CC, as reported; S63's two images failed (a stale RAM state, then a view left on
+    top) and S65 replaces them. S69 (`.syx` `2c32b3bb…`) is the build in this folder, v0.2.5, byte for
+    byte.
 
 ## The features in this build
 
@@ -119,6 +129,12 @@ New in this image, not in the OS 1.52A build:
 - **CFOO's wave pictures.** On a CFOO track's SRC page, WAV1, WAV2 and WAV3 show the wave they play,
   17 × 17, drawn from the oscillator's own tables and blend, in a new pad from xxHash's unused 64-bit
   functions. ✅ On the test unit (S53 to S55, above). [features/wave_pictures.md](features/wave_pictures.md).
+- **Modulation matrix.** Per audio track, MOD WHEEL (CC 1/33) and BREATH CTRL (CC 2/34) each drive four
+  slots of a destination and a depth (LFO DEST's list, LFO DEP's scale), added to the engine's values
+  every audio tick before the LFOs. [LFO] + [UP]/[DOWN] turns the LFO page into the matrix page, edited
+  through stand-ins of the track's parameter set; the level fader shows the controller (MW, BC) and
+  LEVEL/DATA sets it; the slots belong to the pattern's kit and are saved in the stored kit's unused
+  tail. ✅ On the test unit (S57 to S69, above). [features/mod_matrix.md](features/mod_matrix.md).
 
 The CFO oscillator and portamento came into `patch.json` together, from their last stages:
 `make_port.py --stages --write` (in [src/portamento/](../src/portamento/)) rebuilt the build without
@@ -131,9 +147,13 @@ S52, byte for byte. The wave pictures came in after it, as v0.2.3: `make_wavpic.
 writes the runs: v0.2.3 and v0.2.4 are S55. KEY on the trig's note came in after them:
 `make_keynote.py --stages --write` (in [src/filter_page2/](../src/filter_page2/)) rebuilds the build before
 it the same way, S56 on it, and writes the runs, the 4 B it rewrites as the feature
-`filter_page2_key_note`. The build is S56, byte for byte. Each changed byte is listed once, under the last
-feature that wrote it ([docs/reference.md](../docs/reference.md#what-patchjson-holds)); `make_port.py`,
-`make_chain.py`, `make_filt.py` and `make_wavpic.py` refuse `--write` once a later feature is merged.
+`filter_page2_key_note`: v0.2.4 is S56. The modulation matrix came in after it, as v0.2.5:
+`make_mm.py --stages S69 --write` (in [src/mod_matrix/](../src/mod_matrix/)) rebuilds the build before it
+the same way, giving back the 3 B of MIDI Loopback's call operand and the wave pictures' pad fill it
+rewrites, S69 on it, and writes the runs. The build is S69, byte for byte. Each changed byte is listed
+once, under the last feature that wrote it ([docs/reference.md](../docs/reference.md#what-patchjson-holds));
+`make_port.py`, `make_chain.py`, `make_filt.py`, `make_wavpic.py` and `make_keynote.py` refuse `--write`
+once a later feature is merged.
 
 The other features have run on the test unit ([The test unit](#the-test-unit)).
 
@@ -188,6 +208,8 @@ How it is made, and its reference numbers: [analysis_reference.md](analysis_refe
   works.
 - [features/filter_page2.md](features/filter_page2.md): FILTER page 2 (VED, KEY), and how the filter
   stage forms its cutoff.
+- [features/mod_matrix.md](features/mod_matrix.md): the modulation matrix (MOD WHEEL, BREATH CTRL), and
+  how a page's knobs, keys, level fader and the kits' storage work.
 - [features/portamento.md](features/portamento.md): portamento and legato, and how a sequenced trig's
   LEN ends a note.
 - [features/wave_pictures.md](features/wave_pictures.md): CFOO's wave pictures (WAV1–3), and how a

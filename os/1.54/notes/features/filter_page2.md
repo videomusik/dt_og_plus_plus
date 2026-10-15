@@ -6,8 +6,10 @@ v0.2.2 is S52, byte for byte; from v0.2.3 the wave pictures follow it ([wave_pic
 which rewrite 10 B of the CFO oscillator's code, none of this feature's. After them, S56 (on the build
 v0.2.4) changes the note KEY follows from portamento's glided note to the trig's: `patch.json` holds it as
 the feature `filter_page2_key_note`, the 4 B it rewrites
-([KEY on the trig's note](#key-on-the-trigs-note-s56)). Source: [src/filter_page2/](../../src/filter_page2/).
-This note describes S52 with S56's change, and what each stage before them changed.
+([KEY on the trig's note](#key-on-the-trigs-note-s56)). From v0.2.5 the modulation matrix follows,
+which rewrites none of this feature's bytes ([mod_matrix.md](mod_matrix.md)). Source:
+[src/filter_page2/](../../src/filter_page2/). This note describes S52 with S56's change, and what each
+stage before them changed.
 
 ## What it does
 

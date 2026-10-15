@@ -3,15 +3,15 @@
 DT OG++ is a modified OS 1.54 for the Digitakt (the original model). It adds round-robin slice
 selection for the Slice machine, a Poly machine that lets one Sound play several notes at the same
 time, a way for MIDI tracks to play the audio tracks without a cable, Chain Recording, CFOO (an
-8-bit FM synth machine), portamento and legato on every audio track, and velocity to filter envelope
-depth and filter keytracking on every audio track's FILTER page. This repository contains no
-Elektron firmware. You build DT OG++ yourself, on your own computer, from your own copy of Elektron's
+8-bit FM synth machine), portamento and legato on every audio track, velocity to filter envelope
+depth and filter keytracking on every audio track's FILTER page, and a modulation matrix for MOD
+WHEEL and BREATH CTRL on every audio track. This repository contains no Elektron firmware. You build DT OG++ yourself, on your own computer, from your own copy of Elektron's
 stock OS 1.54 update file, and the build refuses any other input. DT OG++ is not affiliated with or
 endorsed by Elektron.
 
 SLICE: RRBN, the Poly machine and Virtual MIDI Loopback are the features of the OS 1.52A build,
-carried over to OS 1.54. Chain Recording, the CFO oscillator, portamento and the FILTER page's VED
-and KEY are new in OS 1.54 and exist only in this build. Everything else in OS 1.54, including its Outbox 8 support, is Elektron's
+carried over to OS 1.54. Chain Recording, the CFO oscillator, portamento, the FILTER page's VED
+and KEY and the modulation matrix are new in OS 1.54 and exist only in this build. Everything else in OS 1.54, including its Outbox 8 support, is Elektron's
 and unchanged.
 
 Other OS versions and the shared documentation: [README.md](../../README.md).
@@ -223,6 +223,33 @@ Every audio track's second FILTER page gets two knobs, C and G, which are empty 
 - VED and KEY belong to the sound: they are saved with it, can be locked per trig, and their locks are
   saved with the pattern. A project saved on stock firmware opens with VED and KEY at 0 %.
 
+### MODULATION MATRIX
+
+Every audio track gets a modulation matrix for two MIDI performance controllers: **MOD WHEEL** (CC 1,
+with CC 33 as its fine part) and **BREATH CTRL** (CC 2, with CC 34), as the track receives them on its
+MIDI channel. Each controller has four slots, and each slot moves one parameter of the track as far as
+you set it to.
+
+Hold **[LFO]** and press **[UP]** or **[DOWN]** to turn the track's LFO page into the matrix page. Its
+title names the controller, `MOD WHEEL` or `BREATH CTRL`; while the matrix shows, [UP] and [DOWN] switch
+between the two instead of shifting the keyboard's octave.
+
+| Knob | Name | Range | What it does |
+|---|---|---|---|
+| A–D | DEST | the LFO DEST list | the parameter that slot 1–4 moves; choose it in the list and press [YES], as for LFO DEST |
+| E–H | DEP | −128.00 to +127.99 | how far slot 1–4 moves its parameter: at the controller's top, as far as an LFO of that depth at its peak |
+| LEVEL/DATA | MW, BC | 0–127 | the controller's value on this track: the fader follows the incoming CC, and turning LEVEL/DATA sets the value by hand |
+
+- The slots act on every audio tick, before the LFOs, which add their own movement on top. With the
+  controller at 0 a slot moves nothing, and a negative depth moves the parameter down.
+- A tap of [LFO] goes back to the LFO page; [TRIG], [SRC], [FLTR] and [AMP] go to their pages.
+  [TRK] + a track key shows the matrix of that track; choosing a MIDI track shows its LFO page.
+- Each pattern has its own matrix: the slots are part of the pattern, like its sounds, and are saved
+  with the project.
+- The controllers' values belong to the track, not to the pattern; they are 0 when the Digitakt starts.
+- A Poly track follows its source track's matrix and controllers, so every voice of the pool moves
+  with them.
+
 For how each feature works inside the firmware, see the feature list in
 [notes/README.md](notes/README.md#the-features-in-this-build).
 
@@ -259,7 +286,7 @@ The build runs on macOS and Linux; on Windows, use WSL2
    ```
    bash build/build_tool.sh
    python3 os/1.54/build/build.py
-   python3 os/1.54/build/verify.py out/1.54/dt_og_plus_plus_v0.2.4_<hash8>.syx --tool tool/bin/elektron-firmware-tool-capped
+   python3 os/1.54/build/verify.py out/1.54/dt_og_plus_plus_v0.2.5_<hash8>.syx --tool tool/bin/elektron-firmware-tool-capped
    ```
 
    In the last command, use the file name that `build.py` prints at `[7/7] wrote`.
@@ -278,7 +305,7 @@ What the three commands do:
   writes the binary somewhere else.
 - `os/1.54/build/build.py` checks your stock file, applies `os/1.54/build/patch.json`, packs and
   re-checks the result, and only then writes
-  `out/1.54/dt_og_plus_plus_v0.2.4_<first 8 hex digits of its SHA-256>.syx`. This is the file you
+  `out/1.54/dt_og_plus_plus_v0.2.5_<first 8 hex digits of its SHA-256>.syx`. This is the file you
   flash. It prints the name at `[7/7] wrote`. `--syx FILE`, `--tool FILE` and `--out DIR` override
   the default locations.
 - `os/1.54/build/verify.py` tells you what a `.syx` file is: stock Digitakt OS 1.54, DT OG++
@@ -311,8 +338,9 @@ you flash, in either direction.
 | A track with the CFOO machine | The track most likely comes back with the Oneshot machine, which reads CFOO's knob values as its own. |
 | PORT and LEG, and their locks | Most likely ignored: every note plays at its own pitch, and the locks have no effect. |
 | VED and KEY, and their locks | Most likely ignored: the filter envelope and the cutoff act as on stock, and the locks have no effect. |
+| The modulation matrix | Most likely ignored: MOD WHEEL and BREATH CTRL move nothing, as on stock. |
 
-A project made on stock firmware loads unchanged on DT OG++. Details:
+A project made on stock firmware loads unchanged on DT OG++, with every matrix empty. Details:
 [notes/compatibility.md](notes/compatibility.md).
 
 ## FOR DEVELOPERS AND AGENTS

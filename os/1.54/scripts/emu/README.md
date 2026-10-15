@@ -42,7 +42,7 @@ Run one with `./scripts/ghidra_emu.sh 1.54 <Harness> [argument]`.
 
 ## Results on the reference build
 
-On the reference build (S56, section 3 `ce7a07b4…`), every harness ends with its pass line
+On the reference build (v0.2.5, S69, section 3 `060aca3a…`), every harness ends with its pass line
 (`=== ALL CASES PASS ... ===`, or for `EmuMachineList` "as-is added 4 machines, edited added 5", and
 with the build's MAIN OS "added 6 machines", CFOO the sixth). The ones that take a build's MAIN OS ran
 on it; `EmuCfoOscillator` ran on S27's load (`lz4_stream_m5o.load`, with `machine5 names icon`),
@@ -53,7 +53,11 @@ S27's load holds as the trig's note and the build as portamento's glided note; `
 it. And portamento's reader call, its two lookup tests and the writer's loop count, which the build
 holds as FILTER page 2 rewrote them; `EmuFilter` runs them with portamento's code. And the CFO
 oscillator's knob record in `cfo_pic` (`0x400f7c5c`), which S27's load holds as the CFO oscillator's two
-instructions and the build as the wave pictures' jump; `EmuWavePic` runs it.
+instructions and the build as the wave pictures' jump; `EmuWavePic` runs it. And the wave pictures' pad
+after their code (from `0x401045c0`), which S55's load holds as fill and the build as the modulation
+matrix's code; `EmuWavePic` runs only the pictures' code before it. No harness runs the modulation
+matrix's code; `EmuChanLabel` enters MIDI Loopback's name pad at `0x4001562c` itself, not through the
+knob cell's call at `0x40030daa`, which the build points at the matrix's `mm_name` first.
 `EmuCursorCore` on an image whose marker stub reads the canvas from `%d3` fails both marker cases that
 draw a line, with the canvas `0x11111111`: the harness tells the two apart.
 

@@ -107,10 +107,12 @@ build's runs would be refused.
    and after packing re-extracts the file and requires sections 2, 4, 5 and 8 to equal stock. The
    reference build passes all seven of its checks.
 2. **Call rule.** The disassembly of every patched code range in
-   [docs/patch_listing.md](../docs/patch_listing.md) (3,004 instructions, 321 distinct direct branch
-   and call targets) has no target in a protected range. Calls and jumps through a register (nine:
-   from v0.2.2 also FILTER page 2's two calls of the start-up build's callable copier) are outside that
-   check.
+   [docs/patch_listing.md](../docs/patch_listing.md) (2,679 instructions, 428 distinct direct branch
+   and call targets) has no target in a protected range. Calls and jumps through a register (twelve:
+   from v0.2.2 also FILTER page 2's two calls of the start-up build's callable copier, from v0.2.5 the
+   modulation matrix's three calls through LfoPageView's vtable) are outside that check. From v0.2.5
+   the listing has fewer instructions than before: the matrix's code replaces most of the wave pictures'
+   pad fill, two-byte `clrl %d0 ; rts` pairs that the listing showed as instructions.
 
 Each landing pad of this build is checked against the ranges ([landing_pads.md](landing_pads.md)).
 

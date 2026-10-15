@@ -8,11 +8,11 @@ python3 os/1.54/build/make_listing.py
 
 Addresses are load addresses: section 3 (MAIN OS) loads at 0x40000400, so file offset = address - 0x40000400.
 
-- **Code** is disassembled as ColdFire (`m68k-elf-objdump -m m68k:cfv4e`) from a linear sweep of the patched section 3, so a run that starts or ends inside an instruction still shows the whole instruction. Where patched code jumps, branches, calls or points into patched bytes the sweep did not reach as an instruction start, the sweep is restarted there (0x400c1062, 0x400c1398). `+` marks an instruction whose bytes are all patched, `~` one that also contains unpatched bytes. Runs of one feature whose instructions touch are shown together.
+- **Code** is disassembled as ColdFire (`m68k-elf-objdump -m m68k:cfv4e`) from a linear sweep of the patched section 3, so a run that starts or ends inside an instruction still shows the whole instruction. Where patched code jumps, branches, calls or points into patched bytes the sweep did not reach as an instruction start, the sweep is restarted there (0x400c1062, 0x400c1398, 0x40104c60). `+` marks an instruction whose bytes are all patched, `~` one that also contains unpatched bytes. Runs of one feature whose instructions touch are shown together.
 - **Data** (icons, tables, strings) is shown as hex and ASCII, patched bytes only; `--` is an unpatched byte. Data runs of one feature less than 16 bytes apart share one dump.
 - The `+`/`~` marks count every patched byte, whichever feature it belongs to.
 
-Section 3: stock `5c58bf9e3949ef09977c5fc007a61e8d026931f67f1621238379dfb8ee4d31a2` -> patched `ce7a07b48ad053dce41e424ec86c1cb34e1cecbbb091a6320a31c8ed79f8011d`.
+Section 3: stock `5c58bf9e3949ef09977c5fc007a61e8d026931f67f1621238379dfb8ee4d31a2` -> patched `060aca3af421497dc7a6ab2d9ef8e275ed6b757c3473308a7ae94d4eefd86475`.
 Disassembler: GNU objdump (GNU Binutils for Debian) 2.40.
 
 | feature | runs | bytes | |
@@ -22,7 +22,7 @@ Disassembler: GNU objdump (GNU Binutils for Debian) 2.40.
 | [`pad_fill`](#pad-fill) | 9 | 37 | Landing pads: fill bytes left in the cleared unused functions |
 | [`poly_ui`](#poly-ui) | 12 | 138 | POLY machine: parameter pages show and edit the source track |
 | [`pool_cursors`](#pool-cursors) | 11 | 191 | POLY machine: one playhead cursor per voice on SRC page 2 |
-| [`midi_loopback`](#midi-loopback) | 25 | 513 | Virtual MIDI Loopback: a MIDI track with CHAN at TRK1-TRK8 plays an audio track without a cable, with the TRK number display |
+| [`midi_loopback`](#midi-loopback) | 24 | 510 | Virtual MIDI Loopback: a MIDI track with CHAN at TRK1-TRK8 plays an audio track without a cable, with the TRK number display |
 | [`poly_icon`](#poly-icon) | 21 | 69 | POLY machine: menu icon |
 | [`voice_allocation`](#voice-allocation) | 6 | 92 | POLY machine: voice allocation (free voice first, then steal) |
 | [`mute_by_origin`](#mute-by-origin) | 3 | 38 | POLY machine: mute follows the track a note came from |
@@ -32,9 +32,10 @@ Disassembler: GNU objdump (GNU Binutils for Debian) 2.40.
 | [`cfo_oscillator`](#cfo-oscillator) | 197 | 3916 | CFO oscillator: the CFOO machine, a 3-oscillator 8-bit FM synth, with its own SRC page, knobs, value names, icon and LFO destinations |
 | [`portamento`](#portamento) | 90 | 451 | Portamento and legato: PORT and LEG on every audio track's TRIG page, saved with the sound and lockable per trig; with LEG on, a note before the last one's LEN ends glides and keeps the amp envelope running |
 | [`filter_page2`](#filter-page2) | 53 | 406 | FILTER page 2: VED and KEY on every audio track's second FILTER page, saved with the sound and lockable per trig; VED (0-100 %) sets how much the velocity decides the filter envelope's depth around velocity 100, KEY (-394..394 % in 6.25 % steps) moves the cutoff with the note |
-| [`wave_pictures`](#wave-pictures) | 51 | 2463 | CFOO's wave pictures: WAV1, WAV2 and WAV3 on CFOO's SRC page show the wave each oscillator plays at the knob's value, 17 x 17, drawn from the oscillator's own waveform tables and blend |
+| [`wave_pictures`](#wave-pictures) | 72 | 357 | CFOO's wave pictures: WAV1, WAV2 and WAV3 on CFOO's SRC page show the wave each oscillator plays at the knob's value, 17 x 17, drawn from the oscillator's own waveform tables and blend |
 | [`filter_page2_key_note`](#filter-page2-key-note) | 1 | 4 | FILTER page 2: KEY follows the trig's note, as the NoteOn sets it and a trigless NOTE lock changes it, not portamento's glided note: the cutoff moves at once while the pitch glides |
-| **total** | 587 | 9788 | |
+| [`mod_matrix`](#mod-matrix) | 121 | 2153 | Modulation matrix: per audio track, MOD WHEEL and BREATH CTRL each drive four destinations with their own depths, set on a matrix page under the LFO page and saved with the pattern's kit |
+| **total** | 728 | 9832 | |
 
 <a id="slice-round-robin"></a>
 
@@ -726,7 +727,7 @@ Runs: 0x40015559 +33, 0x4001557d +5, 0x40015583 +59, 0x400155bf +30, 0x400155de 
 
 ## midi_loopback
 
-Virtual MIDI Loopback: a MIDI track with CHAN at TRK1-TRK8 plays an audio track without a cable, with the TRK number display. 25 runs, 513 bytes.
+Virtual MIDI Loopback: a MIDI track with CHAN at TRK1-TRK8 plays an audio track without a cable, with the TRK number display. 24 runs, 510 bytes.
 
 ### 0x400151ac, 54 B (code)
 
@@ -882,12 +883,6 @@ Runs: 0x40015616 +16, 0x40015627 +31, 0x40015647 +2, 0x4001564c +47, 0x4001567e 
 + 400156cc:  2439 4219 cc1c       movel 0x4219cc1c,%d2
 + 400156d2:  4ef9 400d 4df4       jmp 0x400d4df4
 + 400156d8:  4e75                 rts
-```
-
-### 0x40030dad, 3 B (code)
-
-```
-~ 40030daa:  4eb9 4001 562c       jsr 0x4001562c
 ```
 
 ### 0x40032d39, 3 B (code)
@@ -3157,7 +3152,7 @@ Runs: 0x40252fef +1, 0x40252ff3 +9.
 
 ## wave_pictures
 
-CFOO's wave pictures: WAV1, WAV2 and WAV3 on CFOO's SRC page show the wave each oscillator plays at the knob's value, 17 x 17, drawn from the oscillator's own waveform tables and blend. 51 runs, 2463 bytes.
+CFOO's wave pictures: WAV1, WAV2 and WAV3 on CFOO's SRC page show the wave each oscillator plays at the knob's value, 17 x 17, drawn from the oscillator's own waveform tables and blend. 72 runs, 357 bytes.
 
 ### 0x400f7c5c, 10 B (code)
 
@@ -3167,9 +3162,9 @@ CFOO's wave pictures: WAV1, WAV2 and WAV3 on CFOO's SRC page show the wave each 
 + 400f7c64:  4e71                 nop
 ```
 
-### 0x401044b6-0x40104e7c, 50 runs, 2453 B (code)
+### 0x401044b6-0x401045c0, 6 runs, 261 B (code)
 
-Runs: 0x401044b6 +40, 0x401044df +6, 0x401044e6 +48, 0x40104517 +84, 0x4010456c +72, 0x401045b5 +95, 0x40104615 +31, 0x40104635 +83, 0x40104689 +31, 0x401046a9 +87, 0x40104701 +31, 0x40104721 +87, 0x40104779 +94, 0x401047d8 +20, 0x401047ed +19, 0x40104801 +51, 0x40104835 +74, 0x40104880 +34, 0x401048a3 +1, 0x401048a5 +46, 0x401048d4 +23, 0x401048ec +6, 0x401048f3 +56, 0x4010492c +28, 0x40104949 +39, 0x40104971 +43, 0x4010499d +13, 0x401049ab +97, 0x40104a0d +190, 0x40104acc +60, 0x40104b09 +54, 0x40104b40 +64, 0x40104b81 +54, 0x40104bb8 +64, 0x40104bf9 +54, 0x40104c30 +32, 0x40104c51 +138, 0x40104cdc +39, 0x40104d04 +15, 0x40104d14 +40, 0x40104d3d +53, 0x40104d73 +1, 0x40104d75 +46, 0x40104da4 +23, 0x40104dbc +6, 0x40104dc3 +56, 0x40104dfc +28, 0x40104e19 +39, 0x40104e41 +43, 0x40104e6d +15.
+Runs: 0x401044b6 +40, 0x401044df +6, 0x401044e6 +48, 0x40104517 +84, 0x4010456c +72, 0x401045b5 +11.
 
 ```
 + 401044b6:  202f 0008            movel %sp@(8),%d0
@@ -3260,1122 +3255,383 @@ Runs: 0x401044b6 +40, 0x401044df +6, 0x401044e6 +48, 0x40104517 +84, 0x4010456c 
 + 401045b6:  4cd7 0cfc            moveml %sp@,%d2-%d7/%a2-%a3
 + 401045ba:  4fef 00c4            lea %sp@(196),%sp
 + 401045be:  4e75                 rts
-+ 401045c0:  4e75                 rts
-+ 401045c2:  4280                 clrl %d0
-+ 401045c4:  4e75                 rts
-+ 401045c6:  4280                 clrl %d0
-+ 401045c8:  4e75                 rts
-+ 401045ca:  4280                 clrl %d0
-+ 401045cc:  4e75                 rts
-+ 401045ce:  4280                 clrl %d0
-+ 401045d0:  4e75                 rts
-+ 401045d2:  4280                 clrl %d0
-+ 401045d4:  4e75                 rts
-+ 401045d6:  4280                 clrl %d0
-+ 401045d8:  4e75                 rts
-+ 401045da:  4280                 clrl %d0
-+ 401045dc:  4e75                 rts
-+ 401045de:  4280                 clrl %d0
-+ 401045e0:  4e75                 rts
-+ 401045e2:  4280                 clrl %d0
-+ 401045e4:  4e75                 rts
-+ 401045e6:  4280                 clrl %d0
-+ 401045e8:  4e75                 rts
-+ 401045ea:  4280                 clrl %d0
-+ 401045ec:  4e75                 rts
-+ 401045ee:  4280                 clrl %d0
-+ 401045f0:  4e75                 rts
-+ 401045f2:  4280                 clrl %d0
-+ 401045f4:  4e75                 rts
-+ 401045f6:  4280                 clrl %d0
-+ 401045f8:  4e75                 rts
-+ 401045fa:  4280                 clrl %d0
-+ 401045fc:  4e75                 rts
-+ 401045fe:  4280                 clrl %d0
-+ 40104600:  4e75                 rts
-+ 40104602:  4280                 clrl %d0
-+ 40104604:  4e75                 rts
-+ 40104606:  4280                 clrl %d0
-+ 40104608:  4e75                 rts
-+ 4010460a:  4280                 clrl %d0
-+ 4010460c:  4e75                 rts
-+ 4010460e:  4280                 clrl %d0
-+ 40104610:  4e75                 rts
-+ 40104612:  4280                 clrl %d0
-~ 40104614:  4e75                 rts
-+ 40104616:  4280                 clrl %d0
-+ 40104618:  4e75                 rts
-+ 4010461a:  4280                 clrl %d0
-+ 4010461c:  4e75                 rts
-+ 4010461e:  4280                 clrl %d0
-+ 40104620:  4e75                 rts
-+ 40104622:  4280                 clrl %d0
-+ 40104624:  4e75                 rts
-+ 40104626:  4280                 clrl %d0
-+ 40104628:  4e75                 rts
-+ 4010462a:  4280                 clrl %d0
-+ 4010462c:  4e75                 rts
-+ 4010462e:  4280                 clrl %d0
-+ 40104630:  4e75                 rts
-+ 40104632:  4280                 clrl %d0
-~ 40104634:  4e75                 rts
-+ 40104636:  4280                 clrl %d0
-+ 40104638:  4e75                 rts
-+ 4010463a:  4280                 clrl %d0
-+ 4010463c:  4e75                 rts
-+ 4010463e:  4280                 clrl %d0
-+ 40104640:  4e75                 rts
-+ 40104642:  4280                 clrl %d0
-+ 40104644:  4e75                 rts
-+ 40104646:  4280                 clrl %d0
-+ 40104648:  4e75                 rts
-+ 4010464a:  4280                 clrl %d0
-+ 4010464c:  4e75                 rts
-+ 4010464e:  4280                 clrl %d0
-+ 40104650:  4e75                 rts
-+ 40104652:  4280                 clrl %d0
-+ 40104654:  4e75                 rts
-+ 40104656:  4280                 clrl %d0
-+ 40104658:  4e75                 rts
-+ 4010465a:  4280                 clrl %d0
-+ 4010465c:  4e75                 rts
-+ 4010465e:  4280                 clrl %d0
-+ 40104660:  4e75                 rts
-+ 40104662:  4280                 clrl %d0
-+ 40104664:  4e75                 rts
-+ 40104666:  4280                 clrl %d0
-+ 40104668:  4e75                 rts
-+ 4010466a:  4280                 clrl %d0
-+ 4010466c:  4e75                 rts
-+ 4010466e:  4280                 clrl %d0
-+ 40104670:  4e75                 rts
-+ 40104672:  4280                 clrl %d0
-+ 40104674:  4e75                 rts
-+ 40104676:  4280                 clrl %d0
-+ 40104678:  4e75                 rts
-+ 4010467a:  4280                 clrl %d0
-+ 4010467c:  4e75                 rts
-+ 4010467e:  4280                 clrl %d0
-+ 40104680:  4e75                 rts
-+ 40104682:  4280                 clrl %d0
-+ 40104684:  4e75                 rts
-+ 40104686:  4280                 clrl %d0
-~ 40104688:  4e75                 rts
-+ 4010468a:  4280                 clrl %d0
-+ 4010468c:  4e75                 rts
-+ 4010468e:  4280                 clrl %d0
-+ 40104690:  4e75                 rts
-+ 40104692:  4280                 clrl %d0
-+ 40104694:  4e75                 rts
-+ 40104696:  4280                 clrl %d0
-+ 40104698:  4e75                 rts
-+ 4010469a:  4280                 clrl %d0
-+ 4010469c:  4e75                 rts
-+ 4010469e:  4280                 clrl %d0
-+ 401046a0:  4e75                 rts
-+ 401046a2:  4280                 clrl %d0
-+ 401046a4:  4e75                 rts
-+ 401046a6:  4280                 clrl %d0
-~ 401046a8:  4e75                 rts
-+ 401046aa:  4280                 clrl %d0
-+ 401046ac:  4e75                 rts
-+ 401046ae:  4280                 clrl %d0
-+ 401046b0:  4e75                 rts
-+ 401046b2:  4280                 clrl %d0
-+ 401046b4:  4e75                 rts
-+ 401046b6:  4280                 clrl %d0
-+ 401046b8:  4e75                 rts
-+ 401046ba:  4280                 clrl %d0
-+ 401046bc:  4e75                 rts
-+ 401046be:  4280                 clrl %d0
-+ 401046c0:  4e75                 rts
-+ 401046c2:  4280                 clrl %d0
-+ 401046c4:  4e75                 rts
-+ 401046c6:  4280                 clrl %d0
-+ 401046c8:  4e75                 rts
-+ 401046ca:  4280                 clrl %d0
-+ 401046cc:  4e75                 rts
-+ 401046ce:  4280                 clrl %d0
-+ 401046d0:  4e75                 rts
-+ 401046d2:  4280                 clrl %d0
+```
+
+### 0x401045db, 1 B (code)
+
+```
++ 401045da:  0c80 0000 0017       cmpil #23,%d0
+```
+
+### 0x401045e3, 1 B (code)
+
+```
++ 401045e2:  0c80 0000 0028       cmpil #40,%d0
+```
+
+### 0x401045eb, 1 B (code)
+
+```
++ 401045ea:  0c80 0000 002f       cmpil #47,%d0
+```
+
+### 0x40104620, 1 B (code)
+
+```
++ 40104620:  4ef9 4000 84fe       jmp 0x400084fe
+```
+
+### 0x40104632, 1 B (code)
+
+```
++ 40104632:  4229 000b            clrb %a1@(11)
+```
+
+### 0x40104642, 1 B (code)
+
+```
++ 40104642:  4229 000b            clrb %a1@(11)
+```
+
+### 0x40104677, 1 B (code)
+
+```
++ 40104676:  0c80 4d4e 4ce0       cmpil #1296977120,%d0
+```
+
+### 0x4010467e-0x40104687, 3 runs, 3 B (code)
+
+Runs: 0x4010467e +1, 0x40104682 +1, 0x40104686 +1.
+
+```
++ 4010467e:  42a8 0004            clrl %a0@(4)
++ 40104682:  42a8 0008            clrl %a0@(8)
++ 40104686:  42a8 000c            clrl %a0@(12)
+```
+
+### 0x401046cf, 1 B (code)
+
+```
++ 401046ce:  2080                 movel %d0,%a0@
+```
+
+### 0x401046d4, 2 B (code)
+
+```
 + 401046d4:  4e75                 rts
-+ 401046d6:  4280                 clrl %d0
-+ 401046d8:  4e75                 rts
-+ 401046da:  4280                 clrl %d0
-+ 401046dc:  4e75                 rts
-+ 401046de:  4280                 clrl %d0
-+ 401046e0:  4e75                 rts
-+ 401046e2:  4280                 clrl %d0
-+ 401046e4:  4e75                 rts
-+ 401046e6:  4280                 clrl %d0
-+ 401046e8:  4e75                 rts
-+ 401046ea:  4280                 clrl %d0
-+ 401046ec:  4e75                 rts
-+ 401046ee:  4280                 clrl %d0
-+ 401046f0:  4e75                 rts
-+ 401046f2:  4280                 clrl %d0
-+ 401046f4:  4e75                 rts
-+ 401046f6:  4280                 clrl %d0
-+ 401046f8:  4e75                 rts
-+ 401046fa:  4280                 clrl %d0
-+ 401046fc:  4e75                 rts
-+ 401046fe:  4280                 clrl %d0
-~ 40104700:  4e75                 rts
-+ 40104702:  4280                 clrl %d0
-+ 40104704:  4e75                 rts
-+ 40104706:  4280                 clrl %d0
-+ 40104708:  4e75                 rts
-+ 4010470a:  4280                 clrl %d0
-+ 4010470c:  4e75                 rts
-+ 4010470e:  4280                 clrl %d0
-+ 40104710:  4e75                 rts
-+ 40104712:  4280                 clrl %d0
-+ 40104714:  4e75                 rts
-+ 40104716:  4280                 clrl %d0
-+ 40104718:  4e75                 rts
-+ 4010471a:  4280                 clrl %d0
-+ 4010471c:  4e75                 rts
-+ 4010471e:  4280                 clrl %d0
-~ 40104720:  4e75                 rts
-+ 40104722:  4280                 clrl %d0
-+ 40104724:  4e75                 rts
-+ 40104726:  4280                 clrl %d0
-+ 40104728:  4e75                 rts
-+ 4010472a:  4280                 clrl %d0
-+ 4010472c:  4e75                 rts
-+ 4010472e:  4280                 clrl %d0
-+ 40104730:  4e75                 rts
-+ 40104732:  4280                 clrl %d0
-+ 40104734:  4e75                 rts
-+ 40104736:  4280                 clrl %d0
-+ 40104738:  4e75                 rts
-+ 4010473a:  4280                 clrl %d0
-+ 4010473c:  4e75                 rts
-+ 4010473e:  4280                 clrl %d0
-+ 40104740:  4e75                 rts
-+ 40104742:  4280                 clrl %d0
-+ 40104744:  4e75                 rts
-+ 40104746:  4280                 clrl %d0
-+ 40104748:  4e75                 rts
-+ 4010474a:  4280                 clrl %d0
-+ 4010474c:  4e75                 rts
-+ 4010474e:  4280                 clrl %d0
-+ 40104750:  4e75                 rts
-+ 40104752:  4280                 clrl %d0
-+ 40104754:  4e75                 rts
-+ 40104756:  4280                 clrl %d0
-+ 40104758:  4e75                 rts
-+ 4010475a:  4280                 clrl %d0
-+ 4010475c:  4e75                 rts
-+ 4010475e:  4280                 clrl %d0
-+ 40104760:  4e75                 rts
-+ 40104762:  4280                 clrl %d0
-+ 40104764:  4e75                 rts
-+ 40104766:  4280                 clrl %d0
-+ 40104768:  4e75                 rts
-+ 4010476a:  4280                 clrl %d0
-+ 4010476c:  4e75                 rts
-+ 4010476e:  4280                 clrl %d0
-+ 40104770:  4e75                 rts
-+ 40104772:  4280                 clrl %d0
-+ 40104774:  4e75                 rts
-+ 40104776:  4280                 clrl %d0
-~ 40104778:  4e75                 rts
-+ 4010477a:  4280                 clrl %d0
-+ 4010477c:  4e75                 rts
-+ 4010477e:  4280                 clrl %d0
+```
+
+### 0x401046df, 1 B (code)
+
+```
++ 401046de:  0c80 4d4e 4ce0       cmpil #1296977120,%d0
+```
+
+### 0x401046ff, 1 B (code)
+
+```
++ 401046fe:  0c80 0000 0007       cmpil #7,%d0
+```
+
+### 0x40104744, 1 B (code)
+
+```
++ 40104744:  4e91                 jsr %a1@
+```
+
+### 0x40104754, 1 B (code)
+
+```
++ 40104754:  4eb9 4009 3a56       jsr 0x40093a56
+```
+
+### 0x40104768, 1 B (code)
+
+```
++ 40104768:  4eb9 4013 8882       jsr 0x40138882
+```
+
+### 0x40104770-0x40104778, 2 runs, 2 B (code)
+
+Runs: 0x40104770 +1, 0x40104777 +1.
+
+```
++ 40104770:  4eb9 4001 4d86       jsr 0x40014d86
++ 40104776:  2e80                 movel %d0,%sp@
+```
+
+### 0x40104780, 2 B (code)
+
+```
 + 40104780:  4e75                 rts
-+ 40104782:  4280                 clrl %d0
-+ 40104784:  4e75                 rts
-+ 40104786:  4280                 clrl %d0
-+ 40104788:  4e75                 rts
-+ 4010478a:  4280                 clrl %d0
-+ 4010478c:  4e75                 rts
-+ 4010478e:  4280                 clrl %d0
-+ 40104790:  4e75                 rts
-+ 40104792:  4280                 clrl %d0
-+ 40104794:  4e75                 rts
-+ 40104796:  4280                 clrl %d0
-+ 40104798:  4e75                 rts
-+ 4010479a:  4280                 clrl %d0
-+ 4010479c:  4e75                 rts
-+ 4010479e:  4280                 clrl %d0
-+ 401047a0:  4e75                 rts
-+ 401047a2:  4280                 clrl %d0
-+ 401047a4:  4e75                 rts
-+ 401047a6:  4280                 clrl %d0
-+ 401047a8:  4e75                 rts
-+ 401047aa:  4280                 clrl %d0
-+ 401047ac:  4e75                 rts
-+ 401047ae:  4280                 clrl %d0
-+ 401047b0:  4e75                 rts
-+ 401047b2:  4280                 clrl %d0
-+ 401047b4:  4e75                 rts
-+ 401047b6:  4280                 clrl %d0
-+ 401047b8:  4e75                 rts
-+ 401047ba:  4280                 clrl %d0
-+ 401047bc:  4e75                 rts
-+ 401047be:  4280                 clrl %d0
-+ 401047c0:  4e75                 rts
-+ 401047c2:  4280                 clrl %d0
-+ 401047c4:  4e75                 rts
-+ 401047c6:  4280                 clrl %d0
-+ 401047c8:  4e75                 rts
-+ 401047ca:  4280                 clrl %d0
-+ 401047cc:  4e75                 rts
-+ 401047ce:  4280                 clrl %d0
-+ 401047d0:  4e75                 rts
-+ 401047d2:  4280                 clrl %d0
-+ 401047d4:  4e75                 rts
-~ 401047d6:  4280                 clrl %d0
-+ 401047d8:  4e75                 rts
-+ 401047da:  4280                 clrl %d0
-+ 401047dc:  4e75                 rts
-+ 401047de:  4280                 clrl %d0
-+ 401047e0:  4e75                 rts
-+ 401047e2:  4280                 clrl %d0
-+ 401047e4:  4e75                 rts
-+ 401047e6:  4280                 clrl %d0
-+ 401047e8:  4e75                 rts
-+ 401047ea:  4280                 clrl %d0
-~ 401047ec:  4e75                 rts
-+ 401047ee:  4280                 clrl %d0
-+ 401047f0:  4e75                 rts
-+ 401047f2:  4280                 clrl %d0
-+ 401047f4:  4e75                 rts
-+ 401047f6:  4280                 clrl %d0
-+ 401047f8:  4e75                 rts
-+ 401047fa:  4280                 clrl %d0
-+ 401047fc:  4e75                 rts
-+ 401047fe:  4280                 clrl %d0
-~ 40104800:  4e75                 rts
-+ 40104802:  4280                 clrl %d0
-+ 40104804:  4e75                 rts
-+ 40104806:  4280                 clrl %d0
-+ 40104808:  4e75                 rts
-+ 4010480a:  4280                 clrl %d0
-+ 4010480c:  4e75                 rts
-+ 4010480e:  4280                 clrl %d0
-+ 40104810:  4e75                 rts
-+ 40104812:  4280                 clrl %d0
-+ 40104814:  4e75                 rts
-+ 40104816:  4280                 clrl %d0
-+ 40104818:  4e75                 rts
-+ 4010481a:  4280                 clrl %d0
-+ 4010481c:  4e75                 rts
-+ 4010481e:  4280                 clrl %d0
-+ 40104820:  4e75                 rts
-+ 40104822:  4280                 clrl %d0
-+ 40104824:  4e75                 rts
-+ 40104826:  4280                 clrl %d0
-+ 40104828:  4e75                 rts
-+ 4010482a:  4280                 clrl %d0
-+ 4010482c:  4e75                 rts
-+ 4010482e:  4280                 clrl %d0
-+ 40104830:  4e75                 rts
-+ 40104832:  4280                 clrl %d0
-~ 40104834:  4e75                 rts
-+ 40104836:  4280                 clrl %d0
-+ 40104838:  4e75                 rts
-+ 4010483a:  4280                 clrl %d0
-+ 4010483c:  4e75                 rts
-+ 4010483e:  4280                 clrl %d0
-+ 40104840:  4e75                 rts
-+ 40104842:  4280                 clrl %d0
-+ 40104844:  4e75                 rts
-+ 40104846:  4280                 clrl %d0
-+ 40104848:  4e75                 rts
-+ 4010484a:  4280                 clrl %d0
-+ 4010484c:  4e75                 rts
-+ 4010484e:  4280                 clrl %d0
-+ 40104850:  4e75                 rts
-+ 40104852:  4280                 clrl %d0
-+ 40104854:  4e75                 rts
-+ 40104856:  4280                 clrl %d0
-+ 40104858:  4e75                 rts
-+ 4010485a:  4280                 clrl %d0
-+ 4010485c:  4e75                 rts
-+ 4010485e:  4280                 clrl %d0
-+ 40104860:  4e75                 rts
-+ 40104862:  4280                 clrl %d0
-+ 40104864:  4e75                 rts
-+ 40104866:  4280                 clrl %d0
-+ 40104868:  4e75                 rts
-+ 4010486a:  4280                 clrl %d0
-+ 4010486c:  4e75                 rts
-+ 4010486e:  4280                 clrl %d0
-+ 40104870:  4e75                 rts
-+ 40104872:  4280                 clrl %d0
-+ 40104874:  4e75                 rts
-+ 40104876:  4280                 clrl %d0
-+ 40104878:  4e75                 rts
-+ 4010487a:  4280                 clrl %d0
-+ 4010487c:  4e75                 rts
-~ 4010487e:  4280                 clrl %d0
-+ 40104880:  4e75                 rts
-+ 40104882:  4280                 clrl %d0
-+ 40104884:  4e75                 rts
-+ 40104886:  4280                 clrl %d0
-+ 40104888:  4e75                 rts
-+ 4010488a:  4280                 clrl %d0
-+ 4010488c:  4e75                 rts
-+ 4010488e:  4280                 clrl %d0
-+ 40104890:  4e75                 rts
-+ 40104892:  4280                 clrl %d0
-+ 40104894:  4e75                 rts
-+ 40104896:  4280                 clrl %d0
-+ 40104898:  4e75                 rts
-+ 4010489a:  4280                 clrl %d0
-+ 4010489c:  4e75                 rts
-+ 4010489e:  4280                 clrl %d0
-+ 401048a0:  4e75                 rts
-~ 401048a2:  4280                 clrl %d0
-~ 401048a4:  4e75                 rts
-+ 401048a6:  4280                 clrl %d0
-+ 401048a8:  4e75                 rts
-+ 401048aa:  4280                 clrl %d0
-+ 401048ac:  4e75                 rts
-+ 401048ae:  4280                 clrl %d0
-+ 401048b0:  4e75                 rts
-+ 401048b2:  4280                 clrl %d0
-+ 401048b4:  4e75                 rts
-+ 401048b6:  4280                 clrl %d0
-+ 401048b8:  4e75                 rts
-+ 401048ba:  4280                 clrl %d0
-+ 401048bc:  4e75                 rts
-+ 401048be:  4280                 clrl %d0
-+ 401048c0:  4e75                 rts
-+ 401048c2:  4280                 clrl %d0
-+ 401048c4:  4e75                 rts
-+ 401048c6:  4280                 clrl %d0
-+ 401048c8:  4e75                 rts
-+ 401048ca:  4280                 clrl %d0
-+ 401048cc:  4e75                 rts
-+ 401048ce:  4280                 clrl %d0
-+ 401048d0:  4e75                 rts
-~ 401048d2:  4280                 clrl %d0
-+ 401048d4:  4e75                 rts
-+ 401048d6:  4280                 clrl %d0
-+ 401048d8:  4e75                 rts
-+ 401048da:  4280                 clrl %d0
-+ 401048dc:  4e75                 rts
-+ 401048de:  4280                 clrl %d0
-+ 401048e0:  4e75                 rts
-+ 401048e2:  4280                 clrl %d0
-+ 401048e4:  4e75                 rts
-+ 401048e6:  4280                 clrl %d0
-+ 401048e8:  4e75                 rts
-~ 401048ea:  4280                 clrl %d0
-+ 401048ec:  4e75                 rts
-+ 401048ee:  4280                 clrl %d0
-+ 401048f0:  4e75                 rts
-~ 401048f2:  4280                 clrl %d0
-+ 401048f4:  4e75                 rts
-+ 401048f6:  4280                 clrl %d0
-+ 401048f8:  4e75                 rts
-+ 401048fa:  4280                 clrl %d0
-+ 401048fc:  4e75                 rts
-+ 401048fe:  4280                 clrl %d0
-+ 40104900:  4e75                 rts
-+ 40104902:  4280                 clrl %d0
-+ 40104904:  4e75                 rts
-+ 40104906:  4280                 clrl %d0
-+ 40104908:  4e75                 rts
-+ 4010490a:  4280                 clrl %d0
-+ 4010490c:  4e75                 rts
-+ 4010490e:  4280                 clrl %d0
-+ 40104910:  4e75                 rts
-+ 40104912:  4280                 clrl %d0
-+ 40104914:  4e75                 rts
-+ 40104916:  4280                 clrl %d0
-+ 40104918:  4e75                 rts
-+ 4010491a:  4280                 clrl %d0
-+ 4010491c:  4e75                 rts
-+ 4010491e:  4280                 clrl %d0
-+ 40104920:  4e75                 rts
-+ 40104922:  4280                 clrl %d0
-+ 40104924:  4e75                 rts
-+ 40104926:  4280                 clrl %d0
-+ 40104928:  4e75                 rts
-~ 4010492a:  4280                 clrl %d0
-+ 4010492c:  4e75                 rts
-+ 4010492e:  4280                 clrl %d0
-+ 40104930:  4e75                 rts
-+ 40104932:  4280                 clrl %d0
-+ 40104934:  4e75                 rts
-+ 40104936:  4280                 clrl %d0
-+ 40104938:  4e75                 rts
-+ 4010493a:  4280                 clrl %d0
-+ 4010493c:  4e75                 rts
-+ 4010493e:  4280                 clrl %d0
-+ 40104940:  4e75                 rts
-+ 40104942:  4280                 clrl %d0
-+ 40104944:  4e75                 rts
-+ 40104946:  4280                 clrl %d0
-~ 40104948:  4e75                 rts
-+ 4010494a:  4280                 clrl %d0
-+ 4010494c:  4e75                 rts
-+ 4010494e:  4280                 clrl %d0
-+ 40104950:  4e75                 rts
-+ 40104952:  4280                 clrl %d0
-+ 40104954:  4e75                 rts
-+ 40104956:  4280                 clrl %d0
-+ 40104958:  4e75                 rts
-+ 4010495a:  4280                 clrl %d0
-+ 4010495c:  4e75                 rts
-+ 4010495e:  4280                 clrl %d0
-+ 40104960:  4e75                 rts
-+ 40104962:  4280                 clrl %d0
-+ 40104964:  4e75                 rts
-+ 40104966:  4280                 clrl %d0
-+ 40104968:  4e75                 rts
-+ 4010496a:  4280                 clrl %d0
-+ 4010496c:  4e75                 rts
-+ 4010496e:  4280                 clrl %d0
-~ 40104970:  4e75                 rts
-+ 40104972:  4280                 clrl %d0
+```
+
+### 0x401047b8, 1 B (code)
+
+```
++ 401047b8:  4eb9 400c 0898       jsr 0x400c0898
+```
+
+### 0x401047d2, 1 B (code)
+
+```
++ 401047d2:  42a7                 clrl %sp@-
+```
+
+### 0x401047d6, 1 B (code)
+
+```
++ 401047d6:  42a7                 clrl %sp@-
+```
+
+### 0x40104824, 1 B (code)
+
+```
++ 40104824:  4e90                 jsr %a0@
+```
+
+### 0x40104843, 1 B (code)
+
+```
++ 40104842:  5380                 subql #1,%d0
+```
+
+### 0x40104847, 1 B (code)
+
+```
++ 40104846:  b280                 cmpl %d0,%d1
+```
+
+### 0x4010484f, 1 B (code)
+
+```
++ 4010484e:  b280                 cmpl %d0,%d1
+```
+
+### 0x4010485c, 1 B (code)
+
+```
++ 4010485c:  4ef9 4003 2a78       jmp 0x40032a78
+```
+
+### 0x4010486c, 1 B (code)
+
+```
++ 4010486c:  4ef9 4003 0930       jmp 0x40030930
+```
+
+### 0x40104888, 1 B (code)
+
+```
++ 40104888:  4eb9 4017 af20       jsr 0x4017af20
+```
+
+### 0x401048aa, 1 B (code)
+
+```
++ 401048aa:  4252                 clrw %a2@
+```
+
+### 0x40104973, 3 B (code)
+
+```
++ 40104972:  4a80                 tstl %d0
 + 40104974:  4e75                 rts
-+ 40104976:  4280                 clrl %d0
-+ 40104978:  4e75                 rts
-+ 4010497a:  4280                 clrl %d0
-+ 4010497c:  4e75                 rts
-+ 4010497e:  4280                 clrl %d0
-+ 40104980:  4e75                 rts
-+ 40104982:  4280                 clrl %d0
-+ 40104984:  4e75                 rts
-+ 40104986:  4280                 clrl %d0
-+ 40104988:  4e75                 rts
-+ 4010498a:  4280                 clrl %d0
-+ 4010498c:  4e75                 rts
-+ 4010498e:  4280                 clrl %d0
-+ 40104990:  4e75                 rts
-+ 40104992:  4280                 clrl %d0
-+ 40104994:  4e75                 rts
-+ 40104996:  4280                 clrl %d0
-+ 40104998:  4e75                 rts
-+ 4010499a:  4280                 clrl %d0
-~ 4010499c:  4e75                 rts
-+ 4010499e:  4280                 clrl %d0
-+ 401049a0:  4e75                 rts
-+ 401049a2:  4280                 clrl %d0
-+ 401049a4:  4e75                 rts
-+ 401049a6:  4280                 clrl %d0
-+ 401049a8:  4e75                 rts
-~ 401049aa:  4280                 clrl %d0
-+ 401049ac:  4e75                 rts
-+ 401049ae:  4280                 clrl %d0
-+ 401049b0:  4e75                 rts
-+ 401049b2:  4280                 clrl %d0
-+ 401049b4:  4e75                 rts
-+ 401049b6:  4280                 clrl %d0
-+ 401049b8:  4e75                 rts
-+ 401049ba:  4280                 clrl %d0
-+ 401049bc:  4e75                 rts
-+ 401049be:  4280                 clrl %d0
-+ 401049c0:  4e75                 rts
-+ 401049c2:  4280                 clrl %d0
-+ 401049c4:  4e75                 rts
-+ 401049c6:  4280                 clrl %d0
-+ 401049c8:  4e75                 rts
-+ 401049ca:  4280                 clrl %d0
-+ 401049cc:  4e75                 rts
-+ 401049ce:  4280                 clrl %d0
-+ 401049d0:  4e75                 rts
-+ 401049d2:  4280                 clrl %d0
-+ 401049d4:  4e75                 rts
-+ 401049d6:  4280                 clrl %d0
-+ 401049d8:  4e75                 rts
-+ 401049da:  4280                 clrl %d0
-+ 401049dc:  4e75                 rts
-+ 401049de:  4280                 clrl %d0
-+ 401049e0:  4e75                 rts
-+ 401049e2:  4280                 clrl %d0
+```
+
+### 0x40104993, 1 B (code)
+
+```
++ 40104992:  0480 0000 4000       subil #16384,%d0
+```
+
+### 0x401049af, 1 B (code)
+
+```
+~ 401049ae:  0c80 0000 7f00       cmpil #32512,%d0
+```
+
+### 0x401049e4, 2 B (code)
+
+```
 + 401049e4:  4e75                 rts
-+ 401049e6:  4280                 clrl %d0
-+ 401049e8:  4e75                 rts
-+ 401049ea:  4280                 clrl %d0
-+ 401049ec:  4e75                 rts
-+ 401049ee:  4280                 clrl %d0
-+ 401049f0:  4e75                 rts
-+ 401049f2:  4280                 clrl %d0
-+ 401049f4:  4e75                 rts
-+ 401049f6:  4280                 clrl %d0
-+ 401049f8:  4e75                 rts
-+ 401049fa:  4280                 clrl %d0
-+ 401049fc:  4e75                 rts
-+ 401049fe:  4280                 clrl %d0
-+ 40104a00:  4e75                 rts
-+ 40104a02:  4280                 clrl %d0
-+ 40104a04:  4e75                 rts
-+ 40104a06:  4280                 clrl %d0
-+ 40104a08:  4e75                 rts
-+ 40104a0a:  4280                 clrl %d0
-~ 40104a0c:  4e75                 rts
-+ 40104a0e:  4280                 clrl %d0
-+ 40104a10:  4e75                 rts
-+ 40104a12:  4280                 clrl %d0
-+ 40104a14:  4e75                 rts
-+ 40104a16:  4280                 clrl %d0
-+ 40104a18:  4e75                 rts
-+ 40104a1a:  4280                 clrl %d0
-+ 40104a1c:  4e75                 rts
-+ 40104a1e:  4280                 clrl %d0
-+ 40104a20:  4e75                 rts
-+ 40104a22:  4280                 clrl %d0
-+ 40104a24:  4e75                 rts
-+ 40104a26:  4280                 clrl %d0
-+ 40104a28:  4e75                 rts
-+ 40104a2a:  4280                 clrl %d0
-+ 40104a2c:  4e75                 rts
-+ 40104a2e:  4280                 clrl %d0
-+ 40104a30:  4e75                 rts
-+ 40104a32:  4280                 clrl %d0
-+ 40104a34:  4e75                 rts
-+ 40104a36:  4280                 clrl %d0
-+ 40104a38:  4e75                 rts
-+ 40104a3a:  4280                 clrl %d0
-+ 40104a3c:  4e75                 rts
-+ 40104a3e:  4280                 clrl %d0
-+ 40104a40:  4e75                 rts
-+ 40104a42:  4280                 clrl %d0
-+ 40104a44:  4e75                 rts
-+ 40104a46:  4280                 clrl %d0
-+ 40104a48:  4e75                 rts
-+ 40104a4a:  4280                 clrl %d0
-+ 40104a4c:  4e75                 rts
-+ 40104a4e:  4280                 clrl %d0
-+ 40104a50:  4e75                 rts
-+ 40104a52:  4280                 clrl %d0
-+ 40104a54:  4e75                 rts
-+ 40104a56:  4280                 clrl %d0
-+ 40104a58:  4e75                 rts
-+ 40104a5a:  4280                 clrl %d0
-+ 40104a5c:  4e75                 rts
-+ 40104a5e:  4280                 clrl %d0
-+ 40104a60:  4e75                 rts
-+ 40104a62:  4280                 clrl %d0
-+ 40104a64:  4e75                 rts
-+ 40104a66:  4280                 clrl %d0
-+ 40104a68:  4e75                 rts
-+ 40104a6a:  4280                 clrl %d0
-+ 40104a6c:  4e75                 rts
-+ 40104a6e:  4280                 clrl %d0
-+ 40104a70:  4e75                 rts
-+ 40104a72:  4280                 clrl %d0
-+ 40104a74:  4e75                 rts
-+ 40104a76:  4280                 clrl %d0
-+ 40104a78:  4e75                 rts
-+ 40104a7a:  4280                 clrl %d0
-+ 40104a7c:  4e75                 rts
-+ 40104a7e:  4280                 clrl %d0
-+ 40104a80:  4e75                 rts
-+ 40104a82:  4280                 clrl %d0
-+ 40104a84:  4e75                 rts
-+ 40104a86:  4280                 clrl %d0
-+ 40104a88:  4e75                 rts
-+ 40104a8a:  4280                 clrl %d0
-+ 40104a8c:  4e75                 rts
-+ 40104a8e:  4280                 clrl %d0
-+ 40104a90:  4e75                 rts
-+ 40104a92:  4280                 clrl %d0
-+ 40104a94:  4e75                 rts
-+ 40104a96:  4280                 clrl %d0
-+ 40104a98:  4e75                 rts
-+ 40104a9a:  4280                 clrl %d0
-+ 40104a9c:  4e75                 rts
-+ 40104a9e:  4280                 clrl %d0
-+ 40104aa0:  4e75                 rts
-+ 40104aa2:  4280                 clrl %d0
-+ 40104aa4:  4e75                 rts
-+ 40104aa6:  4280                 clrl %d0
-+ 40104aa8:  4e75                 rts
-+ 40104aaa:  4280                 clrl %d0
-+ 40104aac:  4e75                 rts
-+ 40104aae:  4280                 clrl %d0
-+ 40104ab0:  4e75                 rts
-+ 40104ab2:  4280                 clrl %d0
-+ 40104ab4:  4e75                 rts
-+ 40104ab6:  4280                 clrl %d0
-+ 40104ab8:  4e75                 rts
-+ 40104aba:  4280                 clrl %d0
-+ 40104abc:  4e75                 rts
-+ 40104abe:  4280                 clrl %d0
-+ 40104ac0:  4e75                 rts
-+ 40104ac2:  4280                 clrl %d0
-+ 40104ac4:  4e75                 rts
-+ 40104ac6:  4280                 clrl %d0
+```
+
+### 0x401049f7, 1 B (code)
+
+```
++ 401049f6:  0c80 0000 0037       cmpil #55,%d0
+```
+
+### 0x401049ff, 1 B (code)
+
+```
++ 401049fe:  0c80 0000 003b       cmpil #59,%d0
+```
+
+### 0x40104a60, 1 B (code)
+
+```
++ 40104a60:  4ef9 4003 08d0       jmp 0x400308d0
+```
+
+### 0x40104ac8, 2 B (code)
+
+```
 + 40104ac8:  4e75                 rts
-~ 40104aca:  4280                 clrl %d0
-+ 40104acc:  4e75                 rts
-+ 40104ace:  4280                 clrl %d0
-+ 40104ad0:  4e75                 rts
-+ 40104ad2:  4280                 clrl %d0
-+ 40104ad4:  4e75                 rts
-+ 40104ad6:  4280                 clrl %d0
-+ 40104ad8:  4e75                 rts
-+ 40104ada:  4280                 clrl %d0
-+ 40104adc:  4e75                 rts
-+ 40104ade:  4280                 clrl %d0
-+ 40104ae0:  4e75                 rts
-+ 40104ae2:  4280                 clrl %d0
-+ 40104ae4:  4e75                 rts
-+ 40104ae6:  4280                 clrl %d0
-+ 40104ae8:  4e75                 rts
-+ 40104aea:  4280                 clrl %d0
-+ 40104aec:  4e75                 rts
-+ 40104aee:  4280                 clrl %d0
-+ 40104af0:  4e75                 rts
-+ 40104af2:  4280                 clrl %d0
-+ 40104af4:  4e75                 rts
-+ 40104af6:  4280                 clrl %d0
-+ 40104af8:  4e75                 rts
-+ 40104afa:  4280                 clrl %d0
+```
+
+### 0x40104ad7, 1 B (code)
+
+```
++ 40104ad6:  4a80                 tstl %d0
+```
+
+### 0x40104ae8, 1 B (code)
+
+```
++ 40104ae8:  4eb9 4009 3470       jsr 0x40093470
+```
+
+### 0x40104afc, 2 B (code)
+
+```
 + 40104afc:  4e75                 rts
-+ 40104afe:  4280                 clrl %d0
-+ 40104b00:  4e75                 rts
-+ 40104b02:  4280                 clrl %d0
-+ 40104b04:  4e75                 rts
-+ 40104b06:  4280                 clrl %d0
-~ 40104b08:  4e75                 rts
-+ 40104b0a:  4280                 clrl %d0
-+ 40104b0c:  4e75                 rts
-+ 40104b0e:  4280                 clrl %d0
-+ 40104b10:  4e75                 rts
-+ 40104b12:  4280                 clrl %d0
-+ 40104b14:  4e75                 rts
-+ 40104b16:  4280                 clrl %d0
-+ 40104b18:  4e75                 rts
-+ 40104b1a:  4280                 clrl %d0
-+ 40104b1c:  4e75                 rts
-+ 40104b1e:  4280                 clrl %d0
-+ 40104b20:  4e75                 rts
-+ 40104b22:  4280                 clrl %d0
-+ 40104b24:  4e75                 rts
-+ 40104b26:  4280                 clrl %d0
-+ 40104b28:  4e75                 rts
-+ 40104b2a:  4280                 clrl %d0
-+ 40104b2c:  4e75                 rts
-+ 40104b2e:  4280                 clrl %d0
-+ 40104b30:  4e75                 rts
-+ 40104b32:  4280                 clrl %d0
-+ 40104b34:  4e75                 rts
-+ 40104b36:  4280                 clrl %d0
-+ 40104b38:  4e75                 rts
-+ 40104b3a:  4280                 clrl %d0
-+ 40104b3c:  4e75                 rts
-~ 40104b3e:  4280                 clrl %d0
-+ 40104b40:  4e75                 rts
-+ 40104b42:  4280                 clrl %d0
-+ 40104b44:  4e75                 rts
-+ 40104b46:  4280                 clrl %d0
-+ 40104b48:  4e75                 rts
-+ 40104b4a:  4280                 clrl %d0
-+ 40104b4c:  4e75                 rts
-+ 40104b4e:  4280                 clrl %d0
-+ 40104b50:  4e75                 rts
-+ 40104b52:  4280                 clrl %d0
-+ 40104b54:  4e75                 rts
-+ 40104b56:  4280                 clrl %d0
-+ 40104b58:  4e75                 rts
-+ 40104b5a:  4280                 clrl %d0
-+ 40104b5c:  4e75                 rts
-+ 40104b5e:  4280                 clrl %d0
-+ 40104b60:  4e75                 rts
-+ 40104b62:  4280                 clrl %d0
-+ 40104b64:  4e75                 rts
-+ 40104b66:  4280                 clrl %d0
-+ 40104b68:  4e75                 rts
-+ 40104b6a:  4280                 clrl %d0
-+ 40104b6c:  4e75                 rts
-+ 40104b6e:  4280                 clrl %d0
-+ 40104b70:  4e75                 rts
-+ 40104b72:  4280                 clrl %d0
-+ 40104b74:  4e75                 rts
-+ 40104b76:  4280                 clrl %d0
-+ 40104b78:  4e75                 rts
-+ 40104b7a:  4280                 clrl %d0
-+ 40104b7c:  4e75                 rts
-+ 40104b7e:  4280                 clrl %d0
-~ 40104b80:  4e75                 rts
-+ 40104b82:  4280                 clrl %d0
-+ 40104b84:  4e75                 rts
-+ 40104b86:  4280                 clrl %d0
-+ 40104b88:  4e75                 rts
-+ 40104b8a:  4280                 clrl %d0
-+ 40104b8c:  4e75                 rts
-+ 40104b8e:  4280                 clrl %d0
-+ 40104b90:  4e75                 rts
-+ 40104b92:  4280                 clrl %d0
-+ 40104b94:  4e75                 rts
-+ 40104b96:  4280                 clrl %d0
-+ 40104b98:  4e75                 rts
-+ 40104b9a:  4280                 clrl %d0
-+ 40104b9c:  4e75                 rts
-+ 40104b9e:  4280                 clrl %d0
-+ 40104ba0:  4e75                 rts
-+ 40104ba2:  4280                 clrl %d0
-+ 40104ba4:  4e75                 rts
-+ 40104ba6:  4280                 clrl %d0
-+ 40104ba8:  4e75                 rts
-+ 40104baa:  4280                 clrl %d0
-+ 40104bac:  4e75                 rts
-+ 40104bae:  4280                 clrl %d0
-+ 40104bb0:  4e75                 rts
-+ 40104bb2:  4280                 clrl %d0
-+ 40104bb4:  4e75                 rts
-~ 40104bb6:  4280                 clrl %d0
-+ 40104bb8:  4e75                 rts
-+ 40104bba:  4280                 clrl %d0
-+ 40104bbc:  4e75                 rts
-+ 40104bbe:  4280                 clrl %d0
-+ 40104bc0:  4e75                 rts
-+ 40104bc2:  4280                 clrl %d0
-+ 40104bc4:  4e75                 rts
-+ 40104bc6:  4280                 clrl %d0
-+ 40104bc8:  4e75                 rts
-+ 40104bca:  4280                 clrl %d0
-+ 40104bcc:  4e75                 rts
-+ 40104bce:  4280                 clrl %d0
-+ 40104bd0:  4e75                 rts
-+ 40104bd2:  4280                 clrl %d0
-+ 40104bd4:  4e75                 rts
-+ 40104bd6:  4280                 clrl %d0
-+ 40104bd8:  4e75                 rts
-+ 40104bda:  4280                 clrl %d0
-+ 40104bdc:  4e75                 rts
-+ 40104bde:  4280                 clrl %d0
-+ 40104be0:  4e75                 rts
-+ 40104be2:  4280                 clrl %d0
-+ 40104be4:  4e75                 rts
-+ 40104be6:  4280                 clrl %d0
-+ 40104be8:  4e75                 rts
-+ 40104bea:  4280                 clrl %d0
-+ 40104bec:  4e75                 rts
-+ 40104bee:  4280                 clrl %d0
-+ 40104bf0:  4e75                 rts
-+ 40104bf2:  4280                 clrl %d0
-+ 40104bf4:  4e75                 rts
-+ 40104bf6:  4280                 clrl %d0
-~ 40104bf8:  4e75                 rts
-+ 40104bfa:  4280                 clrl %d0
-+ 40104bfc:  4e75                 rts
-+ 40104bfe:  4280                 clrl %d0
-+ 40104c00:  4e75                 rts
-+ 40104c02:  4280                 clrl %d0
-+ 40104c04:  4e75                 rts
-+ 40104c06:  4280                 clrl %d0
-+ 40104c08:  4e75                 rts
-+ 40104c0a:  4280                 clrl %d0
-+ 40104c0c:  4e75                 rts
-+ 40104c0e:  4280                 clrl %d0
-+ 40104c10:  4e75                 rts
-+ 40104c12:  4280                 clrl %d0
-+ 40104c14:  4e75                 rts
-+ 40104c16:  4280                 clrl %d0
-+ 40104c18:  4e75                 rts
-+ 40104c1a:  4280                 clrl %d0
-+ 40104c1c:  4e75                 rts
-+ 40104c1e:  4280                 clrl %d0
-+ 40104c20:  4e75                 rts
-+ 40104c22:  4280                 clrl %d0
-+ 40104c24:  4e75                 rts
-+ 40104c26:  4280                 clrl %d0
-+ 40104c28:  4e75                 rts
-+ 40104c2a:  4280                 clrl %d0
-+ 40104c2c:  4e75                 rts
-~ 40104c2e:  4280                 clrl %d0
-+ 40104c30:  4e75                 rts
-+ 40104c32:  4280                 clrl %d0
-+ 40104c34:  4e75                 rts
-+ 40104c36:  4280                 clrl %d0
-+ 40104c38:  4e75                 rts
-+ 40104c3a:  4280                 clrl %d0
-+ 40104c3c:  4e75                 rts
-+ 40104c3e:  4280                 clrl %d0
-+ 40104c40:  4e75                 rts
-+ 40104c42:  4280                 clrl %d0
-+ 40104c44:  4e75                 rts
-+ 40104c46:  4280                 clrl %d0
-+ 40104c48:  4e75                 rts
-+ 40104c4a:  4280                 clrl %d0
-+ 40104c4c:  4e75                 rts
-+ 40104c4e:  4280                 clrl %d0
-~ 40104c50:  4e75                 rts
-+ 40104c52:  4280                 clrl %d0
-+ 40104c54:  4e75                 rts
-+ 40104c56:  4280                 clrl %d0
+```
+
+### 0x40104b07, 1 B (code)
+
+```
++ 40104b06:  0c80 0000 000e       cmpil #14,%d0
+```
+
+### 0x40104b0f, 1 B (code)
+
+```
++ 40104b0e:  0c80 0000 000f       cmpil #15,%d0
+```
+
+### 0x40104b28, 1 B (code)
+
+```
++ 40104b28:  4ef9 4002 9876       jmp 0x40029876
+```
+
+### 0x40104b53, 1 B (code)
+
+```
++ 40104b52:  b280                 cmpl %d0,%d1
+```
+
+### 0x40104bdc, 1 B (code)
+
+```
++ 40104bdc:  4ef9 4003 0a64       jmp 0x40030a64
+```
+
+### 0x40104bfe, 1 B (code)
+
+```
++ 40104bfc:  41f9 421b 2084       lea 0x421b2084,%a0
+```
+
+### 0x40104c2a, 1 B (code)
+
+```
++ 40104c2a:  4210                 clrb %a0@
+```
+
+### 0x40104c48, 1 B (code)
+
+```
++ 40104c48:  4eb9 4009 3ab0       jsr 0x40093ab0
+```
+
+### 0x40104c58, 2 B (code)
+
+```
 + 40104c58:  4e75                 rts
-+ 40104c5a:  4280                 clrl %d0
-+ 40104c5c:  4e75                 rts
-+ 40104c5e:  4280                 clrl %d0
-+ 40104c60:  4e75                 rts
-+ 40104c62:  4280                 clrl %d0
-+ 40104c64:  4e75                 rts
-+ 40104c66:  4280                 clrl %d0
-+ 40104c68:  4e75                 rts
-+ 40104c6a:  4280                 clrl %d0
-+ 40104c6c:  4e75                 rts
-+ 40104c6e:  4280                 clrl %d0
-+ 40104c70:  4e75                 rts
-+ 40104c72:  4280                 clrl %d0
-+ 40104c74:  4e75                 rts
-+ 40104c76:  4280                 clrl %d0
-+ 40104c78:  4e75                 rts
-+ 40104c7a:  4280                 clrl %d0
+```
+
+### 0x40104c7c, 2 B (code)
+
+```
 + 40104c7c:  4e75                 rts
-+ 40104c7e:  4280                 clrl %d0
-+ 40104c80:  4e75                 rts
-+ 40104c82:  4280                 clrl %d0
-+ 40104c84:  4e75                 rts
-+ 40104c86:  4280                 clrl %d0
-+ 40104c88:  4e75                 rts
-+ 40104c8a:  4280                 clrl %d0
-+ 40104c8c:  4e75                 rts
-+ 40104c8e:  4280                 clrl %d0
-+ 40104c90:  4e75                 rts
-+ 40104c92:  4280                 clrl %d0
-+ 40104c94:  4e75                 rts
-+ 40104c96:  4280                 clrl %d0
-+ 40104c98:  4e75                 rts
-+ 40104c9a:  4280                 clrl %d0
-+ 40104c9c:  4e75                 rts
-+ 40104c9e:  4280                 clrl %d0
-+ 40104ca0:  4e75                 rts
-+ 40104ca2:  4280                 clrl %d0
-+ 40104ca4:  4e75                 rts
-+ 40104ca6:  4280                 clrl %d0
-+ 40104ca8:  4e75                 rts
-+ 40104caa:  4280                 clrl %d0
-+ 40104cac:  4e75                 rts
-+ 40104cae:  4280                 clrl %d0
-+ 40104cb0:  4e75                 rts
-+ 40104cb2:  4280                 clrl %d0
-+ 40104cb4:  4e75                 rts
-+ 40104cb6:  4280                 clrl %d0
-+ 40104cb8:  4e75                 rts
-+ 40104cba:  4280                 clrl %d0
-+ 40104cbc:  4e75                 rts
-+ 40104cbe:  4280                 clrl %d0
-+ 40104cc0:  4e75                 rts
-+ 40104cc2:  4280                 clrl %d0
-+ 40104cc4:  4e75                 rts
-+ 40104cc6:  4280                 clrl %d0
-+ 40104cc8:  4e75                 rts
-+ 40104cca:  4280                 clrl %d0
-+ 40104ccc:  4e75                 rts
-+ 40104cce:  4280                 clrl %d0
-+ 40104cd0:  4e75                 rts
-+ 40104cd2:  4280                 clrl %d0
-+ 40104cd4:  4e75                 rts
-+ 40104cd6:  4280                 clrl %d0
-+ 40104cd8:  4e75                 rts
-~ 40104cda:  4280                 clrl %d0
-+ 40104cdc:  4e75                 rts
-+ 40104cde:  4280                 clrl %d0
-+ 40104ce0:  4e75                 rts
-+ 40104ce2:  4280                 clrl %d0
-+ 40104ce4:  4e75                 rts
-+ 40104ce6:  4280                 clrl %d0
-+ 40104ce8:  4e75                 rts
-+ 40104cea:  4280                 clrl %d0
-+ 40104cec:  4e75                 rts
-+ 40104cee:  4280                 clrl %d0
-+ 40104cf0:  4e75                 rts
-+ 40104cf2:  4280                 clrl %d0
-+ 40104cf4:  4e75                 rts
-+ 40104cf6:  4280                 clrl %d0
-+ 40104cf8:  4e75                 rts
-+ 40104cfa:  4280                 clrl %d0
-+ 40104cfc:  4e75                 rts
-+ 40104cfe:  4280                 clrl %d0
-+ 40104d00:  4e75                 rts
-~ 40104d02:  4280                 clrl %d0
-+ 40104d04:  4e75                 rts
-+ 40104d06:  4280                 clrl %d0
-+ 40104d08:  4e75                 rts
-+ 40104d0a:  4280                 clrl %d0
-+ 40104d0c:  4e75                 rts
-+ 40104d0e:  4280                 clrl %d0
-+ 40104d10:  4e75                 rts
-~ 40104d12:  4280                 clrl %d0
-+ 40104d14:  4e75                 rts
-+ 40104d16:  4280                 clrl %d0
-+ 40104d18:  4e75                 rts
-+ 40104d1a:  4280                 clrl %d0
-+ 40104d1c:  4e75                 rts
-+ 40104d1e:  4280                 clrl %d0
-+ 40104d20:  4e75                 rts
-+ 40104d22:  4280                 clrl %d0
-+ 40104d24:  4e75                 rts
-+ 40104d26:  4280                 clrl %d0
-+ 40104d28:  4e75                 rts
-+ 40104d2a:  4280                 clrl %d0
-+ 40104d2c:  4e75                 rts
-+ 40104d2e:  4280                 clrl %d0
-+ 40104d30:  4e75                 rts
-+ 40104d32:  4280                 clrl %d0
-+ 40104d34:  4e75                 rts
-+ 40104d36:  4280                 clrl %d0
-+ 40104d38:  4e75                 rts
-+ 40104d3a:  4280                 clrl %d0
-~ 40104d3c:  4e75                 rts
-+ 40104d3e:  4280                 clrl %d0
-+ 40104d40:  4e75                 rts
-+ 40104d42:  4280                 clrl %d0
-+ 40104d44:  4e75                 rts
-+ 40104d46:  4280                 clrl %d0
-+ 40104d48:  4e75                 rts
-+ 40104d4a:  4280                 clrl %d0
-+ 40104d4c:  4e75                 rts
-+ 40104d4e:  4280                 clrl %d0
-+ 40104d50:  4e75                 rts
-+ 40104d52:  4280                 clrl %d0
-+ 40104d54:  4e75                 rts
-+ 40104d56:  4280                 clrl %d0
-+ 40104d58:  4e75                 rts
-+ 40104d5a:  4280                 clrl %d0
-+ 40104d5c:  4e75                 rts
-+ 40104d5e:  4280                 clrl %d0
-+ 40104d60:  4e75                 rts
-+ 40104d62:  4280                 clrl %d0
-+ 40104d64:  4e75                 rts
-+ 40104d66:  4280                 clrl %d0
-+ 40104d68:  4e75                 rts
-+ 40104d6a:  4280                 clrl %d0
-+ 40104d6c:  4e75                 rts
-+ 40104d6e:  4280                 clrl %d0
-+ 40104d70:  4e75                 rts
-~ 40104d72:  4280                 clrl %d0
-~ 40104d74:  4e75                 rts
-+ 40104d76:  4280                 clrl %d0
+```
+
+### 0x40104d5a, 1 B (code)
+
+```
++ 40104d58:  2239 421f ab90       movel 0x421fab90,%d1
+```
+
+### 0x40104d78, 2 B (code)
+
+```
 + 40104d78:  4e75                 rts
-+ 40104d7a:  4280                 clrl %d0
-+ 40104d7c:  4e75                 rts
-+ 40104d7e:  4280                 clrl %d0
+```
+
+### 0x40104d80, 2 B (code)
+
+```
 + 40104d80:  4e75                 rts
-+ 40104d82:  4280                 clrl %d0
-+ 40104d84:  4e75                 rts
-+ 40104d86:  4280                 clrl %d0
-+ 40104d88:  4e75                 rts
-+ 40104d8a:  4280                 clrl %d0
-+ 40104d8c:  4e75                 rts
-+ 40104d8e:  4280                 clrl %d0
-+ 40104d90:  4e75                 rts
-+ 40104d92:  4280                 clrl %d0
-+ 40104d94:  4e75                 rts
-+ 40104d96:  4280                 clrl %d0
-+ 40104d98:  4e75                 rts
-+ 40104d9a:  4280                 clrl %d0
-+ 40104d9c:  4e75                 rts
-+ 40104d9e:  4280                 clrl %d0
-+ 40104da0:  4e75                 rts
-~ 40104da2:  4280                 clrl %d0
-+ 40104da4:  4e75                 rts
-+ 40104da6:  4280                 clrl %d0
+```
+
+### 0x40104da8, 2 B (code)
+
+```
 + 40104da8:  4e75                 rts
-+ 40104daa:  4280                 clrl %d0
+```
+
+### 0x40104dac, 2 B (code)
+
+```
 + 40104dac:  4e75                 rts
-+ 40104dae:  4280                 clrl %d0
-+ 40104db0:  4e75                 rts
-+ 40104db2:  4280                 clrl %d0
-+ 40104db4:  4e75                 rts
-+ 40104db6:  4280                 clrl %d0
-+ 40104db8:  4e75                 rts
-~ 40104dba:  4280                 clrl %d0
-+ 40104dbc:  4e75                 rts
-+ 40104dbe:  4280                 clrl %d0
-+ 40104dc0:  4e75                 rts
-~ 40104dc2:  4280                 clrl %d0
-+ 40104dc4:  4e75                 rts
-+ 40104dc6:  4280                 clrl %d0
-+ 40104dc8:  4e75                 rts
-+ 40104dca:  4280                 clrl %d0
-+ 40104dcc:  4e75                 rts
-+ 40104dce:  4280                 clrl %d0
-+ 40104dd0:  4e75                 rts
-+ 40104dd2:  4280                 clrl %d0
-+ 40104dd4:  4e75                 rts
-+ 40104dd6:  4280                 clrl %d0
-+ 40104dd8:  4e75                 rts
-+ 40104dda:  4280                 clrl %d0
-+ 40104ddc:  4e75                 rts
-+ 40104dde:  4280                 clrl %d0
-+ 40104de0:  4e75                 rts
-+ 40104de2:  4280                 clrl %d0
-+ 40104de4:  4e75                 rts
-+ 40104de6:  4280                 clrl %d0
-+ 40104de8:  4e75                 rts
-+ 40104dea:  4280                 clrl %d0
+```
+
+### 0x40104de7, 1 B (code)
+
+```
++ 40104de6:  2280                 movel %d0,%a1@
+```
+
+### 0x40104dec, 2 B (code)
+
+```
 + 40104dec:  4e75                 rts
-+ 40104dee:  4280                 clrl %d0
-+ 40104df0:  4e75                 rts
-+ 40104df2:  4280                 clrl %d0
-+ 40104df4:  4e75                 rts
-+ 40104df6:  4280                 clrl %d0
-+ 40104df8:  4e75                 rts
-~ 40104dfa:  4280                 clrl %d0
-+ 40104dfc:  4e75                 rts
-+ 40104dfe:  4280                 clrl %d0
-+ 40104e00:  4e75                 rts
-+ 40104e02:  4280                 clrl %d0
-+ 40104e04:  4e75                 rts
-+ 40104e06:  4280                 clrl %d0
-+ 40104e08:  4e75                 rts
-+ 40104e0a:  4280                 clrl %d0
-+ 40104e0c:  4e75                 rts
-+ 40104e0e:  4280                 clrl %d0
-+ 40104e10:  4e75                 rts
-+ 40104e12:  4280                 clrl %d0
-+ 40104e14:  4e75                 rts
-+ 40104e16:  4280                 clrl %d0
-~ 40104e18:  4e75                 rts
-+ 40104e1a:  4280                 clrl %d0
-+ 40104e1c:  4e75                 rts
-+ 40104e1e:  4280                 clrl %d0
+```
+
+### 0x40104e20-0x40104e26, 2 runs, 5 B (code)
+
+Runs: 0x40104e20 +3, 0x40104e24 +2.
+
+```
 + 40104e20:  4e75                 rts
-+ 40104e22:  4280                 clrl %d0
++ 40104e22:  4200                 clrb %d0
 + 40104e24:  4e75                 rts
-+ 40104e26:  4280                 clrl %d0
-+ 40104e28:  4e75                 rts
-+ 40104e2a:  4280                 clrl %d0
-+ 40104e2c:  4e75                 rts
-+ 40104e2e:  4280                 clrl %d0
-+ 40104e30:  4e75                 rts
-+ 40104e32:  4280                 clrl %d0
-+ 40104e34:  4e75                 rts
-+ 40104e36:  4280                 clrl %d0
-+ 40104e38:  4e75                 rts
-+ 40104e3a:  4280                 clrl %d0
-+ 40104e3c:  4e75                 rts
-+ 40104e3e:  4280                 clrl %d0
-~ 40104e40:  4e75                 rts
-+ 40104e42:  4280                 clrl %d0
-+ 40104e44:  4e75                 rts
-+ 40104e46:  4280                 clrl %d0
-+ 40104e48:  4e75                 rts
-+ 40104e4a:  4280                 clrl %d0
-+ 40104e4c:  4e75                 rts
-+ 40104e4e:  4280                 clrl %d0
-+ 40104e50:  4e75                 rts
-+ 40104e52:  4280                 clrl %d0
-+ 40104e54:  4e75                 rts
-+ 40104e56:  4280                 clrl %d0
-+ 40104e58:  4e75                 rts
-+ 40104e5a:  4280                 clrl %d0
-+ 40104e5c:  4e75                 rts
-+ 40104e5e:  4280                 clrl %d0
-+ 40104e60:  4e75                 rts
-+ 40104e62:  4280                 clrl %d0
-+ 40104e64:  4e75                 rts
-+ 40104e66:  4280                 clrl %d0
+```
+
+### 0x40104e2f, 1 B (code)
+
+```
++ 40104e2e:  4a80                 tstl %d0
+```
+
+### 0x40104e47, 1 B (code)
+
+```
++ 40104e46:  0c80 4d4d 4b31       cmpil #1296911153,%d0
+```
+
+### 0x40104e68, 2 B (code)
+
+```
 + 40104e68:  4e75                 rts
-+ 40104e6a:  4280                 clrl %d0
-~ 40104e6c:  4e75                 rts
-+ 40104e6e:  4280                 clrl %d0
-+ 40104e70:  4e75                 rts
-+ 40104e72:  4280                 clrl %d0
-+ 40104e74:  4e75                 rts
-+ 40104e76:  4280                 clrl %d0
+```
+
+### 0x40104e78, 4 B (code)
+
+```
 + 40104e78:  4e75                 rts
 + 40104e7a:  4280                 clrl %d0
 ```
@@ -4390,4 +3646,915 @@ FILTER page 2: KEY follows the trig's note, as the NoteOn sets it and a trigless
 
 ```
 + 40178f2a:  41f9 8000 1f28       lea 0x80001f28,%a0
+```
+
+<a id="mod-matrix"></a>
+
+## mod_matrix
+
+Modulation matrix: per audio track, MOD WHEEL and BREATH CTRL each drive four destinations with their own depths, set on a matrix page under the LFO page and saved with the pattern's kit. 121 runs, 2153 bytes.
+
+### 0x4000b773, 3 B (code)
+
+```
+~ 4000b770:  4eb9 4010 45c0       jsr 0x401045c0
+```
+
+### 0x40030dad, 3 B (code)
+
+```
+~ 40030daa:  4eb9 4010 4c60       jsr 0x40104c60
+```
+
+### 0x40077eaf, 3 B (code)
+
+```
+~ 40077eac:  4eb9 4010 48be       jsr 0x401048be
+```
+
+### 0x4007a4ce, 6 B (code)
+
+```
++ 4007a4ce:  4ef9 4010 4dee       jmp 0x40104dee
+```
+
+### 0x4007a76e, 6 B (code)
+
+```
++ 4007a76e:  4eb9 4010 4dae       jsr 0x40104dae
+```
+
+### 0x401045c0-0x401046d4, 17 runs, 260 B (code)
+
+Runs: 0x401045c0 +27, 0x401045dc +7, 0x401045e4 +7, 0x401045ec +27, 0x40104608 +24, 0x40104621 +6, 0x40104628 +1, 0x4010462a +8, 0x40104633 +15, 0x40104643 +52, 0x40104678 +6, 0x4010467f +3, 0x40104683 +3, 0x40104687 +22, 0x4010469e +15, 0x401046ae +33, 0x401046d0 +4.
+
+```
++ 401045c0:  6100 00a8            bsrw 0x4010466a
++ 401045c4:  6100 0110            bsrw 0x401046d6
++ 401045c8:  206f 0008            moveal %sp@(8),%a0
++ 401045cc:  2028 000c            movel %a0@(12),%d0
++ 401045d0:  2228 0010            movel %a0@(16),%d1
++ 401045d4:  43f9 439d 11a8       lea 0x439d11a8,%a1
++ 401045da:  0c80 0000 0017       cmpil #23,%d0
++ 401045e0:  6744                 beqs 0x40104626
++ 401045e2:  0c80 0000 0028       cmpil #40,%d0
++ 401045e8:  6516                 bcss 0x40104600
++ 401045ea:  0c80 0000 002f       cmpil #47,%d0
++ 401045f0:  620e                 bhis 0x40104600
++ 401045f2:  6100 00e2            bsrw 0x401046d6
++ 401045f6:  6728                 beqs 0x40104620
++ 401045f8:  6100 04d0            bsrw 0x40104aca
++ 401045fc:  6722                 beqs 0x40104620
++ 401045fe:  4e75                 rts
++ 40104600:  4a29 0008            tstb %a1@(8)
++ 40104604:  671a                 beqs 0x40104620
+~ 40104606:  0801 0000            btst #0,%d1
++ 4010460a:  6714                 beqs 0x40104620
++ 4010460c:  0480 0000 0013       subil #19,%d0
++ 40104612:  7203                 moveq #3,%d1
++ 40104614:  b280                 cmpl %d0,%d1
++ 40104616:  6508                 bcss 0x40104620
++ 40104618:  4229 0008            clrb %a1@(8)
++ 4010461c:  6100 00fa            bsrw 0x40104718
++ 40104620:  4ef9 4000 84fe       jmp 0x400084fe
+~ 40104626:  0801 0000            btst #0,%d1
++ 4010462a:  670c                 beqs 0x40104638
++ 4010462c:  137c 0001 000a       moveb #1,%a1@(10)
++ 40104632:  4229 000b            clrb %a1@(11)
++ 40104636:  60e8                 bras 0x40104620
++ 40104638:  4229 000a            clrb %a1@(10)
++ 4010463c:  4a29 000b            tstb %a1@(11)
++ 40104640:  670c                 beqs 0x4010464e
++ 40104642:  4229 000b            clrb %a1@(11)
++ 40104646:  08a8 0004 0013       bclr #4,%a0@(19)
++ 4010464c:  60d2                 bras 0x40104620
++ 4010464e:  6100 0086            bsrw 0x401046d6
++ 40104652:  67cc                 beqs 0x40104620
++ 40104654:  0801 0004            btst #4,%d1
++ 40104658:  67c6                 beqs 0x40104620
++ 4010465a:  08a8 0004 0013       bclr #4,%a0@(19)
++ 40104660:  4229 0008            clrb %a1@(8)
++ 40104664:  6100 00c6            bsrw 0x4010472c
++ 40104668:  60b6                 bras 0x40104620
++ 4010466a:  2f08                 movel %a0,%sp@-
++ 4010466c:  2f00                 movel %d0,%sp@-
++ 4010466e:  41f9 439d 11a8       lea 0x439d11a8,%a0
++ 40104674:  2010                 movel %a0@,%d0
++ 40104676:  0c80 4d4e 4ce0       cmpil #1296977120,%d0
++ 4010467c:  6752                 beqs 0x401046d0
++ 4010467e:  42a8 0004            clrl %a0@(4)
++ 40104682:  42a8 0008            clrl %a0@(8)
++ 40104686:  42a8 000c            clrl %a0@(12)
++ 4010468a:  2f01                 movel %d1,%sp@-
++ 4010468c:  41f9 439d 3400       lea 0x439d3400,%a0
++ 40104692:  223c 0000 2000       movel #8192,%d1
+~ 40104698:  20fc 0000 4000       movel #16384,%a0@+
++ 4010469e:  5381                 subql #1,%d1
++ 401046a0:  66f6                 bnes 0x40104698
++ 401046a2:  41f9 439d 12c0       lea 0x439d12c0,%a0
++ 401046a8:  7200                 moveq #0,%d1
+~ 401046aa:  20bc 4010 4ce0       movel #1074810080,%a0@
++ 401046b0:  2141 0014            movel %d1,%a0@(20)
++ 401046b4:  41e8 0018            lea %a0@(24),%a0
++ 401046b8:  5281                 addql #1,%d1
++ 401046ba:  7008                 moveq #8,%d0
++ 401046bc:  b081                 cmpl %d1,%d0
++ 401046be:  66ea                 bnes 0x401046aa
++ 401046c0:  221f                 movel %sp@+,%d1
++ 401046c2:  41f9 439d 11a8       lea 0x439d11a8,%a0
++ 401046c8:  203c 4d4e 4ce0       movel #1296977120,%d0
++ 401046ce:  2080                 movel %d0,%a0@
++ 401046d0:  201f                 movel %sp@+,%d0
++ 401046d2:  205f                 moveal %sp@+,%a0
+```
+
+### 0x401046d6-0x40104780, 11 runs, 159 B (code)
+
+Runs: 0x401046d6 +9, 0x401046e0 +31, 0x40104700 +58, 0x4010473b +2, 0x4010473e +4, 0x40104743 +1, 0x40104745 +15, 0x40104755 +19, 0x40104769 +7, 0x40104771 +6, 0x40104779 +7.
+
+```
++ 401046d6:  43f9 439d 11a8       lea 0x439d11a8,%a1
++ 401046dc:  2011                 movel %a1@,%d0
++ 401046de:  0c80 4d4e 4ce0       cmpil #1296977120,%d0
++ 401046e4:  662e                 bnes 0x40104714
++ 401046e6:  4a29 0008            tstb %a1@(8)
++ 401046ea:  6726                 beqs 0x40104712
++ 401046ec:  2f08                 movel %a0,%sp@-
++ 401046ee:  2f01                 movel %d1,%sp@-
++ 401046f0:  6100 0076            bsrw 0x40104768
++ 401046f4:  221f                 movel %sp@+,%d1
++ 401046f6:  205f                 moveal %sp@+,%a0
++ 401046f8:  43f9 439d 11a8       lea 0x439d11a8,%a1
++ 401046fe:  0c80 0000 0007       cmpil #7,%d0
++ 40104704:  6206                 bhis 0x4010470c
++ 40104706:  4a29 0008            tstb %a1@(8)
++ 4010470a:  4e75                 rts
++ 4010470c:  4229 0008            clrb %a1@(8)
++ 40104710:  b3c9                 cmpal %a1,%a1
++ 40104712:  4e75                 rts
++ 40104714:  b3c9                 cmpal %a1,%a1
++ 40104716:  4e75                 rts
++ 40104718:  2039 439d 11ac       movel 0x439d11ac,%d0
++ 4010471e:  670a                 beqs 0x4010472a
++ 40104720:  2f00                 movel %d0,%sp@-
++ 40104722:  4eb9 400c 9a3a       jsr 0x400c9a3a
++ 40104728:  588f                 addql #4,%sp
++ 4010472a:  4e75                 rts
++ 4010472c:  61ea                 bsrs 0x40104718
++ 4010472e:  2039 439d 11ac       movel 0x439d11ac,%d0
++ 40104734:  6730                 beqs 0x40104766
++ 40104736:  598f                 subql #4,%sp
++ 40104738:  204f                 moveal %sp,%a0
+~ 4010473a:  2f00                 movel %d0,%sp@-
+~ 4010473c:  2240                 moveal %d0,%a1
++ 4010473e:  2251                 moveal %a1@,%a1
+~ 40104740:  2269 004c            moveal %a1@(76),%a1
++ 40104744:  4e91                 jsr %a1@
++ 40104746:  588f                 addql #4,%sp
++ 40104748:  4857                 pea %sp@
++ 4010474a:  2279 439d 11ac       moveal 0x439d11ac,%a1
++ 40104750:  2f29 006c            movel %a1@(108),%sp@-
++ 40104754:  4eb9 4009 3a56       jsr 0x40093a56
++ 4010475a:  508f                 addql #8,%sp
++ 4010475c:  4857                 pea %sp@
++ 4010475e:  4eb9 4017 9470       jsr 0x40179470
++ 40104764:  508f                 addql #8,%sp
++ 40104766:  4e75                 rts
++ 40104768:  4eb9 4013 8882       jsr 0x40138882
++ 4010476e:  2f00                 movel %d0,%sp@-
++ 40104770:  4eb9 4001 4d86       jsr 0x40014d86
++ 40104776:  2e80                 movel %d0,%sp@
+~ 40104778:  4eb9 4001 d24e       jsr 0x4001d24e
++ 4010477e:  588f                 addql #4,%sp
+```
+
+### 0x40104782-0x401047fe, 8 runs, 116 B (code)
+
+Runs: 0x40104782 +11, 0x4010478e +10, 0x4010479a +30, 0x401047b9 +15, 0x401047c9 +3, 0x401047cd +5, 0x401047d3 +3, 0x401047d7 +39.
+
+```
++ 40104782:  202f 0004            movel %sp@(4),%d0
++ 40104786:  23c0 439d 11ac       movel %d0,0x439d11ac
+~ 4010478c:  6100 ff48            bsrw 0x401046d6
++ 40104790:  6606                 bnes 0x40104798
++ 40104792:  4ef9 4009 743c       jmp 0x4009743c
+~ 40104798:  4fef ffe8            lea %sp@(-24),%sp
++ 4010479c:  48d7 0c3c            moveml %d2-%d5/%a2-%a3,%sp@
++ 401047a0:  246f 001c            moveal %sp@(28),%a2
++ 401047a4:  266f 0020            moveal %sp@(32),%a3
++ 401047a8:  7400                 moveq #0,%d2
++ 401047aa:  2002                 movel %d2,%d0
++ 401047ac:  6100 02b8            bsrw 0x40104a66
++ 401047b0:  7750                 mvsw %a0@,%d3
++ 401047b2:  2f02                 movel %d2,%sp@-
++ 401047b4:  486a 0094            pea %a2@(148)
++ 401047b8:  4eb9 400c 0898       jsr 0x400c0898
++ 401047be:  508f                 addql #8,%sp
++ 401047c0:  7800                 moveq #0,%d4
++ 401047c2:  1800                 moveb %d0,%d4
++ 401047c4:  2f02                 movel %d2,%sp@-
+~ 401047c6:  486a 0094            pea %a2@(148)
+~ 401047ca:  4eb9 400c 0686       jsr 0x400c0686
++ 401047d0:  508f                 addql #8,%sp
++ 401047d2:  42a7                 clrl %sp@-
++ 401047d4:  2f04                 movel %d4,%sp@-
++ 401047d6:  42a7                 clrl %sp@-
++ 401047d8:  2f00                 movel %d0,%sp@-
++ 401047da:  2f03                 movel %d3,%sp@-
++ 401047dc:  7037                 moveq #55,%d0
++ 401047de:  721b                 moveq #27,%d1
++ 401047e0:  7a04                 moveq #4,%d5
++ 401047e2:  b485                 cmpl %d5,%d2
++ 401047e4:  6d04                 blts 0x401047ea
++ 401047e6:  703b                 moveq #59,%d0
++ 401047e8:  7200                 moveq #0,%d1
++ 401047ea:  2f00                 movel %d0,%sp@-
++ 401047ec:  2f01                 movel %d1,%sp@-
++ 401047ee:  7003                 moveq #3,%d0
++ 401047f0:  c082                 andl %d2,%d0
++ 401047f2:  721a                 moveq #26,%d1
++ 401047f4:  4c01 0800            mulsl %d1,%d0
++ 401047f8:  0680 0000 0018       addil #24,%d0
+```
+
+### 0x40104800-0x40104973, 15 runs, 357 B (code)
+
+Runs: 0x40104800 +28, 0x4010481d +7, 0x40104825 +30, 0x40104844 +3, 0x40104848 +7, 0x40104850 +12, 0x4010485d +5, 0x40104863 +9, 0x4010486d +7, 0x40104875 +19, 0x40104889 +33, 0x401048ab +73, 0x401048f5 +40, 0x4010491e +49, 0x40104950 +35.
+
+```
++ 40104800:  2f0b                 movel %a3,%sp@-
++ 40104802:  2f0a                 movel %a2,%sp@-
++ 40104804:  2052                 moveal %a2@,%a0
++ 40104806:  2068 0094            moveal %a0@(148),%a0
++ 4010480a:  4e90                 jsr %a0@
++ 4010480c:  4fef 0028            lea %sp@(40),%sp
++ 40104810:  5282                 addql #1,%d2
++ 40104812:  7008                 moveq #8,%d0
++ 40104814:  b082                 cmpl %d2,%d0
++ 40104816:  6692                 bnes 0x401047aa
++ 40104818:  42a7                 clrl %sp@-
++ 4010481a:  2f0b                 movel %a3,%sp@-
+~ 4010481c:  2f0a                 movel %a2,%sp@-
++ 4010481e:  2052                 moveal %a2@,%a0
++ 40104820:  2068 0098            moveal %a0@(152),%a0
++ 40104824:  4e90                 jsr %a0@
++ 40104826:  4fef 000c            lea %sp@(12),%sp
++ 4010482a:  4cd7 0c3c            moveml %sp@,%d2-%d5/%a2-%a3
++ 4010482e:  4fef 0018            lea %sp@(24),%sp
++ 40104832:  4e75                 rts
++ 40104834:  6100 fea0            bsrw 0x401046d6
++ 40104838:  6722                 beqs 0x4010485c
++ 4010483a:  206f 0008            moveal %sp@(8),%a0
++ 4010483e:  2028 000c            movel %a0@(12),%d0
++ 40104842:  5380                 subql #1,%d0
++ 40104844:  7208                 moveq #8,%d1
++ 40104846:  b280                 cmpl %d0,%d1
++ 40104848:  6700 03be            beqw 0x40104c08
++ 4010484c:  7207                 moveq #7,%d1
++ 4010484e:  b280                 cmpl %d0,%d1
++ 40104850:  650a                 bcss 0x4010485c
++ 40104852:  6100 0276            bsrw 0x40104aca
++ 40104856:  6704                 beqs 0x4010485c
++ 40104858:  7001                 moveq #1,%d0
++ 4010485a:  4e75                 rts
++ 4010485c:  4ef9 4003 2a78       jmp 0x40032a78
+~ 40104862:  2f08                 movel %a0,%sp@-
++ 40104864:  6100 fe70            bsrw 0x401046d6
++ 40104868:  6608                 bnes 0x40104872
++ 4010486a:  205f                 moveal %sp@+,%a0
++ 4010486c:  4ef9 4003 0930       jmp 0x40030930
+~ 40104872:  71a9 0009            mvzb %a1@(9),%d0
++ 40104876:  43fa 0020            lea %pc@(0x40104898),%a1
++ 4010487a:  2031 0c00            movel %a1@(0,%d0:l:4),%d0
++ 4010487e:  598f                 subql #4,%sp
++ 40104880:  4857                 pea %sp@
++ 40104882:  2f00                 movel %d0,%sp@-
++ 40104884:  2f2f 000c            movel %sp@(12),%sp@-
++ 40104888:  4eb9 4017 af20       jsr 0x4017af20
++ 4010488e:  4fef 0010            lea %sp@(16),%sp
++ 40104892:  201f                 movel %sp@+,%d0
++ 40104894:  2040                 moveal %d0,%a0
++ 40104896:  4e75                 rts
++ 40104898:  4010                 .short 0x4010
++ 4010489a:  48a0                 .short 0x48a0
++ 4010489c:  4010                 .short 0x4010
++ 4010489e:  48aa                 .short 0x48aa
++ 401048a0:  4d4f                 .short 0x4d4f
++ 401048a2:  4420                 .short 0x4420
++ 401048a4:  5748                 .short 0x5748
++ 401048a6:  4545                 .short 0x4545
++ 401048a8:  4c00                 .short 0x4c00
++ 401048aa:  4252                 clrw %a2@
++ 401048ac:  4541                 .short 0x4541
++ 401048ae:  5448                 .short 0x5448
++ 401048b0:  2043                 moveal %d3,%a0
++ 401048b2:  5452                 .short 0x5452
++ 401048b4:  4c00                 .short 0x4c00
++ 401048b6:  59af 0004            subql #4,%sp@(4)
++ 401048ba:  6000 ff78            braw 0x40104834
++ 401048be:  4fef ffe4            lea %sp@(-28),%sp
++ 401048c2:  48d7 1c3c            moveml %d2-%d5/%a2-%a4,%sp@
++ 401048c6:  2039 439d 11a8       movel 0x439d11a8,%d0
++ 401048cc:  0c80 4d4e 4ce0       cmpil #1296977120,%d0
++ 401048d2:  6600 006a            bnew 0x4010493e
++ 401048d6:  6100 0480            bsrw 0x40104d58
++ 401048da:  2848                 moveal %a0,%a4
++ 401048dc:  246f 0020            moveal %sp@(32),%a2
++ 401048e0:  45ea 0012            lea %a2@(18),%a2
++ 401048e4:  2279 8000 19ac       moveal 0x800019ac,%a1
++ 401048ea:  43e9 009e            lea %a1@(158),%a1
++ 401048ee:  7400                 moveq #0,%d2
++ 401048f0:  1011                 moveb %a1@,%d0
+~ 401048f2:  0c00 0004            cmpib #4,%d0
++ 401048f6:  6604                 bnes 0x401048fc
++ 401048f8:  4a82                 tstl %d2
++ 401048fa:  6602                 bnes 0x401048fe
++ 401048fc:  2602                 movel %d2,%d3
++ 401048fe:  41f9 421b 20a4       lea 0x421b20a4,%a0
++ 40104904:  6100 0046            bsrw 0x4010494c
++ 40104908:  670c                 beqs 0x40104916
++ 4010490a:  2203                 movel %d3,%d1
++ 4010490c:  eb89                 lsll #5,%d1
++ 4010490e:  47f4 1800            lea %a4@(0,%d1:l),%a3
++ 40104912:  6100 0062            bsrw 0x40104976
++ 40104916:  41f9 421b 2084       lea 0x421b2084,%a0
+~ 4010491c:  6100 002e            bsrw 0x4010494c
++ 40104920:  670c                 beqs 0x4010492e
++ 40104922:  2203                 movel %d3,%d1
++ 40104924:  eb89                 lsll #5,%d1
++ 40104926:  47f4 1810            lea %a4@(10,%d1:l),%a3
++ 4010492a:  6100 004a            bsrw 0x40104976
++ 4010492e:  45ea 006a            lea %a2@(106),%a2
++ 40104932:  43e9 00a2            lea %a1@(162),%a1
++ 40104936:  5282                 addql #1,%d2
++ 40104938:  7008                 moveq #8,%d0
++ 4010493a:  b082                 cmpl %d2,%d0
++ 4010493c:  66b2                 bnes 0x401048f0
++ 4010493e:  4cd7 1c3c            moveml %sp@,%d2-%d5/%a2-%a4
++ 40104942:  4fef 001c            lea %sp@(28),%sp
++ 40104946:  4ef9 400e d766       jmp 0x400ed766
+~ 4010494c:  71f0 3a00            mvzw %a0@(0,%d3:l:2),%d0
++ 40104950:  6720                 beqs 0x40104972
++ 40104952:  71b0 3a01            mvzb %a0@(1,%d3:l:2),%d0
++ 40104956:  ef88                 lsll #7,%d0
++ 40104958:  73b0 3a00            mvzb %a0@(0,%d3:l:2),%d1
++ 4010495c:  8081                 orl %d1,%d0
++ 4010495e:  2200                 movel %d0,%d1
++ 40104960:  ee89                 lsrl #7,%d1
++ 40104962:  d081                 addl %d1,%d0
++ 40104964:  0c80 0000 4000       cmpil #16384,%d0
++ 4010496a:  6f06                 bles 0x40104972
++ 4010496c:  203c 0000 4000       movel #16384,%d0
++ 40104972:  4a80                 tstl %d0
+```
+
+### 0x40104976-0x401049e4, 8 runs, 103 B (code)
+
+Runs: 0x40104976 +19, 0x4010498a +9, 0x40104994 +11, 0x401049a0 +15, 0x401049b0 +3, 0x401049b4 +4, 0x401049b9 +19, 0x401049cd +23.
+
+```
++ 40104976:  2800                 movel %d0,%d4
++ 40104978:  7a04                 moveq #4,%d5
++ 4010497a:  7393                 mvzb %a3@,%d1
++ 4010497c:  71eb 0002            mvzw %a3@(2),%d0
++ 40104980:  588b                 addql #4,%a3
++ 40104982:  4a81                 tstl %d1
++ 40104984:  6738                 beqs 0x401049be
+~ 40104986:  0c81 0000 0034       cmpil #52,%d1
++ 4010498c:  6230                 bhis 0x401049be
++ 4010498e:  41f2 1a00            lea %a2@(0,%d1:l:2),%a0
++ 40104992:  0480 0000 4000       subil #16384,%d0
++ 40104998:  4c04 0800            mulsl %d4,%d0
+~ 4010499c:  0680 0000 1000       addil #4096,%d0
++ 401049a2:  720d                 moveq #13,%d1
++ 401049a4:  e2a0                 asrl %d1,%d0
++ 401049a6:  7350                 mvsw %a0@,%d1
++ 401049a8:  d081                 addl %d1,%d0
++ 401049aa:  6a02                 bpls 0x401049ae
++ 401049ac:  7000                 moveq #0,%d0
+~ 401049ae:  0c80 0000 7f00       cmpil #32512,%d0
++ 401049b4:  6f06                 bles 0x401049bc
+~ 401049b6:  203c 0000 7f00       movel #32512,%d0
++ 401049bc:  3080                 movew %d0,%a0@
++ 401049be:  5385                 subql #1,%d5
++ 401049c0:  66b8                 bnes 0x4010497a
++ 401049c2:  4e75                 rts
++ 401049c4:  6100 fd10            bsrw 0x401046d6
++ 401049c8:  671c                 beqs 0x401049e6
+~ 401049ca:  202f 0008            movel %sp@(8),%d0
++ 401049ce:  7207                 moveq #7,%d1
++ 401049d0:  b280                 cmpl %d0,%d1
++ 401049d2:  6512                 bcss 0x401049e6
++ 401049d4:  13c0 439d 11b4       moveb %d0,0x439d11b4
++ 401049da:  7237                 moveq #55,%d1
++ 401049dc:  5980                 subql #4,%d0
++ 401049de:  6b02                 bmis 0x401049e2
++ 401049e0:  723b                 moveq #59,%d1
++ 401049e2:  2001                 movel %d1,%d0
+```
+
+### 0x401049e6-0x40104ac8, 6 runs, 221 B (code)
+
+Runs: 0x401049e6 +17, 0x401049f8 +7, 0x40104a00 +82, 0x40104a53 +13, 0x40104a61 +100, 0x40104ac6 +2.
+
+```
++ 401049e6:  4ef9 4003 08fe       jmp 0x400308fe
++ 401049ec:  6100 fce8            bsrw 0x401046d6
++ 401049f0:  676e                 beqs 0x40104a60
++ 401049f2:  202f 0008            movel %sp@(8),%d0
++ 401049f6:  0c80 0000 0037       cmpil #55,%d0
++ 401049fc:  6708                 beqs 0x40104a06
++ 401049fe:  0c80 0000 003b       cmpil #59,%d0
++ 40104a04:  665a                 bnes 0x40104a60
++ 40104a06:  2f2f 000c            movel %sp@(12),%sp@-
++ 40104a0a:  2f2f 000c            movel %sp@(12),%sp@-
++ 40104a0e:  2f2f 000c            movel %sp@(12),%sp@-
++ 40104a12:  4eb9 4003 08d0       jsr 0x400308d0
++ 40104a18:  4fef 000c            lea %sp@(12),%sp
++ 40104a1c:  2040                 moveal %d0,%a0
++ 40104a1e:  71b9 439d 11b4       mvzb 0x439d11b4,%d0
++ 40104a24:  7218                 moveq #24,%d1
++ 40104a26:  4c01 0800            mulsl %d1,%d0
++ 40104a2a:  43f9 439d 12c0       lea 0x439d12c0,%a1
++ 40104a30:  d3c0                 addal %d0,%a1
++ 40104a32:  22bc 4010 4ce0       movel #1074810080,%a1@
++ 40104a38:  71b9 439d 11b4       mvzb 0x439d11b4,%d0
++ 40104a3e:  2340 0014            movel %d0,%a1@(20)
++ 40104a42:  2368 0004 0004       movel %a0@(4),%a1@(4)
++ 40104a48:  2368 0008 0008       movel %a0@(8),%a1@(8)
+~ 40104a4e:  2368 000c 000c       movel %a0@(12),%a1@(12)
++ 40104a54:  2368 0010 0010       movel %a0@(16),%a1@(16)
++ 40104a5a:  2009                 movel %a1,%d0
++ 40104a5c:  2049                 moveal %a1,%a0
++ 40104a5e:  4e75                 rts
++ 40104a60:  4ef9 4003 08d0       jmp 0x400308d0
++ 40104a66:  2f00                 movel %d0,%sp@-
++ 40104a68:  6100 fcfe            bsrw 0x40104768
++ 40104a6c:  7207                 moveq #7,%d1
++ 40104a6e:  c081                 andl %d1,%d0
++ 40104a70:  6126                 bsrs 0x40104a98
++ 40104a72:  e388                 lsll #1,%d0
++ 40104a74:  73b9 439d 11b1       mvzb 0x439d11b1,%d1
++ 40104a7a:  d081                 addl %d1,%d0
++ 40104a7c:  e988                 lsll #4,%d0
++ 40104a7e:  2f00                 movel %d0,%sp@-
++ 40104a80:  6100 02d6            bsrw 0x40104d58
++ 40104a84:  d1df                 addal %sp@+,%a0
++ 40104a86:  221f                 movel %sp@+,%d1
++ 40104a88:  7003                 moveq #3,%d0
++ 40104a8a:  c081                 andl %d1,%d0
++ 40104a8c:  e588                 lsll #2,%d0
++ 40104a8e:  e489                 lsrl #2,%d1
++ 40104a90:  e389                 lsll #1,%d1
++ 40104a92:  d081                 addl %d1,%d0
++ 40104a94:  d1c0                 addal %d0,%a0
++ 40104a96:  4e75                 rts
++ 40104a98:  2f02                 movel %d2,%sp@-
++ 40104a9a:  2f03                 movel %d3,%sp@-
++ 40104a9c:  2400                 movel %d0,%d2
++ 40104a9e:  2279 8000 19ac       moveal 0x800019ac,%a1
++ 40104aa4:  43e9 009e            lea %a1@(158),%a1
++ 40104aa8:  7200                 moveq #0,%d1
++ 40104aaa:  1611                 moveb %a1@,%d3
++ 40104aac:  0c03 0004            cmpib #4,%d3
++ 40104ab0:  6604                 bnes 0x40104ab6
++ 40104ab2:  4a81                 tstl %d1
++ 40104ab4:  6602                 bnes 0x40104ab8
++ 40104ab6:  2001                 movel %d1,%d0
++ 40104ab8:  b481                 cmpl %d1,%d2
++ 40104aba:  6708                 beqs 0x40104ac4
++ 40104abc:  5281                 addql #1,%d1
++ 40104abe:  43e9 00a2            lea %a1@(162),%a1
++ 40104ac2:  60e6                 bras 0x40104aaa
+~ 40104ac4:  261f                 movel %sp@+,%d3
++ 40104ac6:  241f                 movel %sp@+,%d2
+```
+
+### 0x40104aca-0x40104afc, 4 runs, 47 B (code)
+
+Runs: 0x40104aca +4, 0x40104acf +8, 0x40104ad8 +16, 0x40104ae9 +19.
+
+```
++ 40104aca:  4878 0002            pea 0x2
+~ 40104ace:  4eb9 400d 399c       jsr 0x400d399c
++ 40104ad4:  588f                 addql #4,%sp
++ 40104ad6:  4a80                 tstl %d0
++ 40104ad8:  6622                 bnes 0x40104afc
++ 40104ada:  2039 439d 11ac       movel 0x439d11ac,%d0
++ 40104ae0:  671a                 beqs 0x40104afc
++ 40104ae2:  2040                 moveal %d0,%a0
++ 40104ae4:  2f28 006c            movel %a0@(108),%sp@-
++ 40104ae8:  4eb9 4009 3470       jsr 0x40093470
++ 40104aee:  4a00                 tstb %d0
++ 40104af0:  6608                 bnes 0x40104afa
++ 40104af2:  4eb9 4009 3bb6       jsr 0x40093bb6
++ 40104af8:  4a00                 tstb %d0
++ 40104afa:  588f                 addql #4,%sp
+```
+
+### 0x40104afe-0x40104c58, 17 runs, 330 B (code)
+
+Runs: 0x40104afe +9, 0x40104b08 +7, 0x40104b10 +24, 0x40104b29 +6, 0x40104b30 +1, 0x40104b32 +33, 0x40104b54 +18, 0x40104b67 +23, 0x40104b7f +80, 0x40104bd0 +10, 0x40104bdb +1, 0x40104bdd +33, 0x40104bff +43, 0x40104c2b +1, 0x40104c2d +11, 0x40104c39 +15, 0x40104c49 +15.
+
+```
++ 40104afe:  206f 0008            moveal %sp@(8),%a0
++ 40104b02:  2028 000c            movel %a0@(12),%d0
++ 40104b06:  0c80 0000 000e       cmpil #14,%d0
++ 40104b0c:  6708                 beqs 0x40104b16
++ 40104b0e:  0c80 0000 000f       cmpil #15,%d0
++ 40104b14:  6612                 bnes 0x40104b28
++ 40104b16:  2228 0010            movel %a0@(16),%d1
++ 40104b1a:  43f9 439d 11a8       lea 0x439d11a8,%a1
++ 40104b20:  610c                 bsrs 0x40104b2e
++ 40104b22:  6704                 beqs 0x40104b28
++ 40104b24:  7001                 moveq #1,%d0
++ 40104b26:  4e75                 rts
++ 40104b28:  4ef9 4002 9876       jmp 0x40029876
+~ 40104b2e:  2f01                 movel %d1,%sp@-
+~ 40104b30:  2f00                 movel %d0,%sp@-
++ 40104b32:  6100 fba2            bsrw 0x401046d6
++ 40104b36:  4cd7 0003            moveml %sp@,%d0-%d1
++ 40104b3a:  4fef 0008            lea %sp@(8),%sp
++ 40104b3e:  662e                 bnes 0x40104b6e
++ 40104b40:  4a29 000a            tstb %a1@(10)
++ 40104b44:  6764                 beqs 0x40104baa
++ 40104b46:  0801 0000            btst #0,%d1
++ 40104b4a:  675e                 beqs 0x40104baa
++ 40104b4c:  6100 fc1a            bsrw 0x40104768
++ 40104b50:  7207                 moveq #7,%d1
++ 40104b52:  b280                 cmpl %d0,%d1
++ 40104b54:  6552                 bcss 0x40104ba8
++ 40104b56:  43f9 439d 11a8       lea 0x439d11a8,%a1
++ 40104b5c:  137c 0001 0008       moveb #1,%a1@(8)
+~ 40104b62:  137c 0001 000b       moveb #1,%a1@(11)
++ 40104b68:  6100 fbc2            bsrw 0x4010472c
++ 40104b6c:  6036                 bras 0x40104ba4
++ 40104b6e:  0801 0000            btst #0,%d1
++ 40104b72:  6730                 beqs 0x40104ba4
++ 40104b74:  4a29 000a            tstb %a1@(10)
++ 40104b78:  6706                 beqs 0x40104b80
+~ 40104b7a:  137c 0001 000b       moveb #1,%a1@(11)
++ 40104b80:  73a9 0009            mvzb %a1@(9),%d1
++ 40104b84:  0c80 0000 000e       cmpil #14,%d0
++ 40104b8a:  6608                 bnes 0x40104b94
++ 40104b8c:  4a81                 tstl %d1
++ 40104b8e:  6714                 beqs 0x40104ba4
++ 40104b90:  5381                 subql #1,%d1
++ 40104b92:  6008                 bras 0x40104b9c
++ 40104b94:  5281                 addql #1,%d1
++ 40104b96:  7002                 moveq #2,%d0
++ 40104b98:  b081                 cmpl %d1,%d0
++ 40104b9a:  6f08                 bles 0x40104ba4
++ 40104b9c:  1341 0009            moveb %d1,%a1@(9)
++ 40104ba0:  6100 fb8a            bsrw 0x4010472c
++ 40104ba4:  7001                 moveq #1,%d0
++ 40104ba6:  4e75                 rts
++ 40104ba8:  b080                 cmpl %d0,%d0
++ 40104baa:  4e75                 rts
++ 40104bac:  202f 0008            movel %sp@(8),%d0
++ 40104bb0:  0c80 0000 000a       cmpil #10,%d0
++ 40104bb6:  6624                 bnes 0x40104bdc
++ 40104bb8:  6100 fb1c            bsrw 0x401046d6
++ 40104bbc:  671e                 beqs 0x40104bdc
++ 40104bbe:  6122                 bsrs 0x40104be2
++ 40104bc0:  71a8 0001            mvzb %a0@(1),%d0
++ 40104bc4:  e188                 lsll #8,%d0
++ 40104bc6:  7390                 mvzb %a0@,%d1
++ 40104bc8:  d281                 addl %d1,%d1
++ 40104bca:  d081                 addl %d1,%d0
+~ 40104bcc:  0c80 0000 7f00       cmpil #32512,%d0
++ 40104bd2:  6f06                 bles 0x40104bda
++ 40104bd4:  203c 0000 7f00       movel #32512,%d0
+~ 40104bda:  4e75                 rts
++ 40104bdc:  4ef9 4003 0a64       jmp 0x40030a64
++ 40104be2:  6100 fb84            bsrw 0x40104768
++ 40104be6:  7207                 moveq #7,%d1
++ 40104be8:  c081                 andl %d1,%d0
++ 40104bea:  6100 feac            bsrw 0x40104a98
++ 40104bee:  41f9 421b 20a4       lea 0x421b20a4,%a0
++ 40104bf4:  4a39 439d 11b1       tstb 0x439d11b1
++ 40104bfa:  6706                 beqs 0x40104c02
++ 40104bfc:  41f9 421b 2084       lea 0x421b2084,%a0
++ 40104c02:  d1c0                 addal %d0,%a0
++ 40104c04:  d1c0                 addal %d0,%a0
++ 40104c06:  4e75                 rts
++ 40104c08:  206f 0008            moveal %sp@(8),%a0
++ 40104c0c:  2f28 0010            movel %a0@(16),%sp@-
++ 40104c10:  61d0                 bsrs 0x40104be2
++ 40104c12:  221f                 movel %sp@+,%d1
++ 40104c14:  71a8 0001            mvzb %a0@(1),%d0
++ 40104c18:  d081                 addl %d1,%d0
++ 40104c1a:  6a02                 bpls 0x40104c1e
++ 40104c1c:  7000                 moveq #0,%d0
++ 40104c1e:  727f                 moveq #127,%d1
++ 40104c20:  b280                 cmpl %d0,%d1
++ 40104c22:  6c02                 bges 0x40104c26
++ 40104c24:  707f                 moveq #127,%d0
++ 40104c26:  1140 0001            moveb %d0,%a0@(1)
++ 40104c2a:  4210                 clrb %a0@
+~ 40104c2c:  2f00                 movel %d0,%sp@-
++ 40104c2e:  71b9 439d 11b1       mvzb 0x439d11b1,%d0
++ 40104c34:  43fa fc62            lea %pc@(0x40104898),%a1
+~ 40104c38:  2f31 0c00            movel %a1@(0,%d0:l:4),%sp@-
++ 40104c3c:  487a 001c            pea %pc@(0x40104c5a)
++ 40104c40:  206f 0010            moveal %sp@(16),%a0
++ 40104c44:  2f28 006c            movel %a0@(108),%sp@-
++ 40104c48:  4eb9 4009 3ab0       jsr 0x40093ab0
++ 40104c4e:  4fef 0010            lea %sp@(16),%sp
++ 40104c52:  6100 fac4            bsrw 0x40104718
++ 40104c56:  7001                 moveq #1,%d0
+```
+
+### 0x40104c5a, 34 B (code)
+
+```
++ 40104c5a:  2573                 .short 0x2573
++ 40104c5c:  3d25                 movew %a5@-,%fp@-
++ 40104c5e:  6400                 .short 0x6400
++ 40104c60:  700a                 moveq #10,%d0
++ 40104c62:  b0af 0008            cmpl %sp@(8),%d0
++ 40104c66:  6616                 bnes 0x40104c7e
++ 40104c68:  6100 fa6c            bsrw 0x401046d6
++ 40104c6c:  6710                 beqs 0x40104c7e
++ 40104c6e:  41fa 0014            lea %pc@(0x40104c84),%a0
++ 40104c72:  4a29 0009            tstb %a1@(9)
++ 40104c76:  6702                 beqs 0x40104c7a
++ 40104c78:  5688                 addql #3,%a0
++ 40104c7a:  2008                 movel %a0,%d0
+```
+
+### 0x40104c7e-0x40104d78, 7 runs, 244 B (code)
+
+Runs: 0x40104c7e +25, 0x40104c98 +14, 0x40104ca7 +30, 0x40104cc6 +4, 0x40104ccb +58, 0x40104d06 +84, 0x40104d5b +29.
+
+```
++ 40104c7e:  4ef9 4001 562c       jmp 0x4001562c
++ 40104c84:  4d57                 .short 0x4d57
++ 40104c86:  0042                 .short 0x0042
++ 40104c88:  4300                 .short 0x4300
++ 40104c8a:  6100 fa4a            bsrw 0x401046d6
++ 40104c8e:  6716                 beqs 0x40104ca6
++ 40104c90:  6100 ff50            bsrw 0x40104be2
++ 40104c94:  3010                 movew %a0@,%d0
+~ 40104c96:  43f9 439d 11b6       lea 0x439d11b6,%a1
++ 40104c9c:  b051                 cmpw %a1@,%d0
++ 40104c9e:  6706                 beqs 0x40104ca6
++ 40104ca0:  3280                 movew %d0,%a1@
++ 40104ca2:  6100 fa74            bsrw 0x40104718
+~ 40104ca6:  4ef9 4003 0ee0       jmp 0x40030ee0
++ 40104cac:  206f 0004            moveal %sp@(4),%a0
++ 40104cb0:  2028 0014            movel %a0@(20),%d0
++ 40104cb4:  6100 fdb0            bsrw 0x40104a66
++ 40104cb8:  7150                 mvsw %a0@,%d0
++ 40104cba:  4e75                 rts
++ 40104cbc:  206f 0004            moveal %sp@(4),%a0
++ 40104cc0:  2028 0014            movel %a0@(20),%d0
+~ 40104cc4:  6100 fda0            bsrw 0x40104a66
+~ 40104cc8:  202f 000c            movel %sp@(12),%d0
++ 40104ccc:  3080                 movew %d0,%a0@
++ 40104cce:  6100 fa48            bsrw 0x40104718
++ 40104cd2:  4e75                 rts
++ 40104cd4:  7000                 moveq #0,%d0
++ 40104cd6:  4e75                 rts
++ 40104cd8:  0000                 .short 0x0000
++ 40104cda:  0000                 .short 0x0000
++ 40104cdc:  4017                 .short 0x4017
++ 40104cde:  ed2c                 .short 0xed2c
++ 40104ce0:  4013                 .short 0x4013
++ 40104ce2:  d5a0                 addl %d2,%a0@-
++ 40104ce4:  4013                 .short 0x4013
++ 40104ce6:  d5c2                 addal %d2,%a2
++ 40104ce8:  4000                 .short 0x4000
++ 40104cea:  f0ac                 .short 0xf0ac
++ 40104cec:  4000                 .short 0x4000
++ 40104cee:  f0e4                 .short 0xf0e4
++ 40104cf0:  4000                 .short 0x4000
++ 40104cf2:  ff9a 4000            cp1stl %d4,%a2@+,#1,#0
++ 40104cf6:  f11c                 .short 0xf11c
++ 40104cf8:  4000                 .short 0x4000
++ 40104cfa:  f154                 .short 0xf154
++ 40104cfc:  4001                 .short 0x4001
++ 40104cfe:  13f2                 .short 0x13f2
++ 40104d00:  4001                 .short 0x4001
+~ 40104d02:  16ee 4001            moveb %fp@(16385),%a3@+
++ 40104d06:  1576                 .short 0x1576
++ 40104d08:  4010                 .short 0x4010
++ 40104d0a:  4cac                 .short 0x4cac
++ 40104d0c:  4001                 .short 0x4001
++ 40104d0e:  0026                 .short 0x0026
++ 40104d10:  4000                 .short 0x4000
++ 40104d12:  ffda                 .short 0xffda
++ 40104d14:  4001                 .short 0x4001
++ 40104d16:  1090                 moveb %a0@,%a0@
++ 40104d18:  4013                 .short 0x4013
++ 40104d1a:  d3fc 4001 1bd8       addal #1073814488,%a1
++ 40104d20:  4001                 .short 0x4001
++ 40104d22:  076e 4001            bchg %d3,%fp@(16385)
++ 40104d26:  07d2                 bset %d3,%a2@
++ 40104d28:  4001                 .short 0x4001
++ 40104d2a:  083e                 .short 0x083e
++ 40104d2c:  4000                 .short 0x4000
++ 40104d2e:  f18c                 .short 0xf18c
++ 40104d30:  4000                 .short 0x4000
++ 40104d32:  f3b4                 .short 0xf3b4
++ 40104d34:  4000                 .short 0x4000
++ 40104d36:  f628                 .short 0xf628
++ 40104d38:  4000                 .short 0x4000
++ 40104d3a:  f324                 .short 0xf324
++ 40104d3c:  4000                 .short 0x4000
++ 40104d3e:  f2bc                 .short 0xf2bc
++ 40104d40:  4010                 .short 0x4010
++ 40104d42:  4cd4 4001            moveml %a4@,%d0/%fp
++ 40104d46:  01ca                 .short 0x01ca
++ 40104d48:  4001                 .short 0x4001
++ 40104d4a:  0e3a                 .short 0x0e3a
++ 40104d4c:  4001                 .short 0x4001
++ 40104d4e:  0624                 .short 0x0624
++ 40104d50:  4000                 .short 0x4000
++ 40104d52:  f1e2                 .short 0xf1e2
++ 40104d54:  4010                 .short 0x4010
++ 40104d56:  4cbc                 .short 0x4cbc
++ 40104d58:  2239 421f ab90       movel 0x421fab90,%d1
++ 40104d5e:  671a                 beqs 0x40104d7a
++ 40104d60:  2041                 moveal %d1,%a0
++ 40104d62:  2228 0130            movel %a0@(304),%d1
++ 40104d66:  0c81 0000 007f       cmpil #127,%d1
++ 40104d6c:  620c                 bhis 0x40104d7a
++ 40104d6e:  e189                 lsll #8,%d1
++ 40104d70:  41f9 439d 3400       lea 0x439d3400,%a0
++ 40104d76:  d1c1                 addal %d1,%a0
+```
+
+### 0x40104d7a, 6 B (code)
+
+```
++ 40104d7a:  41f9 439d 3400       lea 0x439d3400,%a0
+```
+
+### 0x40104d82, 38 B (code)
+
+```
++ 40104d82:  2008                 movel %a0,%d0
++ 40104d84:  0480 4191 f018       subil #1100083224,%d0
++ 40104d8a:  6b1e                 bmis 0x40104daa
++ 40104d8c:  0c80 0004 8f00       cmpil #298752,%d0
++ 40104d92:  6416                 bccs 0x40104daa
++ 40104d94:  2240                 moveal %d0,%a1
++ 40104d96:  223c 0000 091e       movel #2334,%d1
++ 40104d9c:  4c41 0000            remul %d1,%d0,%d0
++ 40104da0:  4c00 1800            mulsl %d0,%d1
++ 40104da4:  b289                 cmpl %a1,%d1
++ 40104da6:  6602                 bnes 0x40104daa
+```
+
+### 0x40104daa, 2 B (code)
+
+```
++ 40104daa:  70ff                 moveq #-1,%d0
+```
+
+### 0x40104dae-0x40104dec, 2 runs, 61 B (code)
+
+Runs: 0x40104dae +57, 0x40104de8 +4.
+
+```
++ 40104dae:  356b 091c 08f2       movew %a3@(2332),%a2@(2290)
++ 40104db4:  2f00                 movel %d0,%sp@-
++ 40104db6:  2f02                 movel %d2,%sp@-
++ 40104db8:  204b                 moveal %a3,%a0
++ 40104dba:  61c6                 bsrs 0x40104d82
++ 40104dbc:  4a80                 tstl %d0
++ 40104dbe:  6b28                 bmis 0x40104de8
++ 40104dc0:  6100 f8a8            bsrw 0x4010466a
++ 40104dc4:  e188                 lsll #8,%d0
++ 40104dc6:  41f9 439d 3400       lea 0x439d3400,%a0
++ 40104dcc:  d1c0                 addal %d0,%a0
++ 40104dce:  43ea 08f4            lea %a2@(2292),%a1
++ 40104dd2:  22fc 4d4d 4b31       movel #1296911153,%a1@+
++ 40104dd8:  7000                 moveq #0,%d0
++ 40104dda:  7240                 moveq #64,%d1
++ 40104ddc:  2418                 movel %a0@+,%d2
++ 40104dde:  22c2                 movel %d2,%a1@+
++ 40104de0:  d082                 addl %d2,%d0
++ 40104de2:  5381                 subql #1,%d1
++ 40104de4:  66f6                 bnes 0x40104ddc
++ 40104de6:  2280                 movel %d0,%a1@
++ 40104de8:  241f                 movel %sp@+,%d2
++ 40104dea:  201f                 movel %sp@+,%d0
+```
+
+### 0x40104dee-0x40104e20, 3 runs, 48 B (code)
+
+Runs: 0x40104dee +22, 0x40104e05 +17, 0x40104e17 +9.
+
+```
++ 40104dee:  202f 0004            movel %sp@(4),%d0
++ 40104df2:  206f 0008            moveal %sp@(8),%a0
++ 40104df6:  672a                 beqs 0x40104e22
++ 40104df8:  4a88                 tstl %a0
++ 40104dfa:  6726                 beqs 0x40104e22
++ 40104dfc:  720a                 moveq #10,%d1
++ 40104dfe:  b290                 cmpl %a0@,%d1
++ 40104e00:  6620                 bnes 0x40104e22
++ 40104e02:  2f08                 movel %a0,%sp@-
+~ 40104e04:  2f00                 movel %d0,%sp@-
++ 40104e06:  4eb9 4007 a386       jsr 0x4007a386
++ 40104e0c:  508f                 addql #8,%sp
++ 40104e0e:  4a00                 tstb %d0
++ 40104e10:  670e                 beqs 0x40104e20
++ 40104e12:  2f00                 movel %d0,%sp@-
+~ 40104e14:  206f 0008            moveal %sp@(8),%a0
++ 40104e18:  226f 000c            moveal %sp@(12),%a1
++ 40104e1c:  6108                 bsrs 0x40104e26
++ 40104e1e:  201f                 movel %sp@+,%d0
+```
+
+### 0x40104e23, 1 B (code)
+
+```
++ 40104e22:  4200                 clrb %d0
+```
+
+### 0x40104e26-0x40104e68, 3 runs, 64 B (code)
+
+Runs: 0x40104e26 +9, 0x40104e30 +23, 0x40104e48 +32.
+
+```
++ 40104e26:  2f09                 movel %a1,%sp@-
++ 40104e28:  6100 ff58            bsrw 0x40104d82
++ 40104e2c:  225f                 moveal %sp@+,%a1
++ 40104e2e:  4a80                 tstl %d0
++ 40104e30:  6b44                 bmis 0x40104e76
++ 40104e32:  6100 f836            bsrw 0x4010466a
++ 40104e36:  e188                 lsll #8,%d0
++ 40104e38:  41f9 439d 3400       lea 0x439d3400,%a0
++ 40104e3e:  d1c0                 addal %d0,%a0
++ 40104e40:  43e9 08f4            lea %a1@(2292),%a1
++ 40104e44:  2019                 movel %a1@+,%d0
++ 40104e46:  0c80 4d4d 4b31       cmpil #1296911153,%d0
++ 40104e4c:  661c                 bnes 0x40104e6a
++ 40104e4e:  2f09                 movel %a1,%sp@-
++ 40104e50:  7000                 moveq #0,%d0
++ 40104e52:  7240                 moveq #64,%d1
++ 40104e54:  d099                 addl %a1@+,%d0
++ 40104e56:  5381                 subql #1,%d1
++ 40104e58:  66fa                 bnes 0x40104e54
++ 40104e5a:  b091                 cmpl %a1@,%d0
++ 40104e5c:  225f                 moveal %sp@+,%a1
++ 40104e5e:  660a                 bnes 0x40104e6a
++ 40104e60:  7240                 moveq #64,%d1
++ 40104e62:  20d9                 movel %a1@+,%a0@+
++ 40104e64:  5381                 subql #1,%d1
++ 40104e66:  66fa                 bnes 0x40104e62
+```
+
+### 0x40104e6a, 14 B (code)
+
+```
++ 40104e6a:  7240                 moveq #64,%d1
++ 40104e6c:  20fc 0000 4000       movel #16384,%a0@+
++ 40104e72:  5381                 subql #1,%d1
++ 40104e74:  66f6                 bnes 0x40104e6c
++ 40104e76:  4e75                 rts
+```
+
+### 0x40182459, 3 B (data)
+
+```
+40182450  -- -- -- -- -- -- -- -- -- 10 4a fe -- -- -- --  |         .J.    |
+```
+
+### 0x401af869, 3 B (data)
+
+```
+401af860  -- -- -- -- -- -- -- -- -- 10 47 82 -- -- -- --  |         .G.    |
+```
+
+### 0x401af885, 3 B (data)
+
+```
+401af880  -- -- -- -- -- 10 4c 8a -- -- -- -- -- -- -- --  |     .L.        |
+```
+
+### 0x401af89d-0x401af8b0, 3 runs, 9 B (data)
+
+Runs: 0x401af89d +3, 0x401af8a5 +3, 0x401af8ad +3.
+
+```
+401af890  -- -- -- -- -- -- -- -- -- -- -- -- -- 10 48 34  |             .H4|
+401af8a0  -- -- -- -- -- 10 48 62 -- -- -- -- -- 10 4b ac  |     .Hb     .K.|
+```
+
+### 0x401af8f5-0x401af900, 2 runs, 6 B (data)
+
+Runs: 0x401af8f5 +3, 0x401af8fd +3.
+
+```
+401af8f0  -- -- -- -- -- 10 49 c4 -- -- -- -- -- 10 49 ec  |     .I.     .I.|
+```
+
+### 0x401af939, 3 B (data)
+
+```
+401af930  -- -- -- -- -- -- -- -- -- 10 48 b6 -- -- -- --  |         .H.    |
 ```

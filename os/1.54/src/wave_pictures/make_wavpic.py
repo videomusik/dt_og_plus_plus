@@ -14,8 +14,9 @@ and, for --stages, the stock .syx and the firmware tool (as build.py).
 The build before this feature comes back from patch.json (build_without_wavpic: its features before
 wave_pictures, the CFO oscillator's bytes this feature rewrites given back, and FILTER page 2's bytes a
 feature merged after it rewrites, LATER_SITES, given back) and must give BUILD_SECTION3. Once patch.json
-holds a feature merged after wave_pictures (filter_page2_key_note, S56), S55 is checked against its
-recorded hash and --write is refused: the last feature's generator (make_keynote.py) rewrites patch.json. Stages, written to out/1.54/stages/ (only with --stages):
+holds a feature merged after wave_pictures (filter_page2_key_note, S56; mod_matrix, S69), S55 is checked
+against its recorded hash and --write is refused: the last feature's generator (make_mm.py) rewrites
+patch.json. Stages, written to out/1.54/stages/ (only with --stages):
   S53  the build + FUN_401044b6 filled with 'clrl %d0 ; rts': the fill test of the new pad
   S54  S53 + the CFO oscillator's picture hook jumps to the new pad at its knob's record, and the pad only
        replays the two instructions the jump replaced
@@ -55,8 +56,11 @@ VARIANTS = {"S54": [], "S55": ["PIC"]}
 S55_SHA = "957bdc6fa80cca3860615cf3baa11310db666da1eec3770fa1d2fbc70615ee45"   # S55's section 3, v0.2.3 and v0.2.4
 # Bytes of the features before this one that a feature merged after it rewrites, as those features hold
 # them: KEY on the trig's note (filter_page2_key_note, S56) replaces the operand of filt_key's lea, which
-# patch.json then lists under that feature. build_without_wavpic gives them back.
-LATER_SITES = [(0x40178f2c, "439d1180", "filter_page2")]
+# patch.json then lists under that feature; the modulation matrix (mod_matrix, from v0.2.5) points the
+# knob cell's name call, which MIDI Loopback had pointed at its own, at its own. build_without_wavpic
+# gives them back.
+LATER_SITES = [(0x40178f2c, "439d1180", "filter_page2"),
+               (0x40030dad, "01562c", "midi_loopback")]
 
 
 def run(*cmd):
