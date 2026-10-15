@@ -45,7 +45,7 @@ public class EmuMidiLane extends GhidraScript {
   static final int    MAIN_SIZE = 2479680;
   static final long   MAIN_BASE = 0x40000400L;
   static final String STOCK_MAIN_SHA256 = "5c58bf9e3949ef09977c5fc007a61e8d026931f67f1621238379dfb8ee4d31a2";
-  static final String REF_MAIN_SHA256   = "060aca3af421497dc7a6ab2d9ef8e275ed6b757c3473308a7ae94d4eefd86475";
+  static final String REF_MAIN_SHA256   = "fc33939bfae3fa586840ee85a5f75c36d8fec207fc14293958e80e84e08db15b";
 
   byte[] padBytes;
 

@@ -117,6 +117,6 @@ The modulation matrix (in the build from v0.2.5; by stage in [features/mod_matri
   for every knob name a parameter page draws, and passes everything but the level fader's name on while
   the matrix does not show; LfoPageView's drawing, title, get and tick (`mm_draw`, `mm_title`,
   `mm_pget`, `mm_tick`) do the stock thing unless the matrix shows, which it never does at start-up.
-- ✅ Every stage image from S57 to S69 that was flashed (all but S64) started and ran on the test unit
+- ✅ Every stage image from S57 to S70 that was flashed (all but S64) started and ran on the test unit
   with OS 1.54, as reported; what each did there:
   [features/mod_matrix.md](features/mod_matrix.md#on-the-unit).

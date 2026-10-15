@@ -236,12 +236,14 @@ between the two instead of shifting the keyboard's octave.
 
 | Knob | Name | Range | What it does |
 |---|---|---|---|
-| A–D | DEST | the LFO DEST list | the parameter that slot 1–4 moves; choose it in the list and press [YES], as for LFO DEST |
+| A–D | DEST | the LFO DEST list, and LFO1's parameters | the parameter that slot 1–4 moves; choose it in the list and press [YES], as for LFO DEST |
 | E–H | DEP | −128.00 to +127.99 | how far slot 1–4 moves its parameter: at the controller's top, as far as an LFO of that depth at its peak |
 | LEVEL/DATA | MW, BC | 0–127 | the controller's value on this track: the fader follows the incoming CC, and turning LEVEL/DATA sets the value by hand |
 
 - The slots act on every audio tick, before the LFOs, which add their own movement on top. With the
   controller at 0 a slot moves nothing, and a negative depth moves the parameter down.
+- The DEST list starts with LFO1's parameters (SPD, MULT, FADE, WAVE, PHAS, MODE, DEP), then has the
+  parameters LFO DEST offers. A slot on LFO1's DEP lets the controller bring LFO1's modulation in.
 - A tap of [LFO] goes back to the LFO page; [TRIG], [SRC], [FLTR] and [AMP] go to their pages.
   [TRK] + a track key shows the matrix of that track; choosing a MIDI track shows its LFO page.
 - Each pattern has its own matrix: the slots are part of the pattern, like its sounds, and are saved

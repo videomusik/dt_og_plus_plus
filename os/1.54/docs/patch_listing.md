@@ -12,7 +12,7 @@ Addresses are load addresses: section 3 (MAIN OS) loads at 0x40000400, so file o
 - **Data** (icons, tables, strings) is shown as hex and ASCII, patched bytes only; `--` is an unpatched byte. Data runs of one feature less than 16 bytes apart share one dump.
 - The `+`/`~` marks count every patched byte, whichever feature it belongs to.
 
-Section 3: stock `5c58bf9e3949ef09977c5fc007a61e8d026931f67f1621238379dfb8ee4d31a2` -> patched `060aca3af421497dc7a6ab2d9ef8e275ed6b757c3473308a7ae94d4eefd86475`.
+Section 3: stock `5c58bf9e3949ef09977c5fc007a61e8d026931f67f1621238379dfb8ee4d31a2` -> patched `fc33939bfae3fa586840ee85a5f75c36d8fec207fc14293958e80e84e08db15b`.
 Disassembler: GNU objdump (GNU Binutils for Debian) 2.40.
 
 | feature | runs | bytes | |
@@ -3460,7 +3460,7 @@ Runs: 0x40104770 +1, 0x40104777 +1.
 ### 0x401049f7, 1 B (code)
 
 ```
-+ 401049f6:  0c80 0000 0037       cmpil #55,%d0
++ 401049f6:  0c80 0000 0040       cmpil #64,%d0
 ```
 
 ### 0x401049ff, 1 B (code)
@@ -3861,7 +3861,7 @@ Runs: 0x40104782 +11, 0x4010478e +10, 0x4010479a +30, 0x401047b9 +15, 0x401047c9
 + 401047d6:  42a7                 clrl %sp@-
 + 401047d8:  2f00                 movel %d0,%sp@-
 + 401047da:  2f03                 movel %d3,%sp@-
-+ 401047dc:  7037                 moveq #55,%d0
++ 401047dc:  7040                 moveq #64,%d0
 + 401047de:  721b                 moveq #27,%d1
 + 401047e0:  7a04                 moveq #4,%d5
 + 401047e2:  b485                 cmpl %d5,%d2
@@ -4046,7 +4046,7 @@ Runs: 0x40104976 +19, 0x4010498a +9, 0x40104994 +11, 0x401049a0 +15, 0x401049b0 
 + 401049d0:  b280                 cmpl %d0,%d1
 + 401049d2:  6512                 bcss 0x401049e6
 + 401049d4:  13c0 439d 11b4       moveb %d0,0x439d11b4
-+ 401049da:  7237                 moveq #55,%d1
++ 401049da:  7240                 moveq #64,%d1
 + 401049dc:  5980                 subql #4,%d0
 + 401049de:  6b02                 bmis 0x401049e2
 + 401049e0:  723b                 moveq #59,%d1
@@ -4062,7 +4062,7 @@ Runs: 0x401049e6 +17, 0x401049f8 +7, 0x40104a00 +82, 0x40104a53 +13, 0x40104a61 
 + 401049ec:  6100 fce8            bsrw 0x401046d6
 + 401049f0:  676e                 beqs 0x40104a60
 + 401049f2:  202f 0008            movel %sp@(8),%d0
-+ 401049f6:  0c80 0000 0037       cmpil #55,%d0
++ 401049f6:  0c80 0000 0040       cmpil #64,%d0
 + 401049fc:  6708                 beqs 0x40104a06
 + 401049fe:  0c80 0000 003b       cmpil #59,%d0
 + 40104a04:  665a                 bnes 0x40104a60

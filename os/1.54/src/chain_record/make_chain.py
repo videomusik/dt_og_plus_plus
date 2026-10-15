@@ -198,7 +198,7 @@ def main():
     n = ids.index(FID)
     if write and n + 1 < len(ids):
         sys.exit("patch.json holds features merged after Chain Recording (%s); the last one's generator "
-                 "(make_mm.py --stages S69 --write) rewrites it" % ", ".join(ids[n + 1:]))
+                 "(make_mm.py --stages S70 --write) rewrites it" % ", ".join(ids[n + 1:]))
     img2, owner = base_image(stock, patch)
     img3 = bytearray(img2)
     for lo, hi in NEWPAD:

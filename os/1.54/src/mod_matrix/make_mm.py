@@ -1,20 +1,20 @@
 #!/usr/bin/env python3
 """The modulation matrix for OS 1.54, on top of the build before it (v0.2.4, S56): assemble mm.s with mm.ld,
 check every site against the stock image and that build; with --stages, build the stage images; with
---write, merge the last stage, S69, into os/1.54/build/patch.json as the feature mod_matrix.
+--write, merge the last stage, S70, into os/1.54/build/patch.json as the feature mod_matrix.
 
     python3 os/1.54/src/mod_matrix/make_mm.py                       # check: is patch.json up to date?
     python3 os/1.54/src/mod_matrix/make_mm.py --stages              # also build the stage images
-    python3 os/1.54/src/mod_matrix/make_mm.py --stages S68 S69      # only those named
-    python3 os/1.54/src/mod_matrix/make_mm.py --stages S69 --write  # and rewrite patch.json
+    python3 os/1.54/src/mod_matrix/make_mm.py --stages S69 S70      # only those named
+    python3 os/1.54/src/mod_matrix/make_mm.py --stages S70 --write  # and rewrite patch.json
 
 Needs m68k binutils (M68K_PREFIX, as make_cfo.py), the stock section 3 from ./scripts/extract.sh 1.54
 and, for --stages, the stock .syx and the firmware tool (as build.py).
 
 The build before this feature comes back from patch.json (build_without_mm: its features before
 mod_matrix and, once that is merged, the bytes of earlier features it rewrites given back: the pad's fill
-under wave_pictures and midi_loopback's call target, GIVE_BACK) and must give BUILD_SECTION3. S69 is the
-build from v0.2.5: patch.json holds the build before it, then mod_matrix (S69 less that build). Each byte
+under wave_pictures and midi_loopback's call target, GIVE_BACK) and must give BUILD_SECTION3. S70 is the
+build from v0.2.5: patch.json holds the build before it, then mod_matrix (S70 less that build). Each byte
 is listed once, under the last feature that wrote it. Stages, written to out/1.54/stages/ (only with
 --stages):
   S57  the build + the matrix page: [LFO] + [UP]/[DOWN] on an audio track shows MOD WHEEL or BREATH CTRL
@@ -63,7 +63,7 @@ BUILD_SECTION3 = "ce7a07b48ad053dce41e424ec86c1cb34e1cecbbb091a6320a31c8ed79f801
 FID = "mod_matrix"
 TITLE = ("Modulation matrix: per audio track, MOD WHEEL and BREATH CTRL each drive four destinations with "
          "their own depths, set on a matrix page under the LFO page and saved with the pattern's kit")
-LAST = "S69"
+LAST = "S70"
 # The pad: the wave pictures' pad FUN_401044b6 (vetted in notes/landing_pads.md), from the end of the wave
 # pictures' code; in the build it holds the pad's fill, which patch.json lists under wave_pictures.
 PAD = (0x401044b6, 0x40104e7e)

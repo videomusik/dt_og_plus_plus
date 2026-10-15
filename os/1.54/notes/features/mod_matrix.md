@@ -1,8 +1,8 @@
 # The modulation matrix: MOD WHEEL and BREATH CTRL
 
 In the build from v0.2.5: `os/1.54/build/patch.json` holds it as the feature `mod_matrix`, its last
-stage, S69, less the build before it (v0.2.4, S56, section 3 `ce7a07b4…`), on which the stages are built.
-The build is S69, byte for byte. Source: [src/mod_matrix/](../../src/mod_matrix/) (`mm.s`, `mm.ld`,
+stage, S70, less the build before it (v0.2.4, S56, section 3 `ce7a07b4…`), on which the stages are built.
+The build is S70, byte for byte. Source: [src/mod_matrix/](../../src/mod_matrix/) (`mm.s`, `mm.ld`,
 `make_mm.py`).
 
 ## What it does
@@ -11,7 +11,8 @@ Each audio track gets a modulation matrix for two performance controllers, as th
 over MIDI:
 
 - **MOD WHEEL**, CC 1 with CC 33 as its fine part, and **BREATH CTRL**, CC 2 with CC 34;
-- per controller, four slots, each a destination (any LFO destination) and a depth (on LFO DEP's scale,
+- per controller, four slots, each a destination (from LFO2 DEST's list: the SRC, FILTER and AMP
+  parameters an LFO can reach, and LFO1's own parameters but its DEST) and a depth (on LFO DEP's scale,
   −128.00..+127.99);
 - every audio tick, before the LFOs, each slot moves its destination by the controller's value times its
   depth: at the controller's top as far as an LFO of that depth at its peak, at 0 not at all, clamped as
@@ -23,8 +24,10 @@ The page:
   last shown (MOD WHEEL at first), titled `MOD WHEEL` or `BREATH CTRL`. While it shows, [UP] and [DOWN]
   step between the two, unless a view is open above the screens (a menu, a list, the pattern selector),
   which then has them as on stock.
-- Knobs A–D are the four slots' destinations, chosen in LFO DEST's list and confirmed with [YES], as
-  LFO DEST is; E–H are their depths, with LFO DEP's steps, fine steps and popups.
+- Knobs A–D are the four slots' destinations, chosen in LFO2 DEST's list and confirmed with [YES], as
+  LFO DEST is; E–H are their depths, with LFO DEP's steps, fine steps and popups. A slot on one of
+  LFO1's parameters lets the controller drive the LFO: on its depth, for example, it brings LFO1's
+  modulation in.
 - The level fader shows the controller's value for the track, named `MW` or `BC`, and follows each CC as
   it arrives; LEVEL/DATA sets the value by hand, as a CC would, with a popup (`MOD WHEEL=64`).
 - A tap of [LFO] goes back to the LFO page as it was; [TRIG], [SRC], [FLTR] or [AMP] leave the matrix
@@ -83,8 +86,8 @@ project.
 
 ### Editing through stand-in parameter sets
 
-- `mm_knob` answers LFO1's DEST (id 55) for knobs A–D and LFO1's DEP (id 59) for E–H, and notes the
-  knob. `mm_set` answers, for those two ids, a stand-in for the track's parameter set: the four words
+- `mm_knob` answers LFO1's DEP (id 59) for knobs E–H and, for A–D, LFO2's DEST (id 64; up to S69
+  LFO1's, id 55), and notes the knob. `mm_set` answers, for those two ids, a stand-in for the track's parameter set: the four words
   of the set stock gives, under `mm_vt`, a copy of `SoundParameterSet`'s 30-entry vtable (`0x4017ee58`)
   in which the get (`+0x28`), the store (`+0x74`) and the notify (`+0x60`, which would send the change as
   MIDI) are the matrix's.
@@ -93,6 +96,26 @@ project.
   of the sound, the pattern or MIDI out changes.
 - A turn or a knob's key with [TRK] held (the all-tracks edit, `0x400d399c(2)`) or a trig held (the
   header's held-trig view and lock, `0x40093470`, `0x40093bb6`) is taken and does nothing.
+
+### The destination list (S70)
+
+- A DEST's list comes from `0x40011348(set, mask)`: for each engine slot 0..52 it asks the set for the
+  parameter there (`+0x50`, by the track's machine) and keeps those whose category (the descriptor's
+  word `+0x24`, read by `0x400790ea`) holds every bit of the mask. The mask depends on the DEST
+  (`0x4001148e`): LFO1's (id 55, flag bit 17) gets `0x0e00`, LFO2's (id 64, bit 16) `0x0600`.
+- The categories: the SRC, FILTER and AMP parameters an LFO can reach have `0x0e00`, LFO1's SPD, MULT,
+  FADE, WAVE, PHAS, MODE and DEP `0x0600`, LFO2's `0x0200`; the two DESTs, the TRIG page, Filter TYPE,
+  one machine's TUNE (descriptor 124) and this build's VED, KEY, PORT and LEG have none of these bits.
+  So LFO1 DEST's list is the first group, and LFO2 DEST's adds LFO1's parameters. A mask of `0x0200`
+  alone would offer LFO2's parameters too; no DEST asks for it.
+- Both DESTs store a destination as its engine slot in the high byte, so slots saved before S70 keep
+  their meaning. ⛔ digiemu (S70): LFO1's FADE picked in the list stored `0x0300` and showed `LFO1 FADE`;
+  a slot holding FREQ as S69 stored it (`0x1a00`) showed `FILT FREQ`.
+- The LFO tick reads every LFO parameter from the engine block each tick, LFO2's (slots 9–16) first, so
+  stock LFO2 can modulate LFO1. The matrix's pass adds to the block before the LFO tick, so a slot on an
+  LFO1 parameter moves it. ⛔ digiemu (S70): MOD WHEEL at its top on a slot LFO1 DEP, depth +16, made
+  LFO1's depth in the engine block `0x6000` (+32) from `0x4000`, and `0x4000` again at 0. Values outside
+  a parameter's own range (WAVE, MULT) the LFO tick clamps itself, as it must for LFO2's modulation.
 
 ### Keys
 
@@ -157,8 +180,8 @@ project.
 
 ### Code space
 
-The wave pictures' pad `FUN_401044b6` after their code: `0x401045c0..0x40104e78`, 2,232 B in S69,
-leaving 6 B of fill ([landing_pads.md](../landing_pads.md)).
+The wave pictures' pad `FUN_401044b6` after their code: `0x401045c0..0x40104e78`, 2,232 B in S69 and
+S70, leaving 6 B of fill ([landing_pads.md](../landing_pads.md)).
 
 ### The RAM
 
@@ -188,9 +211,9 @@ hands one out. A digiemu run that poked the old state reproduced the fault and t
   were not sent); a kit's slots through a project save and load; the stale-RAM fault and its fix; the
   view list; LEVEL/DATA; the fader's name (MW, BC, LEV again on the LFO and TRIG pages; CFOO's names and
   MIDI Loopback's TRK unchanged) and the fader following a poked value within 100 ms on S69, where S67
-  and S68 showed it only after 0.5 to 1.6 s. The repository's digiemu check
-  ([docs/digiemu.md](../../../../docs/digiemu.md)) passes on S61, S62, S64, S66, S68 and S69, with the
-  screens differing from stock as v0.2.4's do.
+  and S68 showed it only after 0.5 to 1.6 s; LFO2 DEST's list on S70 ([above](#the-destination-list-s70)).
+  The repository's digiemu check ([docs/digiemu.md](../../../../docs/digiemu.md)) passes on S61, S62,
+  S64, S66, S68, S69 and S70, with the screens differing from stock as v0.2.4's do.
 - The emulator harnesses that take a build's MAIN OS pass on v0.2.5
   ([scripts/emu/README.md](../../scripts/emu/README.md)). None of them runs the matrix's code.
 
@@ -214,7 +237,8 @@ Each on the one before it, on the build v0.2.4 (S56); `make_mm.py --stages` writ
 | S66 | `5c908384` | KITS | the slots per kit, saved with the project |
 | S67 | `aacdb1a4` | LEVTEST | the level fader shows the controller, LEVEL/DATA sets it |
 | S68 | `460132e9` | LEVNAME | the fader named MW or BC |
-| S69 | `2c32b3bb` | LEVTICK | the fader follows a CC as it comes; the build v0.2.5 |
+| S69 | `2c32b3bb` | LEVTICK | the fader follows a CC as it comes |
+| S70 | `b8eef30e` | LFO2LIST | knobs A–D on LFO2 DEST's list, with LFO1's parameters; the build v0.2.5 |
 
 ## On the unit
 
@@ -233,6 +257,8 @@ On the test unit with OS 1.54, as reported, each stage flashed on the one before
   from a MIDI track on its channel through a cable from MIDI OUT to MIDI IN.
 - S67: the fader showed the controller and LEVEL/DATA set it.
 - S68 and S69: tested and working.
+- S70: works; tested with LFO1 on RESO, in place of the suggested TUNE, and the controller on LFO1's
+  depth.
 
 Seen on these images and on S56 alike, so not the matrix's: with USB set to AUDIO/MIDI, on a pattern
 with CFOO and Poly tracks, the UI came to take tens of seconds to respond, until a restart. ⚠️ The load
@@ -247,7 +273,8 @@ four tracks, no USB): the UI loop ran at the same rate on both.
   kit loader. Copying a pattern or a kit does not copy its slots.
 - [TRK] or a trig held with a matrix knob: taken, with no all-tracks edit and no lock.
 - Not tried on the unit: [FUNC] + [LFO] on the matrix; the controllers over USB MIDI.
-- More sources (aftertouch, velocity) and more destinations (FILTER page 2's VED and KEY) are not in.
+- More sources (aftertouch, velocity) and more destinations (LFO2's parameters; FILTER page 2's VED
+  and KEY, whose descriptors have no category bits) are not in.
 - MIDI Loopback passes only notes (`0x8n`, `0x9n`; its tap at `0x400151e6`), so a MIDI track set to a
   TRK value cannot drive the matrix.
 - No emulator harness runs the matrix's code.

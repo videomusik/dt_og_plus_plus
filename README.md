@@ -98,8 +98,8 @@ per trig. Details: [OS 1.54](os/1.54/README.md#filter-ved-and-key)
 ### MODULATION MATRIX
 
 OS 1.54 only. Every audio track gets a modulation matrix for MOD WHEEL (CC 1 and 33) and BREATH CTRL
-(CC 2 and 34). Each controller has four slots, each moving a parameter from the LFO DEST list by a depth
-on the LFO DEPTH scale, before the LFOs act. [LFO] + [UP] or [DOWN] turns the LFO page into the matrix
+(CC 2 and 34). Each controller has four slots, each moving a parameter from the LFO DEST list, or one of
+LFO1's own parameters, by a depth on the LFO DEPTH scale, before the LFOs act. [LFO] + [UP] or [DOWN] turns the LFO page into the matrix
 page; its level fader shows the controller's value, and LEVEL/DATA sets it by hand. Each pattern has its
 own matrix, saved with the project. Details: [OS 1.54](os/1.54/README.md#modulation-matrix)
 

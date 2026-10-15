@@ -22,7 +22,7 @@ The key words (`wait`, `tap`, `press`, `release`, `turn`, `snap`) are digiemu's
 
 ## Results on the reference build
 
-The reference build (`.syx` `2c32b3bb…`, MAIN OS `060aca3a…`, v0.2.5) against stock 1.54 (`f78ba80f…`),
+The reference build (`.syx` `b8eef30e…`, MAIN OS `fc33939b…`, v0.2.5) against stock 1.54 (`f78ba80f…`),
 digiemu at commit `f57c2f2` (release 0.4.1) with its six Unicorn patches:
 
 - ✅ emulator run, `pages` (`scripts/digiemu_check.py`, untimed): PASS, every stage of the build passes.

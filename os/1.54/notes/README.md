@@ -78,11 +78,11 @@ Then KEY on the trig's note:
 
 Then the modulation matrix, each stage flashed on the one before:
 
-13. its stages S57 to S69 on S56 ([features/mod_matrix.md](features/mod_matrix.md#on-the-unit)): the
+13. its stages S57 to S70 on S56 ([features/mod_matrix.md](features/mod_matrix.md#on-the-unit)): the
     page, the controllers through a MIDI cable, the slots and their editing, the slots per pattern saved
     with the project through a power cycle, the level fader as the controller with LEVEL/DATA, its name
-    and its following a CC, as reported; S63's two images failed (a stale RAM state, then a view left on
-    top) and S65 replaces them. S69 (`.syx` `2c32b3bb…`) is the build in this folder, v0.2.5, byte for
+    and its following a CC, and LFO1's parameters as destinations, as reported; S63's two images failed (a stale RAM state, then a view left on
+    top) and S65 replaces them. S70 (`.syx` `b8eef30e…`) is the build in this folder, v0.2.5, byte for
     byte.
 
 ## The features in this build
@@ -130,11 +130,12 @@ New in this image, not in the OS 1.52A build:
   17 × 17, drawn from the oscillator's own tables and blend, in a new pad from xxHash's unused 64-bit
   functions. ✅ On the test unit (S53 to S55, above). [features/wave_pictures.md](features/wave_pictures.md).
 - **Modulation matrix.** Per audio track, MOD WHEEL (CC 1/33) and BREATH CTRL (CC 2/34) each drive four
-  slots of a destination and a depth (LFO DEST's list, LFO DEP's scale), added to the engine's values
+  slots of a destination and a depth (LFO2 DEST's list, which offers LFO1's parameters too; LFO DEP's
+  scale), added to the engine's values
   every audio tick before the LFOs. [LFO] + [UP]/[DOWN] turns the LFO page into the matrix page, edited
   through stand-ins of the track's parameter set; the level fader shows the controller (MW, BC) and
   LEVEL/DATA sets it; the slots belong to the pattern's kit and are saved in the stored kit's unused
-  tail. ✅ On the test unit (S57 to S69, above). [features/mod_matrix.md](features/mod_matrix.md).
+  tail. ✅ On the test unit (S57 to S70, above). [features/mod_matrix.md](features/mod_matrix.md).
 
 The CFO oscillator and portamento came into `patch.json` together, from their last stages:
 `make_port.py --stages --write` (in [src/portamento/](../src/portamento/)) rebuilt the build without
@@ -148,9 +149,9 @@ writes the runs: v0.2.3 and v0.2.4 are S55. KEY on the trig's note came in after
 `make_keynote.py --stages --write` (in [src/filter_page2/](../src/filter_page2/)) rebuilds the build before
 it the same way, S56 on it, and writes the runs, the 4 B it rewrites as the feature
 `filter_page2_key_note`: v0.2.4 is S56. The modulation matrix came in after it, as v0.2.5:
-`make_mm.py --stages S69 --write` (in [src/mod_matrix/](../src/mod_matrix/)) rebuilds the build before it
+`make_mm.py --stages S70 --write` (in [src/mod_matrix/](../src/mod_matrix/)) rebuilds the build before it
 the same way, giving back the 3 B of MIDI Loopback's call operand and the wave pictures' pad fill it
-rewrites, S69 on it, and writes the runs. The build is S69, byte for byte. Each changed byte is listed
+rewrites, S70 on it, and writes the runs. The build is S70, byte for byte. Each changed byte is listed
 once, under the last feature that wrote it ([docs/reference.md](../docs/reference.md#what-patchjson-holds));
 `make_port.py`, `make_chain.py`, `make_filt.py`, `make_wavpic.py` and `make_keynote.py` refuse `--write`
 once a later feature is merged.

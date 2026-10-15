@@ -11,8 +11,8 @@
   "section3_size": 2479680
  },
  "result": {
-  "section3_sha256": "060aca3af421497dc7a6ab2d9ef8e275ed6b757c3473308a7ae94d4eefd86475",
-  "syx_sha256_reference": "2c32b3bb12dd3d07293e6ba2acc7545de84a4b3e60e56fcf58a9974c6a3b9c06",
+  "section3_sha256": "fc33939bfae3fa586840ee85a5f75c36d8fec207fc14293958e80e84e08db15b",
+  "syx_sha256_reference": "b8eef30e20951a675fb8f5530331b64f773aaf6a716f2083d436533bad3e4d2d",
   "syx_size_reference": 1353248,
   "syx_reference_note": "only with the pinned tool",
   "pinned_tool": "github.com/mischa85/elektron-firmware-tool 065d18f4195793e61891e387813488ee59f6d1ca + build/tool_patches/cap_window_1mb.patch"
@@ -3361,7 +3361,7 @@
     },
     {
      "addr": "0x401047d7",
-     "bytes": "a72f002f037037721b7a04b4856d04703b72002f002f017003c082721a4c010800068000000018",
+     "bytes": "a72f002f037040721b7a04b4856d04703b72002f002f017003c082721a4c010800068000000018",
      "kind": "code"
     },
     {
@@ -3476,7 +3476,7 @@
     },
     {
      "addr": "0x401049cd",
-     "bytes": "087207b280651213c0439d11b4723759806b02723b2001",
+     "bytes": "087207b280651213c0439d11b4724059806b02723b2001",
      "kind": "code"
     },
     {
@@ -3486,7 +3486,7 @@
     },
     {
      "addr": "0x401049f8",
-     "bytes": "0000003767080c",
+     "bytes": "0000004067080c",
      "kind": "code"
     },
     {

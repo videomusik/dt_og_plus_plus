@@ -72,8 +72,8 @@ CFOO's wave pictures pad (in the build from v0.2.3; by stage in
 
 The modulation matrix (in the build from v0.2.5; by stage in
 [features/mod_matrix.md](features/mod_matrix.md)) has no pad of its own: its code fills the wave
-pictures' pad after their code, from `0x401045c0`, S57 682 B growing to S69's 2,232 B, to
-`0x40104e78`.
+pictures' pad after their code, from `0x401045c0`, S57 682 B growing to S69's and S70's 2,232 B,
+to `0x40104e78`.
 
 Free code space: 108 B in fifteen blocks, none larger than 16 B: 16 B at `0x400152c0`, 16 B at
 `0x400bedf2`, 10 B at `0x400156da`, 8 B at `0x400bf1e0`, 8 B at `0x40037ad6`, 8 B at `0x401778d0`
