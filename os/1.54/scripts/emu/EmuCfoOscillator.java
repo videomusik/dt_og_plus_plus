@@ -52,6 +52,10 @@ public class EmuCfoOscillator extends GhidraScript {
   static final long LEVEL = 0x40074c60L, VELS = 0x80001f18L, TRIGS = 0x8000122cL;
   static final int X0 = 0x6400, LEVW = 0x5a00, STALE = 0x01234567;
   static final long LEVELS = 0x439d1160L;	// the level each track ended its last tick on (8 longs)
+  // The lighter render (src/cfoo_diet, syms idle_skip and lean_osc): the amp envelope per track, 8 B,
+  // its state (2 attack, 1 hold, 0 decay) and its level (FUN_400716c0's, 0x4199ed64 + 8 x track). Every
+  // tick writes them; the code before the lighter render does not read them.
+  static final long AMPST = 0x4199ed64L;
 
   List<long[]> secAddr = new ArrayList<>();
   List<byte[]> secData = new ArrayList<>();
@@ -184,8 +188,11 @@ public class EmuCfoOscillator extends GhidraScript {
     int cur = last << 5, step = now - last;
     int[] w1 = wave(Math.min(byte8(k[0]), 127)), w2 = wave(Math.min(byte8(k[2]), 127)), w3 = wave(Math.min(byte8(k[3]), 127));
     int[] s2 = new int[32], s3 = new int[32], out = new int[32];
-    for (int i = 0; i < 32; i++) { ph[t][1] += st2; s2[i] = samp(w2, ph[t][1]); }
-    for (int i = 0; i < 32; i++) { ph[t][2] += st3; s3[i] = samp(w3, ph[t][2]); }
+    // LEAN: an oscillator nothing hears (no mix gain, and not an FM source with FM) is not rendered: its
+    // phase stands; its samples are multiplied by 0 or masked out, whatever they are
+    boolean use2 = !lean || g[1] != 0 || (m2 != 0 && fms != 0), use3 = !lean || g[2] != 0 || (m3 != 0 && fms != 0);
+    for (int i = 0; i < 32; i++) { if (use2) ph[t][1] += st2; s2[i] = samp(w2, ph[t][1]); }
+    for (int i = 0; i < 32; i++) { if (use3) ph[t][2] += st3; s3[i] = samp(w3, ph[t][2]); }
     for (int i = 0; i < 32; i++) {
       int fm = (s2[i] & m2) + (s3[i] & m3);
       ph[t][0] += st1 + fm * fms;
@@ -194,6 +201,62 @@ public class EmuCfoOscillator extends GhidraScript {
       out[i] = (s1 * g[0] + s2[i] * g[1] + s3[i] * g[2]) * (cur >> 5);
     }
     return out;
+  }
+
+  // ---- the lighter render (src/cfoo_diet): IDLE, a CFOO track whose amp envelope is closed (state 0, the
+  // level within 2^16 of 0: its high word 0 or -1) renders nothing, makes no level call and leaves the
+  // no-ramp mark (-1) in its last level; LEAN, an oscillator nothing hears is not rendered (modelK2)
+  boolean idle = false, lean = false;
+  int[] ampState = {2, 2, 2, 2, 2, 2, 2, 2}, ampLevel = new int[8];
+  int lastSteps = 0;
+  boolean closed(int t) { int hw = ampLevel[t] >> 16; return idle && ampState[t] == 0 && (hw == 0 || hw == -1); }
+  void dietCases(int[] zero, int[] notes, int MAX) throws Exception {
+    int U = 0x4000;
+    int[] k0 = K;
+    if (idle) {
+      fresh();
+      K = new int[] {0x2a00, 0x100, 0x4000, 0x7f00, 0x5500, 0x3c00, 0x3800, 0x4700};	// all three heard, FM
+      // per tick, the envelopes' states; a decaying envelope's level per track: 1 0, 3 -0x10000, 6 0xffff
+      // closed; 5 -0x10001, 7 0x10000 open (just past the edge); 2 holds at 0, 0 and 4 attack
+      int[][] st = {{2, 2, 2, 2, 2, 2, 2, 2}, {2, 0, 1, 0, 2, 0, 0, 0}, {2, 0, 1, 0, 2, 0, 0, 0},
+                    {2, 2, 2, 2, 2, 2, 2, 2}, {2, 2, 2, 2, 2, 2, 2, 2}};
+      int[] lv = {0, 0, 0, -0x10000, 0, -0x10001, 0xffff, 0x10000};
+      boolean ok = true;
+      for (int k = 0; k < st.length && ok; k++) {
+        for (int t = 0; t < 8; t++) { ampState[t] = st[k][t]; ampLevel[t] = st[k][t] == 0 ? lv[t] : 0x80000000; }
+        ok = tick("IDLE: closed and open envelopes (tick " + k + ")", zero, zero, notes, 0, 0, 0, 0, 0, 0, MAX, false);
+      }
+      if (ok) println(String.format("  %-64s OK", "IDLE: closed envelopes skip, the edges, no ramp after, 5 ticks"));
+      // a whole tick with every envelope closed, and one with every envelope open: instructions
+      fresh();
+      for (int t = 0; t < 8; t++) { ampState[t] = 0; ampLevel[t] = 0; }
+      ok = tick("IDLE: all 8 closed", zero, zero, notes, 0, 0, 0, 0, 0, 0, MAX, true);
+      int stClosed = lastSteps;
+      for (int t = 0; t < 8; t++) { ampState[t] = 2; ampLevel[t] = 0x80000000; }
+      ok = tick("IDLE: all 8 open again, no ramp", zero, zero, notes, 0, 0, 0, 0, 0, 0, MAX, true);
+      println(String.format("  instructions per tick, 8 synth tracks: all closed %d, all open %d", stClosed, lastSteps));
+    }
+    if (lean) {
+      fresh();
+      int[][] ks = {{0, 0, 0, 0, 0, 0, U, U},				// E 0, F 0: OSC1 alone, OSC2 and OSC3 not rendered
+                    {0, 0, 0x4000, 0, 0, 0x5a00, 0x3400, U},		// B 0, F 90: OSC2 the FM source, OSC3 not
+                    {0, 0x200, 0, 0x7f00, 0, 0x5a00, U, 0x4c00},	// B 2: OSC3 the FM source, OSC2 not
+                    {0x2a00, 0x100, 0x4000, 0x7f00, 0x7f00, 0, U, 0x4c00},	// E 127, F 0: both mixed, no FM
+                    {0, 0x100, 0, 0, 0, 0x7f00, U, U},			// B 1, F 127: both FM sources
+                    {0, 0, 0, 0, 0, 0, U, U}};				// OSC1 alone again
+      boolean ok = true;
+      int[] steps = new int[ks.length];
+      for (int k = 0; k < ks.length && ok; k++) {
+        K = ks[k];
+        for (int j = 0; j < 6 && ok; j++) ok = tick("LEAN: setting " + k + " tick " + j, zero, zero, notes, 0, 0, 0, 0, 0, 0, MAX, false);
+        steps[k] = lastSteps;
+      }
+      if (ok) println(String.format("  %-64s OK", "LEAN: OSC2, OSC3 off and on by mix and FM, 36 ticks"));
+      println(String.format("  instructions per tick, 8 synth tracks: OSC1 alone %d, OSC2 FM %d, OSC3 FM %d, 2+3 mixed %d, both FM %d",
+                            steps[0], steps[1], steps[2], steps[3], steps[4]));
+    }
+    K = k0;
+    for (int t = 0; t < 8; t++) { ampState[t] = 2; ampLevel[t] = 0; }
   }
   void knobCases2(int[] none, int[] noSlot, int[] zero, int[] c4, int[] notes, int MAX) throws Exception {
     int U = 0x4000;
@@ -279,6 +342,7 @@ public class EmuCfoOscillator extends GhidraScript {
       wr(VELS + 2 * t, X0 + t, 2);
       wr(VOICES + t * 0x5e + 0x10, STALE, 4);	// a level the lanes faded: the synth must not read it
       wr(VOICES + t * 0x5e + 0x28, (activeMask >> t) & 1, 1);
+      wr(AMPST + 8 * t, ampState[t], 4); wr(AMPST + 8 * t + 4, ampLevel[t] & 0xffffffffL, 4);
       for (int i = 0; i < 32; i++) wr(A18 + t * 0x80 + 4 * i, 0x11110000L + t * 0x100 + i, 4);
     }
     wr(TRIGS, trigMask, 4);
@@ -291,7 +355,7 @@ public class EmuCfoOscillator extends GhidraScript {
     int[] levelCalls = new int[8];
     for (int s = 0; s < 200000; s++) {
       long pc = emu.getExecutionAddress().getOffset();
-      if (pc == FILL) { done = true; maxSteps = Math.max(maxSteps, s); break; }
+      if (pc == FILL) { done = true; maxSteps = Math.max(maxSteps, s); lastSteps = s; break; }
       if (pc == LEVEL) {	// the stub: check (x, LEV), return the case's level, clobber %d1 as the real one
         long q = rd("SP");
         int x = (int) rdn(q + 6, 2), lev = (int) rdn(q + 10, 2), t = x - X0;
@@ -314,16 +378,21 @@ public class EmuCfoOscillator extends GhidraScript {
     }
     for (int t = 0; t < 8; t++) {
       boolean synth = m5 ? eff[t] == 5 : (machine[t] == 0 && slot[t] == 0);
-      if (done && levelCalls[t] != (synth ? 1 : 0))
-        bad.append(String.format(" [track %d: %d level calls, want %d]", t, levelCalls[t], synth ? 1 : 0));
+      boolean shut = synth && closed(t);	// IDLE: renders nothing, the block as it was
+      if (done && levelCalls[t] != (synth && !shut ? 1 : 0))
+        bad.append(String.format(" [track %d: %d level calls, want %d]", t, levelCalls[t], synth && !shut ? 1 : 0));
       int lv = ((activeMask & trigMask) >> t & 1) != 0 ? 0 : level;	// the de-click
-      int[] want = !synth ? null : K != null ? (v2 ? modelK2(t, note[t], K, lv) : modelK(t, note[t], K, lv))
+      int[] want = !synth || shut ? null : K != null ? (v2 ? modelK2(t, note[t], K, lv) : modelK(t, note[t], K, lv))
           : model(t, note[t], tune, play, br, strt, len, loop, lv);
+      if (shut) {
+        mprev[t] = -1;	// the no-ramp mark
+        if (done && rd32s(LEVELS + 4 * t) != -1) bad.append(String.format(" [track %d closed: last level 0x%08x, want the mark -1]", t, rd32s(LEVELS + 4 * t)));
+      }
       for (int i = 0; i < 32; i++) {
         int got = rd32s(A18 + t * 0x80 + 4 * i);
-        int exp = synth ? want[i] : (int) (0x11110000L + t * 0x100 + i);
+        int exp = synth && !shut ? want[i] : (int) (0x11110000L + t * 0x100 + i);
         if (got != exp) {
-          bad.append(String.format(" [track %d sample %d: 0x%08x, want 0x%08x%s]", t, i, got, exp, synth ? "" : " (untouched)"));
+          bad.append(String.format(" [track %d sample %d: 0x%08x, want 0x%08x%s]", t, i, got, exp, synth && !shut ? "" : " (untouched)"));
           break;
         }
       }
@@ -1502,6 +1571,8 @@ public class EmuCfoOscillator extends GhidraScript {
     pure = sym.containsKey("segfrac");
     polyWalkArg = Arrays.asList(args).contains("polywalk");
     corners = sym.containsKey("wave_cnames");
+    idle = sym.containsKey("idle_skip");
+    lean = sym.containsKey("lean_osc");
     if (knobs) {
       CFOO_SHORT = new String[] {"WAV1", "FMSR", "WAV2", "WAV3", "MIX", "FM", "DET2", "DET3"};
       CFOO_LONG = new String[] {"OSC1 Wave", "FM Source", "OSC2 Wave", "OSC3 Wave", "Osc Mix", "FM Amount", "OSC2 Detune", "OSC3 Detune"};
@@ -1522,6 +1593,7 @@ public class EmuCfoOscillator extends GhidraScript {
 
     if (v2) knobCases2(none, noSlot, zero, c4, notes, MAX);
     else if (knobs) knobCases(none, noSlot, zero, c4, notes, MAX);
+    if (v2 && (idle || lean)) dietCases(zero, notes, MAX);
     else {
     run("no synth track: every block untouched", 3, none, noSlot, c4, 0x4000, 0, 0, 0, 0, 0, MAX);
     run("ONESHOT with a sample: untouched", 3, zero, noSlot, c4, 0x4000, 0, 0, 0, 0, 0, MAX);
