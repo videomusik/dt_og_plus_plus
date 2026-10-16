@@ -4,8 +4,10 @@ In the build: `os/1.54/build/patch.json` holds it as the feature `portamento`, i
 less the CFO oscillator's last stage, S27, on which the stages are built
 ([cfo_oscillator.md](cfo_oscillator.md)). v0.2.1 is S36, byte for byte; from v0.2.2 FILTER page 2
 follows it and rewrites the reader's call, the two lookups' tests and the writer's loop count, which
-`patch.json` then lists under `filter_page2` ([filter_page2.md](filter_page2.md#checks)). Source:
-[src/portamento/](../../src/portamento/).
+`patch.json` then lists under `filter_page2` ([filter_page2.md](filter_page2.md#checks)). From v0.2.6
+the CFO oscillator's lighter render rewrites the CFO oscillator's render, the note operand
+(`0x400f7840`) with it, which `patch.json` then lists under `cfoo_diet`; the lighter render still
+reads the glided note ([cfo_oscillator.md](cfo_oscillator.md#the-lighter-render-from-v026)). Source: [src/portamento/](../../src/portamento/).
 
 ## What it does
 

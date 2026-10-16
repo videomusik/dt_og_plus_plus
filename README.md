@@ -75,7 +75,8 @@ waveforms, where OSC2, OSC3 or both frequency-modulate OSC1. Its SRC page sets e
 waveform (SIN, TRI, SAW, SQR and the blends between them), the FM source and amount, the mix of the
 three oscillators and the detunes of OSC2 and OSC3 (±24 semitones); the three waveform knobs show
 the wave they play as a picture. It plays where a sample would, so the filter, the amp envelope, the
-LFOs and the effects act on it, and a Poly track can follow it.
+LFOs and the effects act on it, and a Poly track can follow it. A CFOO track whose sound has died
+away, and an oscillator that cannot be heard, take no processing time.
 Details: [OS 1.54](os/1.54/README.md#cfo-oscillator)
 
 ### PORTAMENTO AND LEGATO
@@ -136,7 +137,7 @@ The build runs on macOS and Linux; on Windows, use WSL2
    ```
 
 3. From the repository root, run, with `<os>` the OS folder of your stock file and `<version>` its
-   build's version (v0.2.5 for OS 1.54, v0.1 for OS 1.52A):
+   build's version (v0.2.6 for OS 1.54, v0.1 for OS 1.52A):
 
    ```
    bash build/build_tool.sh
@@ -149,7 +150,7 @@ The build runs on macOS and Linux; on Windows, use WSL2
    ```
    bash build/build_tool.sh
    python3 os/1.54/build/build.py
-   python3 os/1.54/build/verify.py out/1.54/dt_og_plus_plus_v0.2.5_<hash8>.syx --tool tool/bin/elektron-firmware-tool-capped
+   python3 os/1.54/build/verify.py out/1.54/dt_og_plus_plus_v0.2.6_<hash8>.syx --tool tool/bin/elektron-firmware-tool-capped
    ```
 
    In the last command, use the file name that `build.py` prints at `[7/7] wrote`.
@@ -196,8 +197,9 @@ project on DT OG++, is on the OS page
 - OS 1.54: [os/1.54/docs/reference.md](os/1.54/docs/reference.md): the protected ranges and the
   expected hashes.
 - OS 1.54: [os/1.54/src/](os/1.54/src/): the source of Chain Recording, the CFO oscillator,
-  portamento, FILTER page 2, CFOO's wave pictures and the modulation matrix, with the generators that
-  check them and write their runs into `patch.json`.
+  portamento, FILTER page 2, CFOO's wave pictures, the modulation matrix, POLY's pools on every kit
+  change and CFOO's lighter render, with the generators that check them and write their runs into
+  `patch.json`.
 - OS 1.52A (on hold): [os/1.52A/notes/README.md](os/1.52A/notes/README.md),
   [os/1.52A/docs/patch_listing.md](os/1.52A/docs/patch_listing.md) and
   [os/1.52A/docs/reference.md](os/1.52A/docs/reference.md).

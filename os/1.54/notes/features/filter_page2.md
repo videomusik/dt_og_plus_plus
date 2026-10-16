@@ -7,7 +7,8 @@ which rewrite 10 B of the CFO oscillator's code, none of this feature's. After t
 v0.2.4) changes the note KEY follows from portamento's glided note to the trig's: `patch.json` holds it as
 the feature `filter_page2_key_note`, the 4 B it rewrites
 ([KEY on the trig's note](#key-on-the-trigs-note-s56)). From v0.2.5 the modulation matrix follows,
-which rewrites none of this feature's bytes ([mod_matrix.md](mod_matrix.md)). Source:
+and from v0.2.6 POLY's pools on every kit change and the CFO oscillator's lighter render; none rewrites
+this feature's bytes ([mod_matrix.md](mod_matrix.md), [cfo_oscillator.md](cfo_oscillator.md#the-lighter-render-from-v026)). Source:
 [src/filter_page2/](../../src/filter_page2/). This note describes S52 with S56's change, and what each
 stage before them changed.
 

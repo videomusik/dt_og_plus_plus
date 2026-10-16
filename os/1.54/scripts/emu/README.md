@@ -42,22 +42,25 @@ Run one with `./scripts/ghidra_emu.sh 1.54 <Harness> [argument]`.
 
 ## Results on the reference build
 
-On the reference build (v0.2.5, S70, section 3 `fc33939b…`), every harness ends with its pass line
+On the reference build (v0.2.6, S73, section 3 `459d7595…`), every harness ends with its pass line
 (`=== ALL CASES PASS ... ===`, or for `EmuMachineList` "as-is added 4 machines, edited added 5", and
 with the build's MAIN OS "added 6 machines", CFOO the sixth). The ones that take a build's MAIN OS ran
-on it; `EmuCfoOscillator` ran on S27's load (`lz4_stream_m5o.load`, with `machine5 names icon`),
+on it; `EmuCfoOscillator` ran on S27's load (`lz4_stream_m5o.load`, with `machine5 names icon`) and on
+S73's (`diet_S73.load`, the same arguments),
 `EmuPortamento` on S36's (`S36.load`), `EmuFilter` on S56's (`S56.load`, the build's bytes) and on S52's,
 and `EmuWavePic` on S55's (`S55.load`), whose bytes in their ranges are the build's, with three
 exceptions, and KEY's note operand (`0x40178f2c`), which S52's and S55's loads hold as before S56. The CFO oscillator's note operand (`0x400f7840`), which
 S27's load holds as the trig's note and the build as portamento's glided note; `EmuPortamento` checks
-it. And portamento's reader call, its two lookup tests and the writer's loop count, which the build
+it; S73's load holds the build's lighter render but for that read, the trig's note as S27's. And portamento's reader call, its two lookup tests and the writer's loop count, which the build
 holds as FILTER page 2 rewrote them; `EmuFilter` runs them with portamento's code. And the CFO
 oscillator's knob record in `cfo_pic` (`0x400f7c5c`), which S27's load holds as the CFO oscillator's two
 instructions and the build as the wave pictures' jump; `EmuWavePic` runs it. And the wave pictures' pad
 after their code (from `0x401045c0`), which S55's load holds as fill and the build as the modulation
 matrix's code; `EmuWavePic` runs only the pictures' code before it. No harness runs the modulation
 matrix's code; `EmuChanLabel` enters MIDI Loopback's name pad at `0x4001562c` itself, not through the
-knob cell's call at `0x40030daa`, which the build points at the matrix's `mm_name` first.
+knob cell's call at `0x40030daa`, which the build points at the matrix's `mm_name` first. No harness
+runs POLY's `pk_follow` (`0x400bedf2`) or its jump at `0x400773be`; digiemu ran them
+([function_ledger.md](../../notes/function_ledger.md), the kit pointer's setter `0x4007739a`).
 `EmuCursorCore` on an image whose marker stub reads the canvas from `%d3` fails both marker cases that
 draw a line, with the canvas `0x11111111`: the harness tells the two apart.
 

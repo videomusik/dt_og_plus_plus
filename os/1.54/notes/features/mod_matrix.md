@@ -2,8 +2,9 @@
 
 In the build from v0.2.5: `os/1.54/build/patch.json` holds it as the feature `mod_matrix`, its last
 stage, S70, less the build before it (v0.2.4, S56, section 3 `ce7a07b4…`), on which the stages are built.
-The build is S70, byte for byte. Source: [src/mod_matrix/](../../src/mod_matrix/) (`mm.s`, `mm.ld`,
-`make_mm.py`).
+v0.2.5 is S70, byte for byte; from v0.2.6 POLY's pools on every kit change and the CFO oscillator's
+lighter render follow it, rewriting none of its bytes ([cfo_oscillator.md](cfo_oscillator.md#the-lighter-render-from-v026)). Source:
+[src/mod_matrix/](../../src/mod_matrix/) (`mm.s`, `mm.ld`, `make_mm.py`).
 
 ## What it does
 

@@ -166,6 +166,8 @@ A CFOO track's SRC page:
   −12, −5, 0, +7, +12, +19 and +24 semitones.
 - A new CFOO track plays a plain sine: OSC1 SIN alone, no FM, both detunes at 0.
 - The level follows the trig's velocity; the AMP page sets the volume.
+- A CFOO track takes no processing time once its amp envelope has died away, and OSC2 or OSC3 is not
+  computed while it cannot be heard: its MIX share is 0 and it is not an FM source (or FM is 0).
 - On the LFO page, DEST lists CFOO's parameters (`CFOO:OSC1 Wave` … `CFOO:OSC3 Detune`).
 - A Poly track can follow a CFOO track: every voice of the pool plays the synth with the CFOO track's
   knobs.
@@ -288,7 +290,7 @@ The build runs on macOS and Linux; on Windows, use WSL2
    ```
    bash build/build_tool.sh
    python3 os/1.54/build/build.py
-   python3 os/1.54/build/verify.py out/1.54/dt_og_plus_plus_v0.2.5_<hash8>.syx --tool tool/bin/elektron-firmware-tool-capped
+   python3 os/1.54/build/verify.py out/1.54/dt_og_plus_plus_v0.2.6_<hash8>.syx --tool tool/bin/elektron-firmware-tool-capped
    ```
 
    In the last command, use the file name that `build.py` prints at `[7/7] wrote`.
@@ -307,7 +309,7 @@ What the three commands do:
   writes the binary somewhere else.
 - `os/1.54/build/build.py` checks your stock file, applies `os/1.54/build/patch.json`, packs and
   re-checks the result, and only then writes
-  `out/1.54/dt_og_plus_plus_v0.2.5_<first 8 hex digits of its SHA-256>.syx`. This is the file you
+  `out/1.54/dt_og_plus_plus_v0.2.6_<first 8 hex digits of its SHA-256>.syx`. This is the file you
   flash. It prints the name at `[7/7] wrote`. `--syx FILE`, `--tool FILE` and `--out DIR` override
   the default locations.
 - `os/1.54/build/verify.py` tells you what a `.syx` file is: stock Digitakt OS 1.54, DT OG++
