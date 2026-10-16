@@ -16,7 +16,7 @@ The build before this change comes back from patch.json (build_without_keynote: 
 filter_page2_key_note, and, once that is merged, the 4 bytes it rewrites given back to filter_page2, and
 the bytes of earlier features that a feature merged after it rewrites, LATER_SITES, given back) and must
 give BUILD_SECTION3. Once patch.json holds a feature merged after it (mod_matrix, S69), S56 is checked
-against its recorded hash and --write is refused: the last feature's generator (make_mm.py) rewrites
+against its recorded hash and --write is refused: the last feature's generator (make_diet.py) rewrites
 patch.json. The stage, written to out/1.54/stages/ (only with --stages):
   S56  the build + KEY reads the trig's note sum (0x80001f28: written at the NoteOn and by a note change
        without a trig) instead of portamento's glided one (0x439d1180): the 4-byte operand of the lea at
@@ -30,10 +30,12 @@ ROOT = os.path.abspath(os.path.join(HERE, "..", "..", "..", ".."))
 sys.path.insert(0, os.path.join(ROOT, "os", "1.54", "build"))
 sys.path.insert(0, os.path.join(ROOT, "os", "1.54", "src", "cfo_oscillator"))
 sys.path.insert(0, HERE)
+sys.path.insert(0, os.path.join(ROOT, "os", "1.54", "src", "cfoo_diet"))
 import build  # noqa: E402
 import make_listing  # noqa: E402
 import make_cfo as cfo  # noqa: E402
 import make_filt as filt  # noqa: E402
+import region  # noqa: E402
 BASE = 0x40000400
 BUILD_SECTION3 = "957bdc6fa80cca3860615cf3baa11310db666da1eec3770fa1d2fbc70615ee45"   # the build before it, v0.2.4
 FID = "filter_page2_key_note"
@@ -47,10 +49,12 @@ S56_SHA = "ce7a07b48ad053dce41e424ec86c1cb34e1cecbbb091a6320a31c8ed79f8011d"   #
 # Bytes of the features before this one that a feature merged after it rewrites, as those features hold
 # them: the modulation matrix (mod_matrix, from v0.2.5) points the knob cell's name call, which MIDI
 # Loopback had pointed at its own, at its own, and puts its code over the wave pictures' pad fill from
-# 0x401045c0 (make_cfo.fill over the whole pad); patch.json then lists those bytes under mod_matrix.
-# build_without_keynote gives them back.
+# 0x401045c0 (make_cfo.fill over the whole pad); patch.json then lists those bytes under mod_matrix. The
+# lighter render (cfoo_diet, from v0.2.6) rewrites the CFO oscillator's render with portamento's note
+# operand in it (region.py). build_without_keynote gives them back.
 LATER_SITES = [(0x40030dad, "01562c", "midi_loopback"),
-               (0x401045c0, cfo.fill(0x401044b6, 0x40104e7e)[0x401045c0 - 0x401044b6:].hex(), "wave_pictures")]
+               (0x401045c0, cfo.fill(0x401044b6, 0x40104e7e)[0x401045c0 - 0x401044b6:].hex(), "wave_pictures")] + \
+              region.give_back()
 
 
 def build_without_keynote(stock, patch):

@@ -22,7 +22,7 @@ The key words (`wait`, `tap`, `press`, `release`, `turn`, `snap`) are digiemu's
 
 ## Results on the reference build
 
-The reference build (`.syx` `b8eef30e…`, MAIN OS `fc33939b…`, v0.2.5) against stock 1.54 (`f78ba80f…`),
+The reference build (`.syx` `eca7e91e…`, MAIN OS `459d7595…`, v0.2.6) against stock 1.54 (`f78ba80f…`),
 digiemu at commit `f57c2f2` (release 0.4.1) with its six Unicorn patches:
 
 - ✅ emulator run, `pages` (`scripts/digiemu_check.py`, untimed): PASS, every stage of the build passes.
@@ -30,7 +30,8 @@ digiemu at commit `f57c2f2` (release 0.4.1) with its six Unicorn patches:
   (188 pixels in (75, 13)–(95, 63)), where the table above says; the LFO page equals stock's, as the
   modulation matrix shows only when opened. The audio differs in one 100 ms window, the recording's
   last; ⚠️ very probably the recording's length rather than this build: builds whose screens all equal
-  stock's differ in that same window. The build v0.2.3 (`31b428ea…`) gave the same.
+  stock's differ in that same window. The builds v0.2.3 (`31b428ea…`) and v0.2.5 (`b8eef30e…`) gave the
+  same.
 - ✅ emulator run on the build v0.2.3 (`.syx` `31b428ea…`), before KEY on the trig's note and the
   modulation matrix, not repeated since: `cfoo4 --timing` and `cfoo8 --timing`, the audio render
   (vector 191, period 166,685 cycles at the assumed 250 MHz):
@@ -41,10 +42,18 @@ digiemu at commit `f57c2f2` (release 0.4.1) with its six Unicorn patches:
   | DT OG++, `cfoo4` (four CFOO tracks) | 106,364 | 115,706 | 119,557 | 28.3 % | 0 |
   | DT OG++, `cfoo8` (eight CFOO tracks) | 108,001 | 129,677 | 133,269 | 20.1 % | 0 |
 
+  The same timing (digiemu's `emu.fwcheck`, without the stock run) for `cfoo4` on v0.2.5 and on v0.2.6,
+  whose CFO oscillator renders lighter:
+
+  | Build, script | mean | p99 | worst | margin | late passes |
+  |---|---|---|---|---|---|
+  | v0.2.5, `cfoo4` | 106,716 | 116,077 | 119,942 | 28.0 % | 0 |
+  | v0.2.6, `cfoo4` | 103,959 | 110,342 | 114,537 | 31.3 % | 0 |
+
   Two runs of `cfoo4` gave the same numbers to the cycle. ⚠️ The cycles are digiemu's estimate from the
   manual's tables (zero-wait memory, no caches): compare builds with them, do not read them as the unit's.
 - The `cfoo4` and `cfoo8` runs report two strict-mode violations, "an opcode that is not ColdFire ISA_C" at
-  `0x400f787e` and `0x400f788c`. Both are `extb.l %d1` (`0x49c1`) in the CFO oscillator's render. They are
+  `0x400f787e` and `0x400f788c` (from v0.2.6 at `0x400f7894` and `0x400f789e`). Both are `extb.l %d1` (`0x49c1`) in the CFO oscillator's render. They are
   digiemu's decoder's known false positive ([docs/digiemu.md](../../../../docs/digiemu.md#known-false-positives)),
   and `scripts/digiemu_check.py` reports them as such.
 - Stock's boot stage has one violation of its own, a 1-byte read of address `0x00000000`; digiemu marks it

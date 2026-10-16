@@ -16,7 +16,9 @@ It came into `patch.json` together with portamento, which points the synth's not
 note ([portamento.md](portamento.md)); `make_port.py` writes both. The build's bytes that CFOO rewrites
 (the machine-5 bounds, the name and icon pointers, the label pads' jumps) are listed under
 `cfo_oscillator`. Its code lives in a new pad, `FUN_400f77da` ([Code space](#code-space)). The stages
-ran on the test unit ([Testing on the unit](#testing-on-the-unit)).
+ran on the test unit ([Testing on the unit](#testing-on-the-unit)). From v0.2.6 its render is the lighter
+render's code, listed under `cfoo_diet` where it differs
+([The lighter render, from v0.2.6](#the-lighter-render-from-v026)).
 
 The sections below follow the stages. S11 was a prototype, and CFOO, machine 5, starts in S12
 ([below](#cfoo-machine-5-in-s12)); the build plays the synth on CFOO tracks only.
@@ -1170,6 +1172,56 @@ pool map is not read. 4 B smaller than S26's lookup.
 CFOO, CFOO, SLIC, PTCH), with the pool map filled with every track as its own; the three routines and
 everything else as S26, on S27's own bytes. Controls: S26's bytes under that expectation (the argument
 `polywalk`) show `POLY` alone, and S27 with machine 3 taken for POLY fails.
+
+## The lighter render, from v0.2.6
+
+From v0.2.6 the render described above, from the dispatcher to the mix (`0x400f77da..0x400f7b18`, but for
+`segfrac` at `0x400f7a1e`, which the wave pictures call too and which stays), is the lighter render's code:
+[src/cfoo_diet/](../../src/cfoo_diet/), `diet.s`, feature `cfoo_diet` in `patch.json`. The synth is the
+same. Before it, the render ran all three oscillators of every CFOO track on every audio tick, whether the
+track sounded or not: about 2,100 instructions a track a tick (EmuCfoOscillator: at most 18,185 a tick for
+eight synth tracks). The rest of the build's code that runs every tick is about 620 instructions in all.
+
+**Always** (the output is S27's, sample for sample):
+- `pitch` divides the note sum by 384 with a multiply: `(n >> 7) × 43691 >> 17` equals `n / 384` for every
+  `n` from 0 to `0x570000`, checked for each;
+- OSC2 and OSC3 go through one routine, their engine fields 2 B apart;
+- the oscillator loop keeps its shift count in a register, one instruction less a sample;
+- the track's number stays in a register for the routine's first part.
+
+**A closed envelope** (S72, option `IDLE`): a CFOO track whose amp envelope is closed renders nothing.
+Closed means the envelope decays (state 0 at `0x4199ed64 + 8 × track`) and its level is within 2^16 of 0:
+the level's high word is 0 or −1, where full is 2^31.
+- The envelope (`FUN_400716c0`, [function_ledger.md](../function_ledger.md)) multiplies the track's block
+  by that level after the hook, and it takes a new note's restart only after the tick the note comes in.
+  So the track's output stays within 2^-15 of a full block either way, below −90 dB.
+- The track's last level gets the no-ramp mark (−1), so the first tick it sounds again starts on its level,
+  as the render did before.
+- Its phases stand still meanwhile; any phase is a valid start.
+
+**An oscillator nothing hears** (S73, option `LEAN`): OSC2 or OSC3 is not rendered when its mix gain is 0
+and it is not an FM source, or the FM amount is 0. Its samples were then multiplied by 0 or masked out, so
+the output is the same. Its phase stands still meanwhile.
+
+The code keeps portamento's note read (the glided note sum at `0x439d1180`). `.diet_a` takes 570 of the 580 B
+before `segfrac`, `.diet_b` 186 of the 188 B after it; the rest of each is filled.
+
+**Checked:**
+- `make_diet.py` rebuilds the build before it (S71) from `patch.json`. It checks that the region holds only
+  the CFO oscillator's code and portamento's operand, that nothing outside it branches or points into it but
+  to `cfo_pad` and `segfrac`, and that each part fits.
+- `EmuCfoOscillator`: S72 and S73 pass every earlier case, sample for sample. Their own cases: closed
+  envelopes at the edges (levels 0, −0x10000 and 0xffff closed; −0x10001, 0x10000 and a hold at 0 open),
+  reopening with no ramp, and OSC2 and OSC3 turned off and on by the mix and FM. Controls, one instruction
+  changed each, fail their own cases. Instructions a tick for eight synth tracks: 183 with every envelope
+  closed against about 17,000 open; with OSC1 alone 9,799.
+- digiemu's render clock (an estimate) with four CFOO tracks: held notes, mean 106,716 → 103,959 cycles,
+  worst 119,942 → 114,537 (the margin 28.0 → 31.3 %); after one short note, worst 119,716 → 110,419.
+- On the test unit, S73: four CFOO tracks run clearly lighter, as reported; with USB audio and MIDI on, the
+  UI still lags, less than before, and recovers much sooner after STOP.
+
+**Open:** a sounding patch with all three oscillators and FM saves little. Faster loops for its common
+cases (no FM, a pure wave with no blend) need code space this pad does not have.
 
 ## Related notes
 

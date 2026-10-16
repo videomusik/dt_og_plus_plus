@@ -82,8 +82,14 @@ Then the modulation matrix, each stage flashed on the one before:
     page, the controllers through a MIDI cable, the slots and their editing, the slots per pattern saved
     with the project through a power cycle, the level fader as the controller with LEVEL/DATA, its name
     and its following a CC, and LFO1's parameters as destinations, as reported; S63's two images failed (a stale RAM state, then a view left on
-    top) and S65 replaces them. S70 (`.syx` `b8eef30e…`) is the build in this folder, v0.2.5, byte for
-    byte.
+    top) and S65 replaces them. S70 (`.syx` `b8eef30e…`) is v0.2.5, byte for byte.
+14. S71 on S70: a pattern chosen while the sequencer is stopped plays its own POLY pools from its first
+    step, as reported.
+15. S72 and S73 on S71, the CFO oscillator's lighter render
+    ([features/cfo_oscillator.md](features/cfo_oscillator.md#the-lighter-render-from-v026)): with S73,
+    four CFOO tracks run clearly lighter, as reported; with USB audio and MIDI on, the UI still lags,
+    less than before, and recovers much sooner after STOP. S73 (`.syx` `eca7e91e…`) is the build in
+    this folder, v0.2.6, byte for byte.
 
 ## The features in this build
 
@@ -136,6 +142,12 @@ New in this image, not in the OS 1.52A build:
   through stand-ins of the track's parameter set; the level fader shows the controller (MW, BC) and
   LEVEL/DATA sets it; the slots belong to the pattern's kit and are saved in the stored kit's unused
   tail. ✅ On the test unit (S57 to S70, above). [features/mod_matrix.md](features/mod_matrix.md).
+- **POLY on every kit change.** POLY's pools follow every change of the engine's kit, so a pattern
+  chosen while the sequencer is stopped plays its own pools from its first step (the kit pointer's
+  setter `0x4007739a` in [function_ledger.md](function_ledger.md)). ✅ On the test unit (S71, above).
+- **The CFO oscillator's lighter render.** A CFOO track whose amp envelope has closed renders nothing,
+  and OSC2 or OSC3 is not rendered while nothing hears it; the sound is the same. ✅ On the test unit
+  (S73, above). [features/cfo_oscillator.md](features/cfo_oscillator.md#the-lighter-render-from-v026).
 
 The CFO oscillator and portamento came into `patch.json` together, from their last stages:
 `make_port.py --stages --write` (in [src/portamento/](../src/portamento/)) rebuilt the build without
@@ -151,10 +163,15 @@ it the same way, S56 on it, and writes the runs, the 4 B it rewrites as the feat
 `filter_page2_key_note`: v0.2.4 is S56. The modulation matrix came in after it, as v0.2.5:
 `make_mm.py --stages S70 --write` (in [src/mod_matrix/](../src/mod_matrix/)) rebuilds the build before it
 the same way, giving back the 3 B of MIDI Loopback's call operand and the wave pictures' pad fill it
-rewrites, S70 on it, and writes the runs. The build is S70, byte for byte. Each changed byte is listed
-once, under the last feature that wrote it ([docs/reference.md](../docs/reference.md#what-patchjson-holds));
-`make_port.py`, `make_chain.py`, `make_filt.py`, `make_wavpic.py` and `make_keynote.py` refuse `--write`
-once a later feature is merged.
+rewrites, S70 on it, and writes the runs: v0.2.5 is S70. POLY's pools on every kit change and the
+lighter render came in after it, as v0.2.6: `make_polykit.py --stages --write` (in
+[src/poly_kit_change/](../src/poly_kit_change/)) wrote S71's runs, then `make_diet.py --stages --write`
+(in [src/cfoo_diet/](../src/cfoo_diet/)) rebuilds the build before it the same way, giving back the CFO
+oscillator's render with portamento's note operand in it, S73 on it, and writes the runs. The build is
+S73, byte for byte. Each changed byte is listed once, under the last feature that wrote it
+([docs/reference.md](../docs/reference.md#what-patchjson-holds)); `make_port.py`, `make_chain.py`,
+`make_filt.py`, `make_wavpic.py`, `make_keynote.py`, `make_mm.py` and `make_polykit.py` refuse
+`--write` once a later feature is merged.
 
 The other features have run on the test unit ([The test unit](#the-test-unit)).
 

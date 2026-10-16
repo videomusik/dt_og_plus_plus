@@ -12,8 +12,11 @@ Needs m68k binutils (M68K_PREFIX, as make_cfo.py), the stock section 3 from ./sc
 for --stages, the stock .syx and the firmware tool (as build.py).
 
 The build before this change comes back from patch.json (build_without_pk: its features before
-poly_kit_change; the change rewrites no byte of an earlier feature) and must give BUILD_SECTION3. The
-stage, written to out/1.54/stages/ (only with --stages):
+poly_kit_change, and the bytes of earlier features that a feature merged after it rewrites, LATER_SITES,
+given back; the change itself rewrites no byte of an earlier feature) and must give BUILD_SECTION3. Once
+patch.json holds a feature merged after it (cfoo_diet, from v0.2.6), S71 is checked against its recorded
+hash and --write is refused: the last feature's generator (make_diet.py) rewrites patch.json. The stage,
+written to out/1.54/stages/ (only with --stages):
   S71  the build + the kit pointer's setter (0x4007739a), which a pattern change made while stopped goes
        through, rebuilds POLY's pool map from the new kit, as the set-active-kit event already does: its
        last 6 B jump to pk_follow (16 B of POLY's pad span), which calls the build's map rebuild between
@@ -25,10 +28,12 @@ ROOT = os.path.abspath(os.path.join(HERE, "..", "..", "..", ".."))
 sys.path.insert(0, os.path.join(ROOT, "os", "1.54", "build"))
 sys.path.insert(0, os.path.join(ROOT, "os", "1.54", "src", "cfo_oscillator"))
 sys.path.insert(0, os.path.join(ROOT, "os", "1.54", "src", "mod_matrix"))
+sys.path.insert(0, os.path.join(ROOT, "os", "1.54", "src", "cfoo_diet"))
 import build  # noqa: E402
 import make_listing  # noqa: E402
 import make_cfo as cfo  # noqa: E402
 import make_mm as mm  # noqa: E402
+import region  # noqa: E402
 PFX = os.environ.get("M68K_PREFIX", "m68k-elf-")
 BASE = 0x40000400
 LD = os.path.join(HERE, "polykit.ld")
@@ -53,6 +58,10 @@ BEFORE_PAD = (0x400bedec, "4ef9400771f0", "the jump that ends the code before th
 USES = [(0x400bf18c, "2079800019ac41e8009e43f9439d1050", "poly_engine's map rebuild, the source half (MAP_SRC)"),
         (0x400bf1ca, "4e75", "its rts"),
         (0x40077380, "206f000443e8091a", "the kit tail's reader (KIT_TAIL)")]
+# Bytes of the features before this one that a feature merged after it rewrites, as those features hold
+# them: the lighter render (cfoo_diet, from v0.2.6) rewrites the CFO oscillator's render, portamento's note
+# operand in it included; patch.json then lists those bytes under cfoo_diet. build_without_pk gives them back.
+LATER_SITES = region.give_back()
 
 
 def run(*cmd):
@@ -82,8 +91,9 @@ def assemble(tmp):
 
 
 def build_without_pk(stock, patch):
-    """The build before this change, from patch.json: its features before poly_kit_change. It must hash to
-    BUILD_SECTION3. Returns the image and who owns each byte it changes ({address: (feature, kind)})."""
+    """The build before this change, from patch.json: its features before poly_kit_change, and LATER_SITES
+    given back. It must hash to BUILD_SECTION3. Returns the image and who owns each byte it changes
+    ({address: (feature, kind)})."""
     ids = [f["id"] for f in patch["features"]]
     img, owner = bytearray(stock), {}
     for f in patch["features"][:ids.index(FID) if FID in ids else len(ids)]:
@@ -92,6 +102,12 @@ def build_without_pk(stock, patch):
             img[a - BASE:a - BASE + len(d)] = d
             for k in range(len(d)):
                 owner[a + k] = (f["id"], r.get("kind", "code"))
+    for a, want, fid in LATER_SITES:
+        d = bytes.fromhex(want)
+        img[a - BASE:a - BASE + len(d)] = d
+        for k in range(len(d)):
+            if d[k] != stock[a - BASE + k]:
+                owner[a + k] = (fid, "code")
     h = build.sha256_bytes(bytes(img))
     if h != BUILD_SECTION3:
         sys.exit("the build before poly_kit_change does not come back from patch.json (section 3 %s)" % h)

@@ -31,7 +31,7 @@ occupants are the same code as in the patch listing ([docs/patch_listing.md](../
 | `FUN_400c1034` | `0x400c1034..0x400c1080` | 76 B | POLY machine-name pointer table and `"POLY\0"`; Chain Recording's `mem_pad` in the tail, `0x400c1062..0x400c107e` |
 | `0x400bf16c` | `0x400bf16c..0x400bf1e8` | 124 B | POLY kit-load detour and the shared pool-map build routine; Chain Recording's `len_pad` in the tail, `0x400bf1cc..0x400bf1e0` |
 | `0x40037a24` | `0x40037a24..0x40037ade` | 186 B | POLY machine-assign hook, pattern-switch refresh, and the note routing pad of the audio ISR |
-| `FUN_400bed3a`, `FUN_400bed9c`, `FUN_400bee02` | `0x400bed3a..0x400bee6a` | 304 B | POLY parameter-read alias, machine alias, knob-follow loop, parameter-write alias, SLICE robin selector, picker-icon lookup, MIDI Loopback dial-number pad |
+| `FUN_400bed3a`, `FUN_400bed9c`, `FUN_400bee02` | `0x400bed3a..0x400bee6a` | 304 B | POLY parameter-read alias, machine alias, knob-follow loop, parameter-write alias, SLICE robin selector, picker-icon lookup, MIDI Loopback dial-number pad; from v0.2.6 POLY's `pk_follow` (the pools on every kit change), the 16 B at `0x400bedf2` |
 | span at `0x40015558` | `0x40015558..0x400156e4` | 396 B | pool cursors, MIDI Loopback display pads, private-lane arm and record filter |
 | span at `0x400151ac` | `0x400151ac..0x400152d0` | 292 B | MIDI Loopback channel hook and tap |
 | the STL span | `0x401770a6..0x40177194` | 238 B | voice allocation, mute-by-origin detours; Chain Recording's chain state and `stop_pad` in the tail, `0x40177104..0x40177192` |
@@ -44,6 +44,11 @@ build holds S27's:
 | Pad | Extent | Size | Occupied by |
 |---|---|---:|---|
 | `FUN_400f77da` | `0x400f77da..0x400f811e` | 2,372 B | the CFO oscillator: in S11 `0x400f77da..0x400f7aac`; in S12 the code to `0x400f7abe` and the machine name table with its strings `0x400f7ac0..0x400f7b09`; in S13 and S14 the code to `0x400f7b26` and the name tables `0x400f7b28..0x400f7c01`; in S15 the code to `0x400f7b40` and the name tables `0x400f7b40..0x400f7c19`; in S16 the code to `0x400f7bcc` and the name and range tables `0x400f7bcc..0x400f7d41`; in S17 the code to `0x400f7dda` and the name, range and display tables `0x400f7ddc..0x400f7f79`; in S18 the code to `0x400f7f40` and the tables `0x400f7f40..0x400f8111`, 13 B short of the pad's end; in S19 the code to `0x400f7eb6` and the tables `0x400f7eb8..0x400f8089`, 149 B short; from S20 on code only, the tables in the .rodata padding at `0x40252c80`: S20 to `0x400f7ede`, S21 to `0x400f7f52`, S22 to `0x400f7f70`, S23 to `0x400f8060`, S24 to `0x400f80a4`, S25 to `0x400f80c6`, S26 to `0x400f811c`, 2 B short, S27 to `0x400f8118`, 6 B short; the rest keeps its fill. LZ4's streaming compressor, admitted by the recipe's library exception (the candidate list below); its fill test is the stage image S9 |
+
+From v0.2.6 the CFO oscillator's render in that pad, `0x400f77da..0x400f7b18` but for its `segfrac`
+(`0x400f7a1e..0x400f7a5c`), is the lighter render's code
+([features/cfo_oscillator.md](features/cfo_oscillator.md#the-lighter-render-from-v026)): 570 B before
+`segfrac` and 186 B after it, the rest filled (10 B at `0x400f7a14`, 2 B at `0x400f7b16`).
 
 Portamento ([features/portamento.md](features/portamento.md)), stage by stage on the CFO oscillator's
 S27; the build holds S36's:
@@ -75,13 +80,14 @@ The modulation matrix (in the build from v0.2.5; by stage in
 pictures' pad after their code, from `0x401045c0`, S57 682 B growing to S69's and S70's 2,232 B,
 to `0x40104e78`.
 
-Free code space: 108 B in fifteen blocks, none larger than 16 B: 16 B at `0x400152c0`, 16 B at
-`0x400bedf2`, 10 B at `0x400156da`, 8 B at `0x400bf1e0`, 8 B at `0x40037ad6`, 8 B at `0x401778d0`
+Free code space: 104 B in sixteen blocks, none larger than 16 B: 16 B at `0x400152c0`, 10 B at
+`0x400156da`, 10 B at `0x400f7a14` and 2 B at `0x400f7b16` (the CFO oscillator's pad, fill, after the
+lighter render's two parts), 8 B at `0x400bf1e0`, 8 B at `0x40037ad6`, 8 B at `0x401778d0`
 (FILTER page 2's `FUN_401778a4`, fill), 6 B at `0x40104e78` (the wave pictures' pad, fill, after the
 modulation matrix), 6 B at `0x400c1392`, 6 B at `0x400bed96`, 6 B at `0x400bee64`, 6 B at
 `0x400f8118` (the CFO oscillator's pad, fill), 6 B at `0x400ee0d2` (portamento's `FUN_400ee05e`,
 fill), 2 B at `0x40124b30` (the soft-float pad's last `rts`), 2 B at `0x40177192` (the STL span's
-tail, fill) and 2 B at `0x400c107e`. A feature after v0.2.5 needs a new vetted pad; the rest of
+tail, fill) and 2 B at `0x400c107e`. A feature after v0.2.6 needs a new vetted pad; the rest of
 xxHash's unused 64-bit family is the nearest candidate
 ([below](#the-candidate-list-on-this-image)). Chain Recording's code in the pads:
 [features/chain_record.md](features/chain_record.md#where-the-code-lives). FILTER page 2's KEY text

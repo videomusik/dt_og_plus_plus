@@ -15,7 +15,7 @@ The build before this feature comes back from patch.json (build_without_wavpic: 
 wave_pictures, the CFO oscillator's bytes this feature rewrites given back, and FILTER page 2's bytes a
 feature merged after it rewrites, LATER_SITES, given back) and must give BUILD_SECTION3. Once patch.json
 holds a feature merged after wave_pictures (filter_page2_key_note, S56; mod_matrix, S69), S55 is checked
-against its recorded hash and --write is refused: the last feature's generator (make_mm.py) rewrites
+against its recorded hash and --write is refused: the last feature's generator (make_diet.py) rewrites
 patch.json. Stages, written to out/1.54/stages/ (only with --stages):
   S53  the build + FUN_401044b6 filled with 'clrl %d0 ; rts': the fill test of the new pad
   S54  S53 + the CFO oscillator's picture hook jumps to the new pad at its knob's record, and the pad only
@@ -29,10 +29,12 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", "..", "..", ".."))
 sys.path.insert(0, os.path.join(ROOT, "os", "1.54", "build"))
 sys.path.insert(0, os.path.join(ROOT, "os", "1.54", "src", "cfo_oscillator"))
+sys.path.insert(0, os.path.join(ROOT, "os", "1.54", "src", "cfoo_diet"))
 import build  # noqa: E402
 import make_listing  # noqa: E402
 import make_cfo as cfo  # noqa: E402
 import make_waves  # noqa: E402
+import region  # noqa: E402
 PFX = os.environ.get("M68K_PREFIX", "m68k-elf-")
 BASE = 0x40000400
 LD = os.path.join(HERE, "wavpic.ld")
@@ -57,10 +59,11 @@ S55_SHA = "957bdc6fa80cca3860615cf3baa11310db666da1eec3770fa1d2fbc70615ee45"   #
 # Bytes of the features before this one that a feature merged after it rewrites, as those features hold
 # them: KEY on the trig's note (filter_page2_key_note, S56) replaces the operand of filt_key's lea, which
 # patch.json then lists under that feature; the modulation matrix (mod_matrix, from v0.2.5) points the
-# knob cell's name call, which MIDI Loopback had pointed at its own, at its own. build_without_wavpic
-# gives them back.
+# knob cell's name call, which MIDI Loopback had pointed at its own, at its own; the lighter render
+# (cfoo_diet, from v0.2.6) rewrites the CFO oscillator's render with portamento's note operand in it
+# (region.py). build_without_wavpic gives them back.
 LATER_SITES = [(0x40178f2c, "439d1180", "filter_page2"),
-               (0x40030dad, "01562c", "midi_loopback")]
+               (0x40030dad, "01562c", "midi_loopback")] + region.give_back()
 
 
 def run(*cmd):

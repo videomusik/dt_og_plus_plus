@@ -1,21 +1,26 @@
 #!/usr/bin/env python3
 """The CFO oscillator's render, lighter, for OS 1.54, on top of the build before it (v0.2.5 with
 poly_kit_change's S71): assemble diet.s with diet.ld, check its place against the stock image and that
-build, and write the emulator harness's load files; with --stages, build the stage images.
+build, and write the emulator harness's load files; with --stages, build the stage images; with --write,
+merge the last stage, S73, into os/1.54/build/patch.json as the feature cfoo_diet.
 
-    python3 os/1.54/src/cfoo_diet/make_diet.py            # check, and write the load files
-    python3 os/1.54/src/cfoo_diet/make_diet.py --stages   # also build the stage images
+    python3 os/1.54/src/cfoo_diet/make_diet.py                    # check, and write the load files
+    python3 os/1.54/src/cfoo_diet/make_diet.py --stages           # also build the stage images
+    python3 os/1.54/src/cfoo_diet/make_diet.py --stages --write   # and rewrite patch.json
 
 Needs m68k binutils (M68K_PREFIX, as make_cfo.py), the stock section 3 from ./scripts/extract.sh 1.54,
 the CFO oscillator's load file for S27 (work/dt_1.54-cfo/lz4_stream_m5o.load, from make_cfo.py
-lz4_stream.ld) and, for --stages, the stock .syx and the firmware tool (as build.py). It does not change
-patch.json.
+lz4_stream.ld) and, for --stages, the stock .syx and the firmware tool (as build.py).
 
-The build before it comes back from patch.json (v0.2.5) with S71's change on it (make_polykit.py) and must
-give S71's recorded section 3. The render's code there, 0x400f77da..0x400f7b18, is the CFO oscillator's
-(S27) with portamento's note operand; the CFO oscillator's segfrac in it, 0x400f7a1e..0x400f7a5c, stays,
-and the new code goes around it (.diet_a before, .diet_b after), the rest of each part filled with the
-pad's fill. The stages, written to out/1.54/stages/ (only with --stages):
+The build before it comes back from patch.json (build_without_diet: its features before cfoo_diet, which
+end with poly_kit_change, and, once cfoo_diet is merged, the region given back as the CFO oscillator and
+portamento hold it, region.py) and must give S71's section 3. The render's code there,
+0x400f77da..0x400f7b18, is the CFO oscillator's (S27) with portamento's note operand; the CFO oscillator's
+segfrac in it, 0x400f7a1e..0x400f7a5c, stays, and the new code goes around it (.diet_a before, .diet_b
+after), the rest of each part filled with the pad's fill. S73 is the build from v0.2.6: patch.json holds
+the build before it, then cfoo_diet (S73 less that build). Each byte is listed once, under the last feature
+that wrote it, so the region's bytes are listed under cfoo_diet. The stages, written to out/1.54/stages/
+(only with --stages):
   S72  S71 + the render in fewer instructions (a multiply for the pitch's divide, one routine for OSC2
        and OSC3, a register for the oscillator loop's shift), and a CFOO track whose amp envelope is closed
        renders nothing (option IDLE)
@@ -29,16 +34,25 @@ ROOT = os.path.abspath(os.path.join(HERE, "..", "..", "..", ".."))
 sys.path.insert(0, os.path.join(ROOT, "os", "1.54", "build"))
 sys.path.insert(0, os.path.join(ROOT, "os", "1.54", "src", "cfo_oscillator"))
 sys.path.insert(0, os.path.join(ROOT, "os", "1.54", "src", "mod_matrix"))
-sys.path.insert(0, os.path.join(ROOT, "os", "1.54", "src", "poly_kit_change"))
+sys.path.insert(0, HERE)
 import json  # noqa: E402
 import build  # noqa: E402
+import make_listing  # noqa: E402
 import make_cfo as cfo  # noqa: E402
 import make_mm as mm  # noqa: E402
-import make_polykit as pk  # noqa: E402
+import region  # noqa: E402
 PFX = os.environ.get("M68K_PREFIX", "m68k-elf-")
 BASE = 0x40000400
 LD = os.path.join(HERE, "diet.ld")
-BASE_STAGE = "S71"
+BUILD_SECTION3 = "00817e747065bcddc17d62cb70c065e2509b9c8f9a80332ff90c7c04970f99ef"   # the build before it, S71
+PREV = "poly_kit_change"                                # the feature patch.json holds just before this one
+FID = "cfoo_diet"
+TITLE = ("CFO oscillator, lighter: a CFOO track renders nothing while its amp envelope is closed, and an "
+         "oscillator nothing hears is not rendered; the sound is the same")
+LAST = "S73"
+# Once patch.json holds cfoo_diet, the region's bytes are listed under it; build_without_diet gives them
+# back as the features before it hold them: the CFO oscillator's, portamento's note operand.
+GIVE_BACK = region.give_back()
 # The region: the CFO oscillator's render, and in it its segfrac, which stays.
 REGION = (0x400f77da, 0x400f7b18)
 SEGFRAC = (0x400f7a1e, 0x400f7a5c)
@@ -101,22 +115,58 @@ def place(img, secs):
     return im
 
 
-def base_build(stock, patch):
-    """v0.2.5 from patch.json with S71's change: the build before this one. Returns the image and who owns
-    each byte v0.2.5 changes."""
-    img, owner = pk.build_without_pk(stock, patch)
-    tmp = tempfile.mkdtemp(prefix="diet-")
-    try:
-        secs, _syms = pk.assemble(tmp)
-    finally:
-        shutil.rmtree(tmp, ignore_errors=True)
-    im = bytearray(img)
-    for _n, (vma, data) in secs.items():
-        im[vma - BASE:vma - BASE + len(data)] = data
-    h = build.sha256_bytes(bytes(im))
-    if h != pk.RECORDED[BASE_STAGE]:
-        sys.exit("the build before the lighter render is not %s (section 3 %s)" % (BASE_STAGE, h))
-    return im, owner
+def build_without_diet(stock, patch):
+    """The build before this change, from patch.json: its features before cfoo_diet (the last of them
+    poly_kit_change) and, once cfoo_diet is merged, GIVE_BACK. It must hash to BUILD_SECTION3. Returns the
+    image and who owns each byte it changes ({address: (feature, kind)})."""
+    ids = [f["id"] for f in patch["features"]]
+    before = ids[:ids.index(FID)] if FID in ids else ids
+    assert before and before[-1] == PREV, "patch.json's feature before cfoo_diet is %s, not %s" % (before[-1:], PREV)
+    img, owner = bytearray(stock), {}
+    for f in patch["features"][:len(before)]:
+        for r in f["runs"]:
+            a, d = int(r["addr"], 16), bytes.fromhex(r["bytes"])
+            img[a - BASE:a - BASE + len(d)] = d
+            for k in range(len(d)):
+                owner[a + k] = (f["id"], r.get("kind", "code"))
+    if FID in ids:
+        for a, want, fid in GIVE_BACK:
+            d = bytes.fromhex(want)
+            img[a - BASE:a - BASE + len(d)] = d
+            for k in range(len(d)):
+                if d[k] != stock[a - BASE + k]:
+                    owner[a + k] = (fid, "code")
+    h = build.sha256_bytes(bytes(img))
+    if h != BUILD_SECTION3:
+        sys.exit("the build before the lighter render does not come back from patch.json (section 3 %s)" % h)
+    return img, owner
+
+
+def merged_features(stock, patch, img, owner, last):
+    """patch.json's features before cfoo_diet, and cfoo_diet = the last stage on the build before it (img,
+    whose changed bytes owner attributes): each byte the stage changes, under the last feature that wrote it.
+    Runs are maximal per feature and kind, as make_wavpic.py writes them."""
+    def kind(a):
+        return "code" if any(lo <= a < hi for lo, hi in make_listing.CODE_WINDOWS) else "data"
+    attr = {}
+    for i in range(len(stock)):
+        if last[i] != stock[i]:
+            a = BASE + i
+            attr[a] = (FID, kind(a)) if last[i] != img[i] else owner[a]
+    runs, cur = {}, None
+    for a in sorted(attr):
+        fid, k = attr[a]
+        if cur and cur["fid"] == fid and cur["kind"] == k and cur["end"] == a:
+            cur["b"].append(last[a - BASE]); cur["end"] = a + 1
+        else:
+            cur = {"fid": fid, "kind": k, "start": a, "end": a + 1, "b": [last[a - BASE]]}
+            runs.setdefault(fid, []).append(cur)
+    ids = [f["id"] for f in patch["features"]]
+    earlier = patch["features"][:ids.index(FID) if FID in ids else len(ids)]
+    features = [(f["id"], f["title"]) for f in earlier] + [(FID, TITLE)]
+    return [{"id": i, "title": t,
+             "runs": [{"addr": "0x%08x" % x["start"], "bytes": bytes(x["b"]).hex(), "kind": x["kind"]}
+                      for x in runs.get(i, [])]} for i, t in features]
 
 
 def words_into(img, lo, hi):
@@ -163,12 +213,19 @@ def write_load(path, img_load, syms_new, opts):
 
 
 def main():
-    stages = "--stages" in sys.argv
+    stages, write = "--stages" in sys.argv, "--write" in sys.argv
+    if write and not stages:
+        sys.exit("--write needs --stages (patch.json carries the .syx hash of the %s build)" % LAST)
     stock = build.read(cfo.STOCK3)
     with open(cfo.PATCH) as f:
         patch = json.load(f)
+    ids = [f["id"] for f in patch["features"]]
+    later = ids[ids.index(FID) + 1:] if FID in ids else []
+    if write and later:
+        sys.exit("patch.json holds features merged after %s (%s); the last one's generator rewrites it"
+                 % (FID, ", ".join(later)))
     assert build.sha256_bytes(stock) == patch["stock"]["section3_sha256"], "work/dt_1.54 is not the stock section 3"
-    img, owner = base_build(stock, patch)
+    img, owner = build_without_diet(stock, patch)
     for a, want, what in FACTS:
         assert img[a - BASE:a - BASE + len(want) // 2].hex() == want, "0x%08x is not %s" % (a, what)
     for a in range(*REGION):
@@ -219,12 +276,21 @@ def main():
     for name, (im, syms, opts) in loads.items():
         imd = {BASE + i: im[i] for i in range(REGION[0] - BASE, REGION[1] - BASE)}
         write_load(os.path.join(out, "diet_%s.load" % name), imd, syms, opts)
+    feats = merged_features(stock, patch, img, owner, built[LAST])
+    hl = build.sha256_bytes(built[LAST])
+    if later:
+        print("%s section 3 %s; patch.json carries %s after it" % (LAST, hl, ", ".join(later)))
+    else:
+        same = feats == patch["features"] and hl == patch["result"]["section3_sha256"]
+        print("%s section 3 %s; patch.json %s" % (LAST, hl, "is up to date" if same else
+                                                  "differs (%s)" % patch["result"]["section3_sha256"]))
     if not stages:
         print("no stage images built (--stages)")
         return
     dest = os.path.join(ROOT, "out", "1.54", "stages")
     os.makedirs(dest, exist_ok=True)
     syx, tool = build.DEFAULT_SYX, build.DEFAULT_TOOL
+    res = {}
     for name, p3 in built.items():
         sel, i = [], 0
         while i < len(stock):
@@ -247,12 +313,21 @@ def main():
             build.pack(tool, syx, pb, packed)
             build.check_report(tool, packed)
             build.roundtrip(tool, packed, p3, st, os.path.join(t2, "verify"))
-            h = build.sha256_file(packed)
+            h, size = build.sha256_file(packed), os.path.getsize(packed)
             final = os.path.join(dest, "dt_og_plus_plus_v0.2.5-%s_%s.syx" % (name, h[:8]))
             os.replace(packed, final)
         finally:
             shutil.rmtree(t2, ignore_errors=True)
+        res[name] = (h, size)
         print("%s section 3 %s .syx %s -> %s" % (name, build.sha256_bytes(p3), h, final))
+    if write:
+        patch["features"] = feats
+        patch["result"] = dict(patch["result"], section3_sha256=hl,
+                               syx_sha256_reference=res[LAST][0], syx_size_reference=res[LAST][1])
+        with open(cfo.PATCH, "w") as f:
+            json.dump(patch, f, indent=1)
+            f.write("\n")
+        print("wrote", cfo.PATCH)
     print("Nothing was sent to a device.")
 
 

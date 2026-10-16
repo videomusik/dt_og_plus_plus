@@ -12,11 +12,13 @@ Needs m68k binutils (M68K_PREFIX, as make_cfo.py), the stock section 3 from ./sc
 and, for --stages, the stock .syx and the firmware tool (as build.py).
 
 The build before this feature comes back from patch.json (build_without_mm: its features before
-mod_matrix and, once that is merged, the bytes of earlier features it rewrites given back: the pad's fill
-under wave_pictures and midi_loopback's call target, GIVE_BACK) and must give BUILD_SECTION3. S70 is the
-build from v0.2.5: patch.json holds the build before it, then mod_matrix (S70 less that build). Each byte
-is listed once, under the last feature that wrote it. Stages, written to out/1.54/stages/ (only with
---stages):
+mod_matrix, the bytes of those that a feature merged after it rewrites, LATER_SITES, and, once mod_matrix
+is merged, the bytes of earlier features it rewrites: the pad's fill under wave_pictures and
+midi_loopback's call target, GIVE_BACK, given back) and must give BUILD_SECTION3. S70 was the build of
+v0.2.5: patch.json holds the build before it, then mod_matrix (S70 less that build). Each byte is listed
+once, under the last feature that wrote it. Once patch.json holds features merged after it
+(poly_kit_change, cfoo_diet; v0.2.6), --write is refused: the last feature's generator (make_diet.py)
+rewrites patch.json. Stages, written to out/1.54/stages/ (only with --stages):
   S57  the build + the matrix page: [LFO] + [UP]/[DOWN] on an audio track shows MOD WHEEL or BREATH CTRL
        with eight empty knobs, [UP]/[DOWN] step between the two, a tap of [LFO] (or another page key, or
        [TRK]) leaves it; nothing stored. Meant to keep knobs A..H from the LFO under it, but the unit's
@@ -53,9 +55,11 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", "..", "..", ".."))
 sys.path.insert(0, os.path.join(ROOT, "os", "1.54", "build"))
 sys.path.insert(0, os.path.join(ROOT, "os", "1.54", "src", "cfo_oscillator"))
+sys.path.insert(0, os.path.join(ROOT, "os", "1.54", "src", "cfoo_diet"))
 import build  # noqa: E402
 import make_listing  # noqa: E402
 import make_cfo as cfo  # noqa: E402
+import region  # noqa: E402
 PFX = os.environ.get("M68K_PREFIX", "m68k-elf-")
 BASE = 0x40000400
 LD = os.path.join(HERE, "mm.ld")
@@ -93,6 +97,10 @@ BUILD_SITES = [(".call_name", 0x40030daa, "4eb94000fe8a", "4eb94001562c", "midi_
 # from PAD_FROM is wave_pictures' (make_cfo.fill over the whole pad, as make_wavpic.py fills it).
 GIVE_BACK = [(a, want, feat) for _n, a, _s, want, feat, _w in BUILD_SITES] + \
             [(PAD_FROM, cfo.fill(*PAD)[PAD_FROM - PAD[0]:].hex(), PAD_OWNER)]
+# Bytes of the features before this one that a feature merged after it rewrites, as those features hold
+# them: the lighter render (cfoo_diet, from v0.2.6) rewrites the CFO oscillator's render with portamento's
+# note operand in it (region.py). build_without_mm gives them back.
+LATER_SITES = region.give_back()
 # What S63 and S64 rely on, by the bytes that show it: HelpBubbleView's vtable (its type before it); the
 # live kit's index at its +0x44, the project data at 0x409bbbfc and its 128 kits at +0xf6341c (RAMKITS
 # 0x4191f018), the gate's whole body (which mm_kload replaces) and its loader's first bytes.
@@ -218,9 +226,9 @@ def branches_into(img, lo, hi):
 
 
 def build_without_mm(stock, patch):
-    """The build before the matrix, from patch.json: its features before mod_matrix and, once that is
-    merged, GIVE_BACK. It must hash to BUILD_SECTION3. Returns the image and who owns each byte it changes
-    ({address: (feature, kind)})."""
+    """The build before the matrix, from patch.json: its features before mod_matrix, LATER_SITES and, once
+    mod_matrix is merged, GIVE_BACK. It must hash to BUILD_SECTION3. Returns the image and who owns each
+    byte it changes ({address: (feature, kind)})."""
     ids = [f["id"] for f in patch["features"]]
     img, owner = bytearray(stock), {}
     for f in patch["features"][:ids.index(FID) if FID in ids else len(ids)]:
@@ -229,6 +237,12 @@ def build_without_mm(stock, patch):
             img[a - BASE:a - BASE + len(d)] = d
             for k in range(len(d)):
                 owner[a + k] = (f["id"], r.get("kind", "code"))
+    for a, want, fid in LATER_SITES:
+        d = bytes.fromhex(want)
+        img[a - BASE:a - BASE + len(d)] = d
+        for k in range(len(d)):
+            if d[k] != stock[a - BASE + k]:
+                owner[a + k] = (fid, "code")
     if FID in ids:
         for a, want, fid in GIVE_BACK:
             d = bytes.fromhex(want)

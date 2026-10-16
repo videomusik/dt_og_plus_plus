@@ -2,9 +2,11 @@
 
 In the build from v0.2.3: `os/1.54/build/patch.json` holds it as the feature `wave_pictures`, its last
 stage, S55, less the build before it (v0.2.2, section 3 `3b88fa95…`), on which the stages are built.
-v0.2.3 is S55, byte for byte. KEY on the trig's note (v0.2.4) and the modulation matrix (v0.2.5) follow
-it; the matrix puts its code over the rest of this feature's pad fill, none of this feature's code
-([mod_matrix.md](mod_matrix.md)). Source: [src/wave_pictures/](../../src/wave_pictures/).
+v0.2.3 is S55, byte for byte. KEY on the trig's note (v0.2.4), the modulation matrix (v0.2.5), POLY's
+pools on every kit change and the CFO oscillator's lighter render (v0.2.6) follow it; the matrix puts
+its code over the rest of this feature's pad fill, and the lighter render keeps the CFO oscillator's
+`segfrac`, which this feature calls; none rewrites this feature's code ([mod_matrix.md](mod_matrix.md),
+[cfo_oscillator.md](cfo_oscillator.md#the-lighter-render-from-v026)). Source: [src/wave_pictures/](../../src/wave_pictures/).
 
 ## What it does
 
